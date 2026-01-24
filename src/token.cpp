@@ -6,42 +6,58 @@ char Token::getNextChar(const std::string& line, size_t& index) {
     if (index < line.length()) {
 		return line[index++];
 	}
-    return '\0'; // Indicate end of char_input
+    return '\0'; // Indicate end of current_char
 }
 
-void Token::skipToken(size_t& index, std::string line){
+void Token::skipToken(size_t& index, const std::string& line){
     while (index < line.length() && !isspace(line[index])) {
         index++;
     }
 }
 
 // TODO make it backtrack when necessary by updating index
-std::vector<Token> Token::tokenize(const std::string& line, int lineNumber) {
+std::vector<Token> Token::tokenize(const std::string& line, int lineNumber, bool& inBlockComment) {
 	size_t index = 0;
-	char char_input;
-
-	std::string rest_line = line;
-
 	std::vector<Token> tokens;
 
-	while((char_input = getNextChar(line, index)) != '\0') {
-		size_t start_index = index - 1; // -1 because getNextChar already advanced index
+	while(index < line.length()) {
+        if (inBlockComment) {
+            size_t closingPos = line.find("*/", index);
+
+            if (closingPos != std::string::npos) {
+                // Found closing tag on this line
+                // Create token for the part before the closing */
+                std::string lexeme = line.substr(index, closingPos + 2 - index);
+                tokens.emplace_back(Type::TERMINATED_COMMENT_, lexeme, lineNumber);
+
+                index = closingPos + 2;
+                inBlockComment = false;
+            } else {
+                // Whole line is part of the comment
+                std::string lexeme = line.substr(index);
+                tokens.emplace_back(Type::BLOCK_COMMENT_, lexeme, lineNumber);
+
+                index = line.length();
+            }
+            continue;
+        }
+
+		char current_char = line[index];
 
 		Token::Type type = Type::INVALID_;
+        size_t start_index = index;
+        std::string lexeme;
+        
 
-		if(std::isspace(char_input)) {
+		if(std::isspace(current_char)) {
+            index++;
 			continue; // Skip whitespace
 		}
 
-		std::string lexeme(1, char_input);
-		switch (char_input) {
+		switch (current_char) {
 			case '+':  type = Type::PLUS_; break;
 			case '-': type = Type::MINUS_; break;
 			case '*': type = Type::MULTIPLY_; break;
-			case '/': type = Type::DIVIDE_; break;
-			case '<': type = Type::LESS_THAN_; break;
-			case '>': type = Type::GREATER_THAN_; break;
-			case '=': type = Type::ASSIGNMENT_; break;
 			case '{': type = Type::OPEN_BRACE_; break;
 			case '}': type = Type::CLOSE_BRACE_; break;
 			case '(': type = Type::OPEN_PAREN_; break;
@@ -50,68 +66,234 @@ std::vector<Token> Token::tokenize(const std::string& line, int lineNumber) {
 			case ']': type = Type::CLOSE_BRACKET_; break;
 			case ',': type = Type::COMMA_; break;
 			case ';': type = Type::SEMICOLON_; break;
-			case '.' : type = Type::DOT_; break;
-			case ':' : type = Type::COLON_; break;
+            case '.': type = Type::DOT_; break;
 
             //Not a single character Type
 			default:
-                char current;
-                char next;
-
-                //Checks for INTEGER or FLOAT Types
-				if(isdigit(char_input)) {
-                    // TODO handle float and invalid number
-                    // TODO If starts with number but has more characters attached -> INVALID_ID_
-                    type = Type::INTEGER_LITERAL_;
-
-                    while (index < line.length() && isdigit(current = line[index])) {
-                        index++;
-                    }
-
-                    current = line[index-1];
-                    next = line[index];
-
-
-                    if (!isdigit(current) || !(isdigit(next) || isspace(next) || next == '\0')) { //contains a character that is not a number either in the last read one or the one after
-                        skipToken(index, line);
-                        type = Type::INVALID_NUMBER_;
-                    }
+				//Check for Comments
+                if (current_char == '/') {
+                    type = isValidComment(current_char, index, line, inBlockComment);
                 }
 
+                //Checks for INTEGER or FLOAT Types
+				else if(isdigit(current_char)) {
+                    // handle float and invalid number
+                    // If starts with number but has more characters attached -> INVALID_ID_
+
+					type = isValidIntegerOrFloat(index, line);
+				}
+
                 //Check for ID type
-				else if(isAlphaNumeric(char_input)){
-					type = isValidId(char_input, line, index);
+				else if(_isAlphaNumeric(current_char)){
+					type = isValidId(current_char, line, index);
 				}
 
-                //TODO Multicharacter operator
-                else if(false){}
-
-				else{
-					type = Type::INVALID_CHAR_;
+                //Multi character operator
+                else{
+					type = isValidCharOperator(line, index);
 				}
+
+                break;
         }
 
-        if (index > start_index + 1) {
+        if (index > start_index) {//calculate the length base on how far the index moved
             lexeme = line.substr(start_index, index - start_index);
+            tokens.emplace_back(type, lexeme, lineNumber);
+        }else{ //None of the above cases updated the index
+            index++;
         }
 
-        tokens.emplace_back(type, lexeme, lineNumber);
+
 	}
 
 	return tokens;
 
 }
 
+//TODO FIX 0... DONE
+bool Token::_isValidIntegerLiteral(size_t& index, const std::string& line) {
+    if (index >= line.length()) return false;
 
+    // Number starts with 0 ---
+    if (line[index] == '0') {
+        index++; // Consume '0'
+        
+        // If it's a digit, we have a leading zero error (e.g., 012)
+        if (index < line.length() && isdigit(line[index])) {
+            skipToken(index, line); 
+            return false;
+        }
+        
+        // Note: We do NOT return immediately here We still need to check if the suffix is valid (e.g. 0a is invalid)
+    } 
+    // Number starts with 1-9 ---
+    else {
+        // Consume contiguous digits
+        while (index < line.length() && isdigit(line[index])) {
+            index++;
+        }
+    }
 
-bool Token::isAlphaNumeric(char c) {
+    // Number suffix check
+    // We stopped reading digits. Now we check what stopped us.
+    if (index < line.length()) {
+        char next = line[index];
+        
+        // If the next char is a Letter or Underscore, it might be an error.
+        // valid:  123 + 5  (next is space)
+        // valid:  123;     (next is ;)
+        // valid:  123.45   (next is .)
+        // valid:  123e5    (next is e)
+        // INVALID: 123a    (next is a)
+        // INVALID: 123_    (next is _)
+        
+        if (isalpha(next) || next == '_') {
+            // Exception: 'e' or 'E' are valid if we are parsing a float next
+            if (next != 'e' && next != 'E') {
+                skipToken(index, line);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+// float ::= integer fraction [e[+|−] integer]
+// Logic: [e[+|−] integer] assuming fraction has been checked
+// TODO FIX XXX.245232'0'
+bool Token::_isValidFloatLiteral(size_t& index, const std::string& line) {
+	if (index >= line.length() || (line[index] != 'e' && line[index] != 'E')) { // No exponent part -> still valid float
+        return true; 
+    }
+
+	index++; // Consume 'e' or 'E'
+
+	// Optional Sign (+ or -) since if we got here then there was an exponent part
+    if (index < line.length() && (line[index] == '+' || line[index] == '-')) {
+        index++; 
+    }
+
+	// Now we must have an integer
+	if (index >= line.length() || !isdigit(line[index])) {
+        skipToken(index, line);
+        return false;
+    }
+
+    // Validate the Exponent's Integer value
+    return _isValidIntegerLiteral(index, line);
+	
+}
+
+bool Token::_isFractionPart(const std::string& line, size_t& index) {
+    if (index >= line.length() || line[index] != '.') { // check for '.'
+        return false;
+    }
+
+    size_t dotIndex = index;
+    index++; // Consume '.'
+
+    size_t start_digits_index = index;
+
+    // do not stop at 0. consume everything to see the full number.
+    while (index < line.length() && isdigit(line[index])) {
+        index++;
+    }
+
+    size_t digit_count = index - start_digits_index;
+
+    //Validation: Must have at least one digit
+    if (digit_count == 0) {
+        // Found "123." with no digits after.
+        // This is an invalid fraction.
+        skipToken(index, line);
+        return false;
+    }
+
+    // TODO: "accept 0s first but not as their last digit"
+    char last_digit = line[index - 1];
+
+    if (last_digit == '0') {
+        // If it ends in 0, it is ONLY valid if the length is exactly 1
+        // .0   -> Count 1, Ends in 0 -> VALID
+        // .50  -> Count 2, Ends in 0 -> INVALID (Trailing Zero)
+        // .00  -> Count 2, Ends in 0 -> INVALID
+        // .050 -> Count 3, Ends in 0 -> INVALID
+        if (digit_count > 1) {
+            skipToken(index, line);
+            return false;
+        }
+    }
+    return true;
+//
+//    // There must be at least one NONZERO digit after the decimal point
+//    if (index < line.length() && isdigit(line[index]) && line[index] != '0') { //TODO FIX THIS digit* part to make it accept 0s first but not as ther last digit
+//        // Consume digits after the decimal point
+//        while (index < line.length() && isdigit(line[index]) && line[index] != '0') {
+//            index++;
+//        }
+//        return true; // Valid fraction part
+//    } else { // zero or no digit after decimal point
+//
+//        if (line[index++] == '0' && isspace(line[index])){ //check for exactly one zero: consume zero and check next is space
+//            return true; // Valid fraction part with single zero
+//        }
+//
+//        skipToken(index, line);
+//        return false; // Invalid fraction part
+//    }
+}
+
+//TODO Fix flot missing + or -, since now it considers it as wrong when they are missing
+Token::Type Token::isValidIntegerOrFloat(size_t& index, const std::string& line) {
+	bool is_integer = _isValidIntegerLiteral(index, line); 
+
+	if (!is_integer) {
+		return Type::INVALID_NUMBER_;
+	} // If not integer, return invalid number
+
+    bool hasFraction = false;
+
+    if (index < line.length() && line[index] == '.') {
+
+        // We attempt to parse the fraction.
+        // If _isFractionPart returns false here, it means we had a dot
+        // but the digits following it were invalid (e.g., "12." or "12.50").
+        if (!_isFractionPart(line, index)) {
+            return Type::INVALID_NUMBER_;
+        }
+
+        hasFraction = true;
+    }
+
+    if (index < line.length() && (line[index] == 'e' || line[index] == 'E')) {
+
+        // We attempt to parse the exponent.
+        if (!_isValidFloatLiteral(index, line)) {
+            return Type::INVALID_NUMBER_; // Fail immediately if exponent is bad
+        }
+
+        // If we have an exponent, it is automatically a Float
+        return Type::FLOAT_LITERAL_;
+    }
+
+    // 4. Final Decision
+    if (hasFraction) {
+        return Type::FLOAT_LITERAL_;
+    }
+
+    return Type::INTEGER_LITERAL_;
+
+}
+
+bool Token::_isAlphaNumeric(char c) {
     // isalnum checks [a-zA-Z0-9]
     // We add the check for underscore '_' manually
     return std::isalnum(c) || c == '_';
 }
 
-Token::Type Token::isValidKeywordOrId(const std::string& char_input) {
-     auto keywordIt = keywords.find(char_input);
+Token::Type Token::isValidKeywordOrId(const std::string& current_char) {
+     auto keywordIt = keywords.find(current_char);
 
      if (keywordIt != keywords.end()) {
          return keywordIt->second; // Return the corresponding keyword type
@@ -129,42 +311,136 @@ Token::Type Token::isValidId(char startChar, const std::string& line, size_t& in
         return Type::INVALID_ID_;
 	}
 
-	std::string lexeme = scanIdentifier(std::string(1, startChar), line, index);
+	std::string lexeme = _scanIdentifier(std::string(1, startChar), line, index);
 
 	return isValidKeywordOrId(lexeme);
 }
 
-std::string Token::scanIdentifier(const std::string& startChar, const std::string& line, size_t& index) {
+// helper to assess the rest of the identifier
+std::string Token::_scanIdentifier(const std::string& startChar, const std::string& line, size_t& index) {
+    std::string lexeme(1, startChar[0]); // Start with the first character
 
-	std::string lexeme(1, startChar[0]); // Start with the first character
+    // We must move past it so we don't read it twice.
+    index++;
 
     while (index < line.length()) {
         char nextChar = line[index];
 
-        if (isAlphaNumeric(nextChar)) {
+        if (_isAlphaNumeric(nextChar)) {
             lexeme += nextChar;
-            index++; // advance the SHARED index
+            index++;
         } else {
-            // We hit a space, +, -, or symbol TODO Assuming that there will be spaces after the identifier i.e. not handling cases like "var1+var2"
-            break; 
+            break;
         }
     }
 
     return lexeme;
 }
 
-Token::Type Token::isValidMultiCharOperator(const std::string& char_input) {
-    if (char_input == "==") {
-        return Type::EQUAL_;
-    } else if (char_input == "<>") {
-        return Type::NOT_EQUAL_;
-    } else if (char_input == "<=") {
-        return Type::LESS_EQUAL_;
-    } else if (char_input == ">=") {
-        return Type::GREATER_EQUAL_;
-    } else if (char_input == "::") {
-        return Type::COLON_COLON_;
+// Checks for uni and multi-character operators and returns the appropriate Type
+Token::Type Token::isValidCharOperator(const std::string& line, size_t& index) {
+    char current = line[index++];
+	char next = line[index];
+
+	if (current == '='){
+		if (next == '='){
+			index++; // consume next
+			return Type::EQUAL_;
+		}
+
+		return Type::ASSIGNMENT_;
+	}
+	else if (current == '<'){
+		if (next == '>'){
+			index++; // consume next
+			return Type::NOT_EQUAL_;
+		}
+		else if (next == '='){
+			index++; // consume next
+			return Type::LESS_EQUAL_;
+		}
+
+		return Type::LESS_THAN_;
+	}
+	else if (current == '>'){
+		if (next == '='){
+			index++; // consume next
+			return Type::GREATER_EQUAL_;
+		}
+
+		return Type::GREATER_THAN_;
+	}
+	else if (current == ':'){
+		if (next == ':'){
+			index++; // consume next
+			return Type::COLON_COLON_;
+		}
+
+		return Type::COLON_;
+	}
+
+	// If no operator uni or multi character matched, backtrack index
+	index--;
+	return Type::INVALID_CHAR_;
+}
+
+Token::Type Token::isValidComment(char startChar, size_t& index, const std::string& line, bool& inBlockComment) {
+
+    // 1. Check if it starts with '/'
+    if (startChar != '/') {
+        return Type::INVALID_;
     }
-    return Type::INVALID_;
+
+    index++;
+
+    // 2. Check strict bounds before peeking
+    if (index >= line.length()) {
+        return Type::DIVIDE_; // It's just a single slash at EOF
+    }
+
+    char nextChar = line[index];
+
+    // 3. Dispatch to specific comment handlers
+    if (nextChar == '/') {
+        return _isInlineComment(index, line);
+    }
+    else if (nextChar == '*') {
+        return _isBlockComment(index, line, inBlockComment);
+    }
+
+    // 4. If it's not // or /*, it is just a Division operator
+    return Type::DIVIDE_;
+}
+
+Token::Type Token::_isInlineComment(size_t& index, const std::string& line) {
+    // We already know line[index] is '/'. Consume it.
+    index++;
+    // An inline comment consumes the rest of the line -> move the index to the end.
+    index = line.length();
+
+    return Type::INLINE_COMMENT_;
+}
+
+Token::Type Token::_isBlockComment(size_t& index, const std::string& line, bool& inBlockComment) {
+    // We already know line[index] is '*'. Consume it.
+    index++;
+
+    // Search for the closing "*/" sequence
+    while (index < line.length() - 1) { // -1 because we peek ahead
+
+        if (line[index] == '*' && line[index + 1] == '/') {
+            index += 2; // Consume both '*' and '/'
+            inBlockComment = false;
+            return Type::TERMINATED_COMMENT_;
+        }
+
+        index++; // Advance one character and try again
+    }
+
+    // If we get here, we hit the end of the string without finding "*/"
+    inBlockComment = true;   // Set state: We are still inside a comment
+    index = line.length();
+
+    return Type::UNTERMINATED_COMMENT_;
 }
 

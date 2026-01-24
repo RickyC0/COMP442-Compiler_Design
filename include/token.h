@@ -60,6 +60,8 @@ class Token {
 
             INLINE_COMMENT_, // Inline comment
             BLOCK_COMMENT_, // Block comment
+            UNTERMINATED_COMMENT_, // Unclosed Block comment
+            TERMINATED_COMMENT_,
             INVALID_CHAR_, // Invalid char
             INVALID_ID_, // Invalid identifier
             INVALID_, // Generic invalid token
@@ -155,6 +157,10 @@ class Token {
                 case Type::INVALID_ID_:      return "INVALID_ID";
                 case Type::INVALID_NUMBER_:  return "INVALID_NUMBER";
                 case Type::INVALID_CHAR_:    return "INVALID_CHAR";
+                case Type::BLOCK_COMMENT_: return "BLOCK_COMMENT";
+                case Type::INLINE_COMMENT_: return "INLINE_COMMENT";
+                case Type::UNTERMINATED_COMMENT_: return "UNTERMINATED_COMMENT";
+                case Type::TERMINATED_COMMENT_: return "TERMINATED_COMMENT_";
                 case Type::END_OF_FILE_:     return "EOF";
 
                 default:                     return "UNKNOWN_TYPE";
@@ -198,19 +204,38 @@ class Token {
 
         static char getNextChar(const std::string& input, size_t& index);
 
-        static std::vector<Token> tokenize(const std::string& line, int lineNumber);
+        static std::vector<Token> tokenize(const std::string& line, int lineNumber, bool& inBlockComment);
 
         static Type isValidKeywordOrId(const std::string& value);
+
+        //id ::=letter alphanum*
         static Type isValidId(char startChar, const std::string& line, size_t& index);
-        static Type isValidMultiCharOperator(const std::string& value);
-        static Type isValidLiteral(const std::string& value);
-        static std::string scanIdentifier(const std::string& startChar, const std::string& line, size_t& index);
-        static bool isAlphaNumeric(char c);
+        static Type isValidCharOperator(const std::string& line, size_t& index);
+        static std::string _scanIdentifier(const std::string& startChar, const std::string& line, size_t& index);
+        static bool _isAlphaNumeric(char c);
 
-        static Type isValidIntegerLiteral(const std::string& value);
-        static Type isValidFloatLiteral(const std::string& value);
+        static Type isValidIntegerOrFloat(size_t& index, const std::string& line);
 
-        static void skipToken(size_t &index, std::string line);
+        // integer ::= nonzero digit* | 0
+        static bool _isValidIntegerLiteral(size_t& index, const std::string& line);
+
+        static bool _isFractionPart(const std::string& line, size_t& index);
+
+        // float ::= integer fraction [e[+|−] integer]
+        static bool _isValidFloatLiteral(size_t& index, const std::string& line);
+
+        static void skipToken(size_t &index, const std::string& line);
+
+        static void backtrack(size_t &index, const std::string& line, const size_t& start_index);
+
+        static Type _isBlockComment(size_t& index, const std::string& line, bool& inBlockComment);
+
+        static Type _isInlineComment(size_t& index, const std::string& line);
+
+        static Type isValidComment(char startChar, size_t& index, const std::string& line, bool& inBlockComment);
+
+        
+
 
 
     private:

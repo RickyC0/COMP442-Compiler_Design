@@ -14,9 +14,10 @@ std::vector<std::vector<Token>> tokenizeFile(const std::string& filename) {
 
     std::string line;
     int lineNumber = 1;
+    bool inBlockComment = false;
 
     while (std::getline(file, line)) {
-        std::vector<Token> token = Token::tokenize(line, lineNumber);
+        std::vector<Token> token = Token::tokenize(line, lineNumber, inBlockComment);
         tokens.push_back(token);
         lineNumber++;
     }
