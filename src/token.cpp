@@ -380,7 +380,6 @@ Token::Type Token::isValidCharOperator(const std::string& line, size_t& index) {
 	}
 
 	// If no operator uni or multi character matched, backtrack index
-	index--;
 	return Type::INVALID_CHAR_;
 }
 
