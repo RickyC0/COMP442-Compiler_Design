@@ -1,10 +1,18 @@
-#include "token.h"
+#include "../include/token.h"
+
+
 
 char Token::getNextChar(const std::string& line, size_t& index) {
     if (index < line.length()) {
 		return line[index++];
 	}
     return '\0'; // Indicate end of char_input
+}
+
+void Token::skipToken(size_t& index, std::string line){
+    while (index < line.length() && !isspace(line[index])) {
+        index++;
+    }
 }
 
 // TODO make it backtrack when necessary by updating index
@@ -16,9 +24,11 @@ std::vector<Token> Token::tokenize(const std::string& line, int lineNumber) {
 
 	std::vector<Token> tokens;
 
-	while(char_input = getNextChar(line, index), char_input != '\0') {
-		rest_line = line.substr(index - 1); // -1 because getNextChar already advanced index
-		Token::Type type;
+	while((char_input = getNextChar(line, index)) != '\0') {
+		size_t start_index = index - 1; // -1 because getNextChar already advanced index
+
+		Token::Type type = Type::INVALID_;
+
 		if(std::isspace(char_input)) {
 			continue; // Skip whitespace
 		}
@@ -43,26 +53,56 @@ std::vector<Token> Token::tokenize(const std::string& line, int lineNumber) {
 			case '.' : type = Type::DOT_; break;
 			case ':' : type = Type::COLON_; break;
 
-			
+            //Not a single character Type
 			default:
-				if(isAlphaNumeric(char_input)){
+                char current;
+                char next;
+
+                //Checks for INTEGER or FLOAT Types
+				if(isdigit(char_input)) {
+                    // TODO handle float and invalid number
+                    // TODO If starts with number but has more characters attached -> INVALID_ID_
+                    type = Type::INTEGER_LITERAL_;
+
+                    while (index < line.length() && isdigit(current = line[index])) {
+                        index++;
+                    }
+
+                    current = line[index-1];
+                    next = line[index];
+
+
+                    if (!isdigit(current) || !(isdigit(next) || isspace(next) || next == '\0')) { //contains a character that is not a number either in the last read one or the one after
+                        skipToken(index, line);
+                        type = Type::INVALID_NUMBER_;
+                    }
+                }
+
+                //Check for ID type
+				else if(isAlphaNumeric(char_input)){
 					type = isValidId(char_input, line, index);
 				}
-				else if{
-					//TODO handle multi-char operators
-					//TODO integer and float literals
 
-				}
+                //TODO Multicharacter operator
+                else if(false){}
 
 				else{
-					tokens.push_back(Token(Type::INVALID_NUMBER_, lexeme));
+					type = Type::INVALID_CHAR_;
 				}
-		}
+        }
 
-		tokens.push_back(Token(type, lexeme, lineNumber));
+        if (index > start_index + 1) {
+            lexeme = line.substr(start_index, index - start_index);
+        }
+
+        tokens.emplace_back(type, lexeme, lineNumber);
 	}
 
+	return tokens;
+
 }
+
+
 
 bool Token::isAlphaNumeric(char c) {
     // isalnum checks [a-zA-Z0-9]
@@ -71,19 +111,22 @@ bool Token::isAlphaNumeric(char c) {
 }
 
 Token::Type Token::isValidKeywordOrId(const std::string& char_input) {
-    auto keywordIt = keywords.find(char_input);
+     auto keywordIt = keywords.find(char_input);
 
-    if (keywordIt != keywords.end()) {
-        return keywordIt->second; // Return the corresponding keyword type
-    }
+     if (keywordIt != keywords.end()) {
+         return keywordIt->second; // Return the corresponding keyword type
+     }
 
     return Type::ID_;
 }
 	
 Token::Type Token::isValidId(char startChar, const std::string& line, size_t& index) {
-	// An identifier must start with a letter or underscore
-	if (!std::isalpha(startChar) && startChar != '_') {
-		return Type::INVALID_ID_;
+
+	// An identifier must start with a letter
+	if (std::isdigit(startChar) || startChar == '_') { //starts with an underscore (not possible with digit since handled before id)
+        skipToken(index, line);
+
+        return Type::INVALID_ID_;
 	}
 
 	std::string lexeme = scanIdentifier(std::string(1, startChar), line, index);

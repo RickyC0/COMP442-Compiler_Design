@@ -1,4 +1,7 @@
-#include "io.h"
+#include "../include/io.h"
+#include "../include/token.h"
+#include <stdexcept>
+#include <iostream>
 
 
 std::vector<std::vector<Token>> tokenizeFile(const std::string& filename) {
@@ -13,8 +16,8 @@ std::vector<std::vector<Token>> tokenizeFile(const std::string& filename) {
     int lineNumber = 1;
 
     while (std::getline(file, line)) {
-        Token token = Token::tokenize(line, lineNumber);
-        tokens.push_back({token});
+        std::vector<Token> token = Token::tokenize(line, lineNumber);
+        tokens.push_back(token);
         lineNumber++;
     }
 
@@ -32,7 +35,7 @@ void writeTokensToFile(const std::string& filename, const std::vector<std::vecto
 
     for (const auto& tokenLine : tokens) {
         for (const auto& token : tokenLine) {
-            file << "[ " << static_cast<int>(token.getType()) << "], [" << token.getValue() << "], [" << token.getLineNumber() << "]";
+            file << "[" << token.getTypeString() << ", " << token.getValue() <<", " << token.getLineNumber() << "] ";
         }
         file << "\n";
     }
