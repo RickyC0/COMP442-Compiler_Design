@@ -192,7 +192,12 @@ class Token {
             lineNumber_ = other.lineNumber_;
         }
 
-        // Copy assignment operator
+        std::string toString() const {
+            return ("[" + this->getTypeString() + ", " + this->getValue() + ", " +
+                    std::to_string(this->getLineNumber()) + "] ");
+        }
+
+    // Copy assignment operator
         Token& operator=(const Token& other) {
             if (this != &other) {
                 type_ = other.type_;
@@ -202,9 +207,11 @@ class Token {
             return *this;
         }
 
+        std::string getErrorString(std::string error_step) const;
+
         static char getNextChar(const std::string& input, size_t& index);
 
-        static std::vector<Token> tokenize(const std::string& line, int lineNumber, bool& inBlockComment);
+        static std::tuple<std::vector<Token>, std::vector<Token>> tokenize(const std::string& line, int lineNumber, bool& inBlockComment);
 
         static Type isValidKeywordOrId(const std::string& value);
 

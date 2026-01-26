@@ -15,10 +15,22 @@ void Token::skipToken(size_t& index, const std::string& line){
     }
 }
 
+std::string Token::getErrorString(std::string error_step) const {
+    std::string error_type = this -> getTypeString();
+    std::string error_token = this -> getValue();
+    std::string error_line = "Line "+std::to_string(this->getLineNumber());
+
+    std::string error_message = error_step + ": " + error_type + ": " + error_token + ": " + error_line;
+
+    return error_message;
+
+}
+
 // TODO make it backtrack when necessary by updating index
-std::vector<Token> Token::tokenize(const std::string& line, int lineNumber, bool& inBlockComment) {
+std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::string& line, int lineNumber, bool& inBlockComment) {
 	size_t index = 0;
-	std::vector<Token> tokens;
+	std::vector<Token> all_tokens;
+    std::vector<Token> invalid_tokens;
 
 	while(index < line.length()) {
         if (inBlockComment) {
@@ -28,14 +40,14 @@ std::vector<Token> Token::tokenize(const std::string& line, int lineNumber, bool
                 // Found closing tag on this line
                 // Create token for the part before the closing */
                 std::string lexeme = line.substr(index, closingPos + 2 - index);
-                tokens.emplace_back(Type::TERMINATED_COMMENT_, lexeme, lineNumber);
+                all_tokens.emplace_back(Type::TERMINATED_COMMENT_, lexeme, lineNumber);
 
                 index = closingPos + 2;
                 inBlockComment = false;
             } else {
                 // Whole line is part of the comment
                 std::string lexeme = line.substr(index);
-                tokens.emplace_back(Type::BLOCK_COMMENT_, lexeme, lineNumber);
+                all_tokens.emplace_back(Type::BLOCK_COMMENT_, lexeme, lineNumber);
 
                 index = line.length();
             }
@@ -98,15 +110,24 @@ std::vector<Token> Token::tokenize(const std::string& line, int lineNumber, bool
 
         if (index > start_index) {//calculate the length base on how far the index moved
             lexeme = line.substr(start_index, index - start_index);
-            tokens.emplace_back(type, lexeme, lineNumber);
+            all_tokens.emplace_back(type, lexeme, lineNumber);
         }else{ //None of the above cases updated the index
             index++;
         }
 
+        //save invalid tokens to the error file
+        if (type == Token::Type::INVALID_ID_ ||
+            type == Token::Type::INVALID_NUMBER_ ||
+            type == Token::Type::INVALID_CHAR_ ||
+            type == Token::Type::UNTERMINATED_COMMENT_ ||
+            type == Token::Type::INVALID_){
+
+            invalid_tokens.emplace_back(type, lexeme, lineNumber);
+        }
 
 	}
-
-	return tokens;
+    std::tuple<std::vector<Token>, std::vector<Token>> output = {all_tokens, invalid_tokens};
+	return output;
 
 }
 

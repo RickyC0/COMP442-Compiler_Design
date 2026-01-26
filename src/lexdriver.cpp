@@ -19,15 +19,14 @@
      std::cout << "Lexical analysis started for file: " << sourceFile << std::endl;
 
       try {
-          auto tokens = tokenizeFile(sourceFile);
-          Token token = Token(Token::Type::ID_, "111", 1);
-        
-          std::string outputFile = "../tokens_output.txt";
+          std::string valid_output_file = "../tokens_output.outlextokens";
+          std::string invalid_output_file = "../tokens_output.outlexerrors";
 
     //          std::vector<std::vector<Token>> tokens;
-          writeTokensToFile(outputFile, tokens);
 
-          std::cout << "Tokenization completed. Tokens written to " << outputFile << std::endl;
+          lex_file(sourceFile,valid_output_file, invalid_output_file);
+
+          std::cout << "Tokenization completed. Tokens written to " << valid_output_file << std::endl;
       } catch (const std::exception& e) {
           std::cerr << "Error: " << e.what() << std::endl;
           return 1;
