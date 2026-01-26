@@ -1,6 +1,37 @@
 #include "../include/token.h"
 
+Token::Type Token::getKeywordType(const std::string& lexeme) {
+    // It is created only the first time this function is called, to avoid atartup crash
+    static const std::map<std::string, Token::Type> keywords = {
+            {"if",      Token::Type::IF_KEYWORD_},
+            {"else",    Token::Type::ELSE_KEYWORD_},
+            {"integer", Token::Type::INTEGER_TYPE_},
+            {"float",   Token::Type::FLOAT_TYPE_},
+            {"void",    Token::Type::VOID_TYPE_},
+            {"class",   Token::Type::CLASS_KEYWORD_},
+            {"while",   Token::Type::WHILE_KEYWORD_},
+            {"read",    Token::Type::READ_KEYWORD_},
+            {"write",   Token::Type::WRITE_KEYWORD_},
+            {"return",  Token::Type::RETURN_KEYWORD_},
+            {"main",    Token::Type::MAIN_},    
+            {"then",    Token::Type::THEN_KEYWORD_},
+            {"do",      Token::Type::DO_KEYWORD_},
+            {"end",     Token::Type::END_KEYWORD_},
+            {"public",  Token::Type::PUBLIC_KEYWORD_},
+            {"private", Token::Type::PRIVATE_KEYWORD_},
+            {"local",   Token::Type::LOCAL_},
+            {"inherits",Token::Type::INHERITS_},
+            {"and",     Token::Type::AND_},
+            {"or",      Token::Type::OR_},
+            {"not",     Token::Type::NOT_}
+    };
 
+    auto it = keywords.find(lexeme);
+    if (it != keywords.end()) {
+        return it->second;
+    }
+    return Token::Type::ID_; // It's not a keyword, so it must be an Identifier
+}
 
 char Token::getNextChar(const std::string& line, size_t& index) {
     if (index < line.length()) {
@@ -118,8 +149,7 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
         //save invalid tokens to the error file
         if (type == Token::Type::INVALID_ID_ ||
             type == Token::Type::INVALID_NUMBER_ ||
-            type == Token::Type::INVALID_CHAR_ ||
-            type == Token::Type::UNTERMINATED_COMMENT_ ||
+            type == Token::Type::INVALID_CHAR_ || //TODONOW UNDITERMINATE COMMENTS SHOULD BE CONSIDERED AN ERROR UNLESS CLOSED, NEED TO CHECK IF CLOSED
             type == Token::Type::INVALID_){
 
             invalid_tokens.emplace_back(type, lexeme, lineNumber);
@@ -314,13 +344,7 @@ bool Token::_isAlphaNumeric(char c) {
 }
 
 Token::Type Token::isValidKeywordOrId(const std::string& current_char) {
-     auto keywordIt = keywords.find(current_char);
-
-     if (keywordIt != keywords.end()) {
-         return keywordIt->second; // Return the corresponding keyword type
-     }
-
-    return Type::ID_;
+     return getKeywordType(current_char);
 }
 	
 Token::Type Token::isValidId(char startChar, const std::string& line, size_t& index) {

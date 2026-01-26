@@ -80,8 +80,9 @@ void writeErrorsToFile(const std::string& filename, const std::vector<std::vecto
         }
         for (const auto& token : tokenLine) {
             file << token.getErrorString("Lexical Error");
+            file << "\n";
         }
-        file << "\n";
+        
     }
 
     file.close();

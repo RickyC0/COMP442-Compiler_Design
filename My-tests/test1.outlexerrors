@@ -1,0 +1,6 @@
+Lexical Error: INVALID_ID: _1abc: Line 4
+Lexical Error: INVALID_NUMBER: 1yyy: Line 4
+Lexical Error: INVALID_NUMBER: 0zzz: Line 5
+Lexical Error: INVALID_NUMBER: 0101: Line 9
+Lexical Error: INVALID_NUMBER: 0.0e+00: Line 14
+Lexical Error: INVALID_NUMBER: 0_1: Line 17

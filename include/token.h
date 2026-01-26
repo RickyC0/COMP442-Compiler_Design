@@ -69,29 +69,7 @@ class Token {
             END_OF_FILE_ // End of file
         };
 
-        inline const static std::map<std::string, Token::Type> keywords = {
-            {"if",       Token::Type::IF_KEYWORD_},
-            {"do",       Token::Type::DO_KEYWORD_},
-            {"then",     Token::Type::THEN_KEYWORD_},
-            {"end",      Token::Type::END_KEYWORD_},
-            {"else",     Token::Type::ELSE_KEYWORD_},
-            {"while",    Token::Type::WHILE_KEYWORD_},
-            {"read",     Token::Type::READ_KEYWORD_},
-            {"write",    Token::Type::WRITE_KEYWORD_},
-            {"public",   Token::Type::PUBLIC_KEYWORD_},
-            {"private",  Token::Type::PRIVATE_KEYWORD_},
-            {"class",    Token::Type::CLASS_KEYWORD_},
-            {"return",   Token::Type::RETURN_KEYWORD_},
-            {"inherits", Token::Type::INHERITS_},
-            {"local",    Token::Type::LOCAL_},
-            {"integer",  Token::Type::INTEGER_TYPE_},
-            {"float",    Token::Type::FLOAT_TYPE_},
-            {"void",     Token::Type::VOID_TYPE_},
-            {"main",     Token::Type::MAIN_},
-            {"and",      Token::Type::AND_},
-            {"or",       Token::Type::OR_},
-            {"not",      Token::Type::NOT_}
-        };
+        static Type getKeywordType(const std::string& lexeme);
 
         std::string getTypeString() const {
             switch (type_) {

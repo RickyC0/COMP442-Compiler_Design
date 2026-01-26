@@ -5,32 +5,39 @@
 #include "../include/io.h"
 #include "../include/token.h"
 
- int main(int argc, char* argv[]) {
-     std::cout << "DEBUG: Lexical Driver Started." << std::endl;
+int main(int argc, char* argv[]) {
+    // Check if the user provided a file argument
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <source_file>" << std::endl;
+        return 1;
+    }
 
-//     if(argc < 2){
-//         std::cerr << "Usage: " << argv[0] << " <source_file>" << std::endl;
-//         return 1;
-//     }
+    std::string sourceFile = argv[1];
+    std::cout << "Lexical analysis started for file: " << sourceFile << std::endl;
 
-     std::cout << "Will start lexical analysis..." << std::endl;
-     std::string sourceFile = "../My-tests/test1.src";
+    // Derive output filenames from the input filename
+    std::string baseName = sourceFile;
+    size_t lastDot = sourceFile.find_last_of('.');
+    
+    if (lastDot != std::string::npos) {
+        baseName = sourceFile.substr(0, lastDot);
+    }
 
-     std::cout << "Lexical analysis started for file: " << sourceFile << std::endl;
+    // Create the new filenames
+    std::string valid_output_file = baseName + ".outlextokensflaci";
+    std::string invalid_output_file = baseName + ".outlexerrors";
 
-      try {
-          std::string valid_output_file = "../tokens_output.outlextokens";
-          std::string invalid_output_file = "../tokens_output.outlexerrors";
+    try {
+        lex_file(sourceFile, valid_output_file, invalid_output_file);
 
-    //          std::vector<std::vector<Token>> tokens;
+        std::cout << "Tokenization completed." << std::endl;
+        std::cout << "Tokens written to: " << valid_output_file << std::endl;
+        std::cout << "Errors written to: " << invalid_output_file << std::endl;
 
-          lex_file(sourceFile,valid_output_file, invalid_output_file);
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
 
-          std::cout << "Tokenization completed. Tokens written to " << valid_output_file << std::endl;
-      } catch (const std::exception& e) {
-          std::cerr << "Error: " << e.what() << std::endl;
-          return 1;
-      }
-
-     return 0;
- }
+    return 0;
+}
