@@ -1,0 +1,101 @@
+START             -> Program
+
+Program           -> ClassDeclList FuncDefList 'MAIN_' FuncBody
+
+ClassDeclList     -> ClassDecl ClassDeclList | EPSILON
+FuncDefList       -> FuncDef FuncDefList | EPSILON
+ClassDecl         -> 'CLASS_KEYWORD_' 'ID_' InheritanceOpt 'OPEN_BRACE_' ClassBody 'CLOSE_BRACE_' 'SEMICOLON_'
+
+InheritanceOpt    -> 'inherits' 'ID_' InheritsList | EPSILON
+InheritsList      -> 'COMMA_' 'ID_' InheritsList | EPSILON
+
+ClassBody         -> ClassMemberDecl ClassBody | EPSILON
+
+ClassMemberDecl   -> Visibility MemberDecl
+Visibility        -> 'PUBLIC_KEYWORD_' | 'PRIVATE_KEYWORD_'
+
+MemberDecl        -> 'ID_' MemberDeclIdTail 
+                      | 'INTEGER_TYPE_' 'ID_' ArraySizeList 'SEMICOLON_'
+                      | 'FLOAT_TYPE_' 'ID_' ArraySizeList 'SEMICOLON_'
+
+MemberDeclIdTail  -> 'ID_' ArraySizeList 'SEMICOLON_'
+FuncDef           -> FuncHead FuncBody 
+
+FuncHead          -> 'ID_' FuncHeadTail
+FuncHeadTail      -> 'sr' 'ID_' 'OPEN_PAREN_' FParams 'CLOSE_PAREN_' 'COLON_' ReturnType
+                   | 'OPEN_PAREN_' FParams 'CLOSE_PAREN_' 'COLON_' ReturnType
+
+ReturnType        -> Type | 'VOID_TYPE_'
+Type              -> 'INTEGER_TYPE_' | 'FLOAT_TYPE_' | 'ID_'
+
+FParams           -> Type 'ID_' ArraySizeList FParamsTail | EPSILON
+FParamsTail       -> 'COMMA_' Type 'ID_' ArraySizeList FParamsTail | EPSILON
+
+FuncBody          -> LocalVarDeclList 'DO_KEYWORD_' StatementList 'END_KEYWORD_'
+LocalVarDeclList  -> 'LOCAL_' VarDeclList | EPSILON
+VarDeclList       -> VarDecl VarDeclList | EPSILON
+VarDecl           -> Type 'ID_' ArraySizeList 'SEMICOLON_'
+StatementList     -> Statement StatementList | EPSILON
+
+Statement         -> 'IF_KEYWORD_' 'OPEN_PAREN_' RelExpr 'CLOSE_PAREN_' 'THEN_KEYWORD_' StatBlock 'ELSE_KEYWORD_' StatBlock 'SEMICOLON_'
+                   | 'WHILE_KEYWORD_' 'OPEN_PAREN_' RelExpr 'CLOSE_PAREN_' StatBlock 'SEMICOLON_'
+                   | 'READ_KEYWORD_' 'OPEN_PAREN_' Variable 'CLOSE_PAREN_' 'SEMICOLON_'
+                   | 'WRITE_KEYWORD_' 'OPEN_PAREN_' Expr 'CLOSE_PAREN_' 'SEMICOLON_'
+                   | 'RETURN_KEYWORD_' 'OPEN_PAREN_' Expr 'CLOSE_PAREN_' 'SEMICOLON_'
+                   | 'ID_' StatementIdTail
+
+StatBlock         -> 'DO_KEYWORD_' StatementList 'END_KEYWORD_' | Statement | EPSILON
+
+StatementIdTail   -> IndiceList StatementRest
+
+StatementRest     -> 'DOT_' 'ID_' StatementIdTail            
+                   | 'OPEN_PAREN_' AParams 'CLOSE_PAREN_' StatementCallTail   
+                   | AssignOp Expr 'SEMICOLON_'                   
+
+StatementCallTail -> 'DOT_' 'ID_' StatementIdTail            
+                   | 'SEMICOLON_'                                 
+
+AssignOp          -> 'ASSIGNMENT_'
+
+Expr              -> ArithExpr ExprTail
+ExprTail          -> RelOp ArithExpr | EPSILON
+
+RelExpr           -> ArithExpr RelOp ArithExpr
+
+ArithExpr         -> Term AddOpTail
+AddOpTail         -> AddOp Term AddOpTail | EPSILON
+
+Term              -> Factor MultOpTail
+MultOpTail        -> MultOp Factor MultOpTail | EPSILON
+
+Factor            -> 'ID_' FactorIdTail
+                   | 'INTEGER_TYPE_' 
+                   | 'FLOAT_TYPE_' 
+                   | 'OPEN_PAREN_' ArithExpr 'CLOSE_PAREN_' 
+                   | 'NOT_' Factor 
+                   | Sign Factor
+
+FactorIdTail      -> IndiceList FactorRest
+
+FactorRest        -> 'DOT_' 'ID_' FactorIdTail
+                   | 'OPEN_PAREN_' AParams 'CLOSE_PAREN_' FactorCallTail
+                   | EPSILON
+
+FactorCallTail    -> 'DOT_' 'ID_' FactorIdTail
+                   | EPSILON
+
+Variable          -> 'ID_' FactorIdTail
+AParams           -> Expr AParamsTail | EPSILON
+AParamsTail       -> 'COMMA_' Expr AParamsTail | EPSILON
+
+IndiceList        -> Indice IndiceList | EPSILON
+Indice            -> 'OPEN_BRACKET_' ArithExpr 'CLOSE_BRACKET_'
+
+ArraySizeList     -> ArraySize ArraySizeList | EPSILON
+ArraySize      -> 'OPEN_BRACKET_' ArraySizeTail
+ArraySizeTail  -> 'intNum' 'CLOSE_BRACKET_' 
+                | 'CLOSE_BRACKET_'
+RelOp             -> 'EQUAL_' | 'NOT_EQUAL_' | 'LESS_THAN_' | 'GREATER_THAN_' | 'LESS_EQUAL_' | 'GREATER_EQUAL_'
+AddOp             -> 'PLUS_' | 'MINUS_' | 'OR_'
+MultOp            -> 'MULTIPLY_' | 'DIVIDE_' | 'AND_'
+Sign              -> 'PLUS_' | 'MINUS_'

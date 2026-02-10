@@ -1,0 +1,70 @@
+================================================================================
+| NON-TERMINAL             | FIRST SET                                         |
+================================================================================
+| AParams                  | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_, EPSILON }                   |
+| AParamsTail              | { COMMA_, EPSILON }                               |
+| AddOp                    | { MINUS_, OR_, PLUS_ }                            |
+| AddOpTail                | { MINUS_, OR_, PLUS_, EPSILON }                   |
+| ArithExpr                | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_ }                            |
+| ArraySize                | { OPEN_BRACKET_ }                                 |
+| ArraySizeList            | { OPEN_BRACKET_, EPSILON }                        |
+| ArraySizeTail            | { CLOSE_BRACKET_, intNum }                        |
+| AssignOp                 | { ASSIGNMENT_ }                                   |
+| ClassBody                | { PRIVATE_KEYWORD_, PUBLIC_KEYWORD_, EPSILON }    |
+| ClassDecl                | { CLASS_KEYWORD_ }                                |
+| ClassDeclList            | { CLASS_KEYWORD_, EPSILON }                       |
+| ClassMemberDecl          | { PRIVATE_KEYWORD_, PUBLIC_KEYWORD_ }             |
+| Expr                     | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_ }                            |
+| ExprTail                 | { EQUAL_, GREATER_EQUAL_, GREATER_THAN_,          |
+|                          |   LESS_EQUAL_, LESS_THAN_, NOT_EQUAL_, EPSILON }  |
+| FParams                  | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, EPSILON }      |
+| FParamsTail              | { COMMA_, EPSILON }                               |
+| Factor                   | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_ }                            |
+| FactorCallTail           | { DOT_, EPSILON }                                 |
+| FactorIdTail             | { OPEN_BRACKET_, EPSILON }                        |
+| FactorRest               | { DOT_, OPEN_PAREN_, EPSILON }                    |
+| FuncBody                 | { LOCAL_ }                                         |
+| FuncDef                  | { ID_ }                                           |
+| FuncDefList              | { ID_, EPSILON }                                  |
+| FuncHead                 | { ID_ }                                           |
+| FuncHeadTail             | { OPEN_PAREN_, sr }                               |
+| Indice                   | { OPEN_BRACKET_ }                                 |
+| IndiceList               | { OPEN_BRACKET_, EPSILON }                        |
+| InheritanceOpt           | { inherits, EPSILON }                             |
+| InheritsList             | { COMMA_, EPSILON }                               |
+| LocalVarDeclList         | { LOCAL_, EPSILON }                                |
+| MemberDecl               | { FLOAT_TYPE_, ID_, INTEGER_TYPE_ }               |
+| MemberDeclIdTail         | { ID_ }                                           |
+| MultOp                   | { AND_, DIVIDE_, MULTIPLY_ }                      |
+| MultOpTail               | { AND_, DIVIDE_, MULTIPLY_, EPSILON }             |
+| Program                  | { CLASS_KEYWORD_, EPSILON }                       |
+| RelExpr                  | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_ }                            |
+| RelOp                    | { EQUAL_, GREATER_EQUAL_, GREATER_THAN_,          |
+|                          |   LESS_EQUAL_, LESS_THAN_, NOT_EQUAL_ }           |
+| ReturnType               | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, VOID_TYPE_ }   |
+| START                    | { CLASS_KEYWORD_, EPSILON }                       |
+| Sign                     | { MINUS_, PLUS_ }                                 |
+| StatBlock                | { DO_KEYWORD_, ID_, IF_KEYWORD_, READ_KEYWORD_,   |
+|                          |   RETURN_KEYWORD_, WHILE_KEYWORD_,                |
+|                          |   WRITE_KEYWORD_, EPSILON }                       |
+| Statement                | { ID_, IF_KEYWORD_, READ_KEYWORD_,                |
+|                          |   RETURN_KEYWORD_, WHILE_KEYWORD_, WRITE_KEYWORD_}|
+| StatementCallTail        | { DOT_, SEMICOLON_ }                              |
+| StatementIdTail          | { OPEN_BRACKET_, EPSILON }                        |
+| StatementList            | { ID_, IF_KEYWORD_, READ_KEYWORD_,                |
+|                          |   RETURN_KEYWORD_, WHILE_KEYWORD_,                |
+|                          |   WRITE_KEYWORD_, EPSILON }                       |
+| StatementRest            | { ASSIGNMENT_, DOT_, OPEN_PAREN_ }                |
+| Term                     | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, MINUS_, NOT_,  |
+|                          |   OPEN_PAREN_, PLUS_ }                            |
+| Type                     | { FLOAT_TYPE_, ID_, INTEGER_TYPE_ }               |
+| VarDecl                  | { FLOAT_TYPE_, ID_, INTEGER_TYPE_ }               |
+| VarDeclList              | { FLOAT_TYPE_, ID_, INTEGER_TYPE_, EPSILON }      |
+| Variable                 | { ID_ }                                           |
+| Visibility               | { PRIVATE_KEYWORD_, PUBLIC_KEYWORD_ }             |
+================================================================================
