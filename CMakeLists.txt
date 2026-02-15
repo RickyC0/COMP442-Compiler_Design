@@ -10,4 +10,6 @@ add_executable(A1
         include/token.h
         src/io.cpp
         src/lexdriver.cpp
-        src/token.cpp)
+        src/token.cpp
+        include/parser.h
+        src/parser.cpp)
