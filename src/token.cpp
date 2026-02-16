@@ -243,8 +243,8 @@ bool Token::_isValidIntegerLiteral(size_t& index, const std::string& line) {
         // INVALID: 123_    (next is _)
         
         if (isalpha(next) || next == '_') {
-            // Exception: 'e' or 'E' are valid if we are parsing a float next
-            if (next != 'e' && next != 'E') {
+            // Exception: 'e' is valid if we are parsing a float next
+            if (next != 'e') {
                 skipToken(index, line);
                 return false;
             }
@@ -258,11 +258,11 @@ bool Token::_isValidIntegerLiteral(size_t& index, const std::string& line) {
 // Logic: [e[+|−] integer] assuming fraction has been checked
 // TODO FIX XXX.245232'0'
 bool Token::_isValidFloatLiteral(size_t& index, const std::string& line) {
-	if (index >= line.length() || (line[index] != 'e' && line[index] != 'E')) { // No exponent part -> still valid float
+	if (index >= line.length() || (line[index] != 'e')) { // No exponent part -> still valid float
         return true; 
     }
 
-	index++; // Consume 'e' or 'E'
+	index++; // Consume 'e' ('E' no longer accepted)
 
 	// Optional Sign (+ or -) since if we got here then there was an exponent part
     if (index < line.length() && (line[index] == '+' || line[index] == '-')) {
@@ -339,7 +339,7 @@ bool Token::_isFractionPart(const std::string& line, size_t& index) {
 //    }
 }
 
-//TODO Fix flot missing + or -, since now it considers it as wrong when they are missing
+//TODO FIXED    Fix float missing + or -, since now it considers it as wrong when they are missing
 Token::Type Token::isValidIntegerOrFloat(size_t& index, const std::string& line) {
 	bool is_integer = _isValidIntegerLiteral(index, line); 
 
@@ -361,7 +361,7 @@ Token::Type Token::isValidIntegerOrFloat(size_t& index, const std::string& line)
         hasFraction = true;
     }
 
-    if (index < line.length() && (line[index] == 'e' || line[index] == 'E')) {
+    if (index < line.length() && (line[index] == 'e')) {
 
         // We attempt to parse the exponent.
         if (!_isValidFloatLiteral(index, line)) {
