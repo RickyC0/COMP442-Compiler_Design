@@ -49,6 +49,19 @@ std::tuple<std::vector<std::vector<Token>>, std::vector<std::vector<Token>>> tok
         lineNumber++;
     }
 
+    // If we reached EOF while still inside a block comment, flush it as an error
+    if (inBlockComment) {
+        std::vector<Token> pendingValid;
+        std::vector<Token> pendingInvalid;
+        Token::flushPendingBlockComment(pendingValid, pendingInvalid);
+        if (!pendingValid.empty()) {
+            std::get<0>(valid_and_invalid_tokens).push_back(pendingValid);
+        }
+        if (!pendingInvalid.empty()) {
+            std::get<1>(valid_and_invalid_tokens).push_back(pendingInvalid);
+        }
+    }
+
     file.close();
 
     return valid_and_invalid_tokens;

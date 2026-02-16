@@ -274,6 +274,11 @@ class Token {
 
         static Type isValidComment(char startChar, size_t& index, const std::string& line, bool& inBlockComment);
 
+        // Block comment accumulation for multi-line comments
+        static std::string _blockCommentAccum;
+        static int _blockCommentStartLine;
+        static void flushPendingBlockComment(std::vector<Token>& valid, std::vector<Token>& invalid);
+
         
 
 

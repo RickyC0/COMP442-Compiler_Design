@@ -1,5 +1,9 @@
 #include "../include/token.h"
 
+// Static member definitions for block comment accumulation
+std::string Token::_blockCommentAccum;
+int Token::_blockCommentStartLine = 0;
+
 Token::Type Token::getKeywordType(const std::string& lexeme) {
     // It is created only the first time this function is called, to avoid atartup crash
     static const std::map<std::string, Token::Type> keywords = {
@@ -68,18 +72,16 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
             size_t closingPos = line.find("*/", index);
 
             if (closingPos != std::string::npos) {
-                // Found closing tag on this line
-                // Create token for the part before the closing */
-                std::string lexeme = line.substr(index, closingPos + 2 - index);
-                all_tokens.emplace_back(Type::TERMINATED_COMMENT_, lexeme, lineNumber);
+                // Found closing */ on this line — finalize the accumulated comment
+                _blockCommentAccum += line.substr(index, closingPos + 2 - index);
+                all_tokens.emplace_back(Type::BLOCK_COMMENT_, _blockCommentAccum, _blockCommentStartLine);
+                _blockCommentAccum.clear();
 
                 index = closingPos + 2;
                 inBlockComment = false;
             } else {
-                // Whole line is part of the comment
-                std::string lexeme = line.substr(index);
-                all_tokens.emplace_back(Type::BLOCK_COMMENT_, lexeme, lineNumber);
-
+                // Whole line is part of the comment — accumulate, don't create a token
+                _blockCommentAccum += line.substr(index) + "\n";
                 index = line.length();
             }
             continue;
@@ -141,7 +143,13 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
 
         if (index > start_index) {//calculate the length base on how far the index moved
             lexeme = line.substr(start_index, index - start_index);
-            all_tokens.emplace_back(type, lexeme, lineNumber);
+            if (type == Type::UNTERMINATED_COMMENT_) {
+                // Multi-line block comment starts here — accumulate, don't create token yet
+                _blockCommentAccum = lexeme + "\n";
+                _blockCommentStartLine = lineNumber;
+            } else {
+                all_tokens.emplace_back(type, lexeme, lineNumber);
+            }
         }else{ //None of the above cases updated the index
             index++;
         }
@@ -149,7 +157,7 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
         //save invalid tokens to the error file
         if (type == Token::Type::INVALID_ID_ ||
             type == Token::Type::INVALID_NUMBER_ ||
-            type == Token::Type::INVALID_CHAR_ || //TODONOW UNDITERMINATE COMMENTS SHOULD BE CONSIDERED AN ERROR UNLESS CLOSED, NEED TO CHECK IF CLOSED
+            type == Token::Type::INVALID_CHAR_ ||
             type == Token::Type::INVALID_){
 
             invalid_tokens.emplace_back(type, lexeme, lineNumber);
@@ -469,22 +477,37 @@ Token::Type Token::_isBlockComment(size_t& index, const std::string& line, bool&
     // We already know line[index] is '*'. Consume it.
     index++;
 
-    // Search for the closing "*/" sequence
-    while (index < line.length() - 1) { // -1 because we peek ahead
+    inBlockComment = true;
 
-        if (line[index] == '*' && line[index + 1] == '/') {
+    // Search for the closing "*/" sequence on this line
+    while (index < line.length()) {
+
+        if (line[index] == '*' && index + 1 < line.length() && line[index + 1] == '/') {
             index += 2; // Consume both '*' and '/'
             inBlockComment = false;
-            return Type::TERMINATED_COMMENT_;
+            break;
         }
 
-        index++; // Advance one character and try again
+        index++;
     }
 
-    // If we get here, we hit the end of the string without finding "*/"
-    inBlockComment = true;   // Set state: We are still inside a comment
-    index = line.length();
+    if(inBlockComment){
+        // Reached end of line without finding closing */
+        // The next line will continue to be part of this block comment
+        index = line.length();
+        return Type::UNTERMINATED_COMMENT_;
+    }else{
+        // Comment closed on this line; index already points past the '/'
+        return Type::BLOCK_COMMENT_;
+    }
+}
 
-    return Type::UNTERMINATED_COMMENT_;
+void Token::flushPendingBlockComment(std::vector<Token>& valid, std::vector<Token>& invalid) {
+    if (!_blockCommentAccum.empty()) {
+        Token t(Type::UNTERMINATED_COMMENT_, _blockCommentAccum, _blockCommentStartLine);
+        valid.push_back(t);
+        invalid.push_back(t);
+        _blockCommentAccum.clear();
+    }
 }
 
