@@ -1,0 +1,149 @@
+Program -> ClassDeclList FuncDefList 'main' FuncBody
+ClassDeclList -> ClassDecl ClassDeclList
+ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'
+InheritanceOpt -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> 'id' MemberDeclIdTail
+MemberDeclIdTail -> '(' FParams ')' ':' ReturnType ';'
+FParams -> EPSILON
+Type -> 'id'
+ReturnType -> Type
+ClassBody -> EPSILON
+ClassDeclList -> ClassDecl ClassDeclList
+ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'
+InheritanceOpt -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'private'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> 'id' MemberDeclIdTail
+MemberDeclIdTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> EPSILON
+ClassDeclList -> EPSILON
+FuncDefList -> FuncDef FuncDefList
+FuncDef -> FuncHead FuncBody
+FuncHead -> 'id' FuncHeadTail
+FuncHeadTail -> '::' 'id' '(' FParams ')' ':' ReturnType
+FParams -> EPSILON
+ReturnType -> 'void'
+FuncBody -> LocalVarDeclList 'do' StatementList 'end'
+LocalVarDeclList -> EPSILON
+Statement -> 'write' '(' Expr ')' ';'
+Expr -> ArithExpr ExprTail
+ArithExpr -> Term AddOpTail
+Term -> Factor MultOpTail
+Factor -> 'id' FactorIdTail
+FactorIdTail -> IndiceList FactorRest
+IndiceList -> EPSILON
+FactorRest -> EPSILON
+MultOpTail -> EPSILON
+AddOpTail -> EPSILON
+ExprTail -> EPSILON
+StatementList -> Statement StatementList
+Statement -> 'write' '(' Expr ')' ';'
+Expr -> ArithExpr ExprTail
+ArithExpr -> Term AddOpTail
+Term -> Factor MultOpTail
+Factor -> 'id' FactorIdTail
+FactorIdTail -> IndiceList FactorRest
+IndiceList -> EPSILON
+FactorRest -> EPSILON
+MultOpTail -> EPSILON
+AddOpTail -> EPSILON
+ExprTail -> EPSILON
+StatementList -> Statement StatementList
+StatementList -> EPSILON
+FuncDefList -> EPSILON
+FuncBody -> LocalVarDeclList 'do' StatementList 'end'
+LocalVarDeclList -> 'local' VarDeclList
+Type -> 'id'
+VarDecl -> Type 'id' ArraySizeList ';'
+ArraySizeList -> EPSILON
+VarDeclList -> VarDecl VarDeclList
+Type -> 'float'
+VarDecl -> Type 'id' ArraySizeList ';'
+ArraySizeList -> EPSILON
+VarDeclList -> VarDecl VarDeclList
+VarDeclList -> EPSILON
+Statement -> 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> '.' 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> AssignOp Expr ';'
+AssignOp -> '='
+Expr -> ArithExpr ExprTail
+ArithExpr -> Term AddOpTail
+Term -> Factor MultOpTail
+Factor -> 'floatLit'
+MultOpTail -> EPSILON
+AddOpTail -> EPSILON
+ExprTail -> EPSILON
+StatementList -> Statement StatementList
+Statement -> 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> '.' 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> AssignOp Expr ';'
+AssignOp -> '='
+Expr -> ArithExpr ExprTail
+ArithExpr -> Term AddOpTail
+Term -> Factor MultOpTail
+Factor -> 'floatLit'
+MultOpTail -> EPSILON
+AddOpTail -> EPSILON
+ExprTail -> EPSILON
+StatementList -> Statement StatementList
+Statement -> 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> AssignOp Expr ';'
+AssignOp -> '='
+Expr -> ArithExpr ExprTail
+ArithExpr -> Term AddOpTail
+Term -> Factor MultOpTail
+Factor -> 'id' FactorIdTail
+FactorIdTail -> IndiceList FactorRest
+IndiceList -> EPSILON
+FactorRest -> '.' 'id' FactorIdTail
+FactorIdTail -> IndiceList FactorRest
+IndiceList -> EPSILON
+FactorRest -> EPSILON
+MultOpTail -> EPSILON
+AddOpTail -> EPSILON
+ExprTail -> EPSILON
+StatementList -> Statement StatementList
+Statement -> 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> '.' 'id' StatementIdTail
+StatementIdTail -> IndiceList StatementRest
+IndiceList -> EPSILON
+StatementRest -> '(' AParams ')' StatementCallTail
+AParams -> EPSILON
+StatementCallTail -> ';'
+StatementList -> Statement StatementList
+StatementList -> EPSILON

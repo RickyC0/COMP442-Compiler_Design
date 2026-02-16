@@ -1,0 +1,24 @@
+// tests/nested_logic.src
+
+main
+    local
+        integer i;
+        integer j;
+    do
+        i = 0;
+        j = 10;
+
+        // Nested while with 'do...end' block
+        while (i < 5) do
+            if (j > 5) then
+                j = j - 1;
+            else
+                // Nested if inside else
+                if (j == 5) then
+                    write(j);
+                else
+                    i = i + 1;
+                ; // End of inner if
+            ; // End of outer if
+        end; // End of while
+    end

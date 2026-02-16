@@ -1,0 +1,4 @@
+[ERROR][SYNTAX] Unexpected token at line 5. Found token: [CLOSE_BRACE, }, 5] . Expected one of type: SEMICOLON 
+[ERROR][SYNTAX] Unexpected token at line 14. Found token: [IF, if, 14] . Expected one of type: SEMICOLON 
+[ERROR][SYNTAX] Unexpected token at line 15. Found token: [ID, x, 15] . Expected one of type: THEN 
+[ERROR][SYNTAX] Unexpected token at line 22. Found token: [END, end, 22] . Expected one of type: SEMICOLON 

@@ -1,0 +1,2 @@
+[ERROR][SYNTAX] Unexpected token at line 14. Found token: [CLASS, class, 14] . Expected one of type: SEMICOLON 
+[ERROR][SYNTAX] Unexpected token at line 24. Found token: [ID, POLYNOMIAL, 24] . Expected one of type: SEMICOLON 

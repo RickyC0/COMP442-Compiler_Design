@@ -1,0 +1,22 @@
+// tests/error.src
+
+class Broken {
+    public float x // ERROR: Missing semicolon
+};
+
+main
+    local
+        integer x;
+    do
+        x = 10
+        // ERROR: Missing semicolon above
+        
+        if (x > 5) 
+            x = 0; 
+        // ERROR: Missing 'then' keyword
+        
+        while (x < 0) 
+        do
+           x = x + 1;
+        end //Missing semicolon
+    end;

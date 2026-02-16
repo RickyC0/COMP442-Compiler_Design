@@ -1,0 +1,38 @@
+Program -> ClassDeclList FuncDefList 'main' FuncBody
+ClassDeclList -> ClassDecl ClassDeclList
+ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'
+InheritanceOpt -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> EPSILON
+ClassDeclList -> ClassDecl ClassDeclList
+ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'
+InheritanceOpt -> 'inherits' 'id' InheritsList
+InheritsList -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> EPSILON
+ClassDeclList -> ClassDecl ClassDeclList
+ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'
+InheritanceOpt -> 'inherits' 'id' InheritsList
+InheritsList -> EPSILON
+ClassBody -> ClassMemberDecl ClassBody
+ClassMemberDecl -> Visibility MemberDecl
+Visibility -> 'public'
+MemberDecl -> Type 'id' MemberDeclTypeTail
+MemberDeclTypeTail -> ArraySizeList ';'
+ArraySizeList -> EPSILON
+ClassBody -> EPSILON
+ClassDeclList -> EPSILON
+FuncDefList -> EPSILON
+FuncBody -> LocalVarDeclList 'do' StatementList 'end'
+LocalVarDeclList -> EPSILON
+StatementList -> EPSILON

@@ -1,0 +1,26 @@
+// tests/arrays.src
+
+class Matrix {
+    public integer data[9]; // 3x3 matrix flattened
+    public transform(integer val) : void;
+};
+
+Matrix::transform(integer val) : void
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < 9) do
+            // math expression with array access
+            data[i] = data[i] * val + (i * 2);
+            i = i + 1;
+        end;
+    end
+
+main
+    local
+        Matrix m;
+    do
+        // Function call with integer literal
+        m.transform(5);
+    end

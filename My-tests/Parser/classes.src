@@ -1,0 +1,18 @@
+// tests/inheritance.src
+
+class Animal {
+    public integer age;
+};
+
+class Mammal inherits Animal {
+    public float weight;
+};
+
+class Dog inherits Mammal {
+    public integer breedId;
+};
+
+// Empty function to test minimal body
+main
+    do
+    end
