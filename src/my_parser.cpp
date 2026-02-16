@@ -32,13 +32,23 @@ bool Parser::_nextToken() {
 }
 
 void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
+    // If current lookahead is already in the recovery set, don't skip
+    if (std::find(followSet.begin(), followSet.end(), LTTYPE) != followSet.end()) {
+        return;
+    }
+
+    // Skip tokens until we find one in the follow/recovery set
     while (_currentTokenIndex < _flatTokens.size()) {
-        _lookaheadToken = _flatTokens[_currentTokenIndex];
+        _lookaheadToken = _flatTokens[_currentTokenIndex++];
+
+        // Skip comment tokens
+        if (LTTYPE == TTYPE::BLOCK_COMMENT_ || LTTYPE == TTYPE::INLINE_COMMENT_) {
+            continue;
+        }
 
         if (std::find(followSet.begin(), followSet.end(), LTTYPE) != followSet.end()) {
             return; // Found a token in the follow set, stop skipping
         }
-        _currentTokenIndex++; // Skip the token
     }
 }
 
@@ -164,7 +174,6 @@ bool Parser::_parseRelOp() {
             return true;
 
         default:
-            _derivationSteps.push_back("RelOp -> FALSE");
             return false;
     }
 }
@@ -187,7 +196,6 @@ bool Parser::_parseAddOp() {
             return true;
 
         default:
-            _derivationSteps.push_back("AddOp -> FALSE");
             return false;
     }
 }
@@ -210,7 +218,6 @@ bool Parser::_parseMultOp() {
             return true;
 
         default:
-            _derivationSteps.push_back("MultOp -> FALSE");
             return false;
     }
 
@@ -230,7 +237,6 @@ bool Parser::_parseSign() {
             return true;
 
         default:
-            _derivationSteps.push_back("Sign -> FALSE");
             return false;
     }
 }
@@ -241,7 +247,6 @@ bool Parser::_parseAssignOp() {
         _match(TTYPE::ASSIGNMENT_);
         return true;
     } else {
-        _derivationSteps.push_back("AssignOp -> FALSE");
         return false;
     }
 }
@@ -263,7 +268,6 @@ bool Parser::_parseType(){
             return true;
 
         default:
-            _derivationSteps.push_back("Type -> FALSE");
             return false;
     }
 }
@@ -354,10 +358,18 @@ void Parser::_parseAParamsTail() {
 }
 
 void Parser::_parseAParams() {
-    // Grammar: AParams -> Expr AParamsTail
-    _derivationSteps.push_back("AParams -> Expr AParamsTail");
-    _parseExpr();
-    _parseAParamsTail();
+    // Grammar: AParams -> Expr AParamsTail | EPSILON
+    // Check FIRST set of Expr (starts with Factor's FIRST set)
+    if (LTTYPE == TTYPE::ID_ || LTTYPE == TTYPE::INTEGER_LITERAL_ ||
+        LTTYPE == TTYPE::FLOAT_LITERAL_ || LTTYPE == TTYPE::OPEN_PAREN_ ||
+        LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::NOT_) {
+        _derivationSteps.push_back("AParams -> Expr AParamsTail");
+        _parseExpr();
+        _parseAParamsTail();
+    }
+    else {
+        _derivationSteps.push_back("AParams -> EPSILON");
+    }
 }
 
 void Parser::_parseVariable(){
@@ -647,15 +659,22 @@ bool Parser::_parseStatement() {
 }
 void Parser::_parseStatementList() {
     // Grammar: StatementList -> Statement StatementList | EPSILON
-
-    // Case 1: Statement StatementList
-    if (_parseStatement()) {
-        _derivationSteps.push_back("StatementList -> Statement StatementList");
-        _parseStatementList(); // Recursive step for more statements
-    }
-    // Case 2: EPSILON
-    else {
-        _derivationSteps.push_back("StatementList -> EPSILON");
+    // Iterative with panic mode error recovery
+    while (true) {
+        try {
+            if (_parseStatement()) {
+                _derivationSteps.push_back("StatementList -> Statement StatementList");
+            } else {
+                _derivationSteps.push_back("StatementList -> EPSILON");
+                return;
+            }
+        } catch (const SyntaxError& e) {
+            // Error already logged. Skip to next statement start or list end.
+            _skipUntil({TTYPE::IF_KEYWORD_, TTYPE::WHILE_KEYWORD_, TTYPE::READ_KEYWORD_,
+                       TTYPE::WRITE_KEYWORD_, TTYPE::RETURN_KEYWORD_, TTYPE::ID_,
+                       TTYPE::END_KEYWORD_, TTYPE::ELSE_KEYWORD_, TTYPE::END_OF_FILE_});
+            _inErrorRecoveryMode = false;
+        }
     }
 }
 bool Parser::_parseVarDecl() {
@@ -670,13 +689,21 @@ bool Parser::_parseVarDecl() {
 }
 
 void Parser::_parseVarDeclList() {
-    if (_parseVarDecl()) {
-        _derivationSteps.push_back("VarDeclList -> VarDecl VarDeclList");
-        _parseVarDeclList(); // Recursive step for more variable declarations
-    }
-    // EPSILON case
-    else {
-        _derivationSteps.push_back("VarDeclList -> EPSILON");
+    // Grammar: VarDeclList -> VarDecl VarDeclList | EPSILON
+    // Iterative with panic mode error recovery
+    while (true) {
+        try {
+            if (_parseVarDecl()) {
+                _derivationSteps.push_back("VarDeclList -> VarDecl VarDeclList");
+            } else {
+                _derivationSteps.push_back("VarDeclList -> EPSILON");
+                return;
+            }
+        } catch (const SyntaxError& e) {
+            _skipUntil({TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_,
+                       TTYPE::DO_KEYWORD_, TTYPE::END_OF_FILE_});
+            _inErrorRecoveryMode = false;
+        }
     }
 }
 
@@ -881,15 +908,19 @@ void Parser::_parseClassMemberDecl() {
 }
 
 void Parser::_parseClassBody(){
-    if(LTTYPE == TTYPE::PUBLIC_KEYWORD_ || LTTYPE == TTYPE::PRIVATE_KEYWORD_){ // First set of ClassMemberDecl AND visibility
-        _derivationSteps.push_back("ClassBody -> ClassMemberDecl ClassBody");
-        _parseClassMemberDecl(); // Parse class member declaration
-        _parseClassBody(); // Recursive step for more members
+    // Grammar: ClassBody -> ClassMemberDecl ClassBody | EPSILON
+    // Iterative with panic mode error recovery
+    while (LTTYPE == TTYPE::PUBLIC_KEYWORD_ || LTTYPE == TTYPE::PRIVATE_KEYWORD_) {
+        try {
+            _derivationSteps.push_back("ClassBody -> ClassMemberDecl ClassBody");
+            _parseClassMemberDecl();
+        } catch (const SyntaxError& e) {
+            _skipUntil({TTYPE::PUBLIC_KEYWORD_, TTYPE::PRIVATE_KEYWORD_,
+                       TTYPE::CLOSE_BRACE_, TTYPE::END_OF_FILE_});
+            _inErrorRecoveryMode = false;
+        }
     }
-    // EPSILON case
-    else {
-        _derivationSteps.push_back("ClassBody -> EPSILON");
-    }
+    _derivationSteps.push_back("ClassBody -> EPSILON");
 }
 
 void Parser::_parseInheritsList(){
@@ -932,33 +963,57 @@ void Parser::_parseClassDecl() {
 }
 
 void Parser::_parseFuncDefList() {
-    if(LTTYPE == TTYPE::ID_){ // First set of FuncDef
-        _derivationSteps.push_back("FuncDefList -> FuncDef FuncDefList");
-        _parseFuncDef(); // Parse function definition
-        _parseFuncDefList(); // Recursive step for more function definitions
+    // Grammar: FuncDefList -> FuncDef FuncDefList | EPSILON
+    // Iterative with panic mode error recovery
+    while (LTTYPE == TTYPE::ID_) {
+        try {
+            _derivationSteps.push_back("FuncDefList -> FuncDef FuncDefList");
+            _parseFuncDef();
+        } catch (const SyntaxError& e) {
+            _skipUntil({TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
+            _inErrorRecoveryMode = false;
+        }
     }
-    // Case 2: EPSILON
-    else {
-        _derivationSteps.push_back("FuncDefList -> EPSILON");
-    }
+    _derivationSteps.push_back("FuncDefList -> EPSILON");
 }
 
 void Parser::_parseClassDeclList() {
-    if(LTTYPE == TTYPE::CLASS_KEYWORD_){ // First set of ClassDecl
-        _derivationSteps.push_back("ClassDeclList -> ClassDecl ClassDeclList");
-        _parseClassDecl(); // Parse class declaration
-        _parseClassDeclList(); // Recursive step for more class declarations
+    // Grammar: ClassDeclList -> ClassDecl ClassDeclList | EPSILON
+    // Iterative with panic mode error recovery
+    while (LTTYPE == TTYPE::CLASS_KEYWORD_) {
+        try {
+            _derivationSteps.push_back("ClassDeclList -> ClassDecl ClassDeclList");
+            _parseClassDecl();
+        } catch (const SyntaxError& e) {
+            _skipUntil({TTYPE::CLASS_KEYWORD_, TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
+            _inErrorRecoveryMode = false;
+        }
     }
-    // Case 2: EPSILON
-    else {
-        _derivationSteps.push_back("ClassDeclList -> EPSILON");
-    }
+    _derivationSteps.push_back("ClassDeclList -> EPSILON");
 }
 
 void Parser::_parseProgram() {
     _derivationSteps.push_back("Program -> ClassDeclList FuncDefList 'main' FuncBody");
-    _parseClassDeclList(); // Parse class declarations
-    _parseFuncDefList(); // Parse function definitions
-    _match(TTYPE::MAIN_);
-    _parseFuncBody(); // Parse main function body
+
+    try {
+        _parseClassDeclList();
+    } catch (const SyntaxError& e) {
+        _skipUntil({TTYPE::CLASS_KEYWORD_, TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
+        _inErrorRecoveryMode = false;
+    }
+
+    try {
+        _parseFuncDefList();
+    } catch (const SyntaxError& e) {
+        _skipUntil({TTYPE::MAIN_, TTYPE::END_OF_FILE_});
+        _inErrorRecoveryMode = false;
+    }
+
+    try {
+        _match(TTYPE::MAIN_);
+        _parseFuncBody();
+    } catch (const SyntaxError& e) {
+        _skipUntil({TTYPE::END_OF_FILE_});
+        _inErrorRecoveryMode = false;
+    }
 }
