@@ -74,74 +74,129 @@ class Token {
         std::string getTypeString() const {
             switch (type_) {
                 // --- Keywords ---
-                case Type::IF_KEYWORD_:      return "IF";
-                case Type::DO_KEYWORD_:      return "DO";
-                case Type::THEN_KEYWORD_:    return "THEN";
-                case Type::END_KEYWORD_:     return "END";
-                case Type::ELSE_KEYWORD_:    return "ELSE";
-                case Type::WHILE_KEYWORD_:   return "WHILE";
-                case Type::READ_KEYWORD_:    return "READ";
-                case Type::WRITE_KEYWORD_:   return "WRITE";
-                case Type::PUBLIC_KEYWORD_:  return "PUBLIC";
-                case Type::PRIVATE_KEYWORD_: return "PRIVATE";
-                case Type::CLASS_KEYWORD_:   return "CLASS";
-                case Type::RETURN_KEYWORD_:  return "RETURN";
-                case Type::INHERITS_:        return "INHERITS";
-                case Type::LOCAL_:           return "LOCAL";
-                case Type::MAIN_:            return "MAIN";
+                case Type::IF_KEYWORD_:
+                    return "IF";
+                case Type::DO_KEYWORD_:
+                    return "DO";
+                case Type::THEN_KEYWORD_:
+                    return "THEN";
+                case Type::END_KEYWORD_:
+                    return "END";
+                case Type::ELSE_KEYWORD_:
+                    return "ELSE";
+                case Type::WHILE_KEYWORD_:
+                    return "WHILE";
+                case Type::READ_KEYWORD_:
+                    return "READ";
+                case Type::WRITE_KEYWORD_:
+                    return "WRITE";
+                case Type::PUBLIC_KEYWORD_:
+                    return "PUBLIC";
+                case Type::PRIVATE_KEYWORD_:
+                    return "PRIVATE";
+                case Type::CLASS_KEYWORD_:
+                    return "CLASS";
+                case Type::RETURN_KEYWORD_:
+                    return "RETURN";
+                case Type::INHERITS_:
+                    return "INHERITS";
+                case Type::LOCAL_:
+                    return "LOCAL";
+                case Type::MAIN_:
+                    return "MAIN";
 
                     // --- Types ---
-                case Type::INTEGER_TYPE_:    return "INTEGER";
-                case Type::FLOAT_TYPE_:      return "FLOAT";
-                case Type::VOID_TYPE_:       return "VOID";
+                case Type::INTEGER_TYPE_:
+                    return "INTEGER";
+                case Type::FLOAT_TYPE_:
+                    return "FLOAT";
+                case Type::VOID_TYPE_:
+                    return "VOID";
 
                     // --- Logic Operators ---
-                case Type::AND_:             return "AND";
-                case Type::OR_:              return "OR";
-                case Type::NOT_:             return "NOT";
+                case Type::AND_:
+                    return "AND";
+                case Type::OR_:
+                    return "OR";
+                case Type::NOT_:
+                    return "NOT";
 
                     // --- Categories ---
-                case Type::ID_:              return "ID";
-                case Type::INTEGER_LITERAL_: return "INTEGER_LITERAL";
-                case Type::FLOAT_LITERAL_:   return "FLOAT_LITERAL"; // If you implemented this
+                case Type::ID_:
+                    return "ID";
+                case Type::INTEGER_LITERAL_:
+                    return "INTEGER_LITERAL";
+                case Type::FLOAT_LITERAL_:
+                    return "FLOAT_LITERAL"; // If you implemented this
 
                     // --- Symbols ---
-                case Type::PLUS_:            return "PLUS";
-                case Type::MINUS_:           return "MINUS";
-                case Type::MULTIPLY_:        return "MULTIPLY";
-                case Type::DIVIDE_:          return "DIVIDE";
-                case Type::ASSIGNMENT_:      return "ASSIGN";
-                case Type::EQUAL_:           return "EQ";
-                case Type::NOT_EQUAL_:       return "NEQ";
-                case Type::LESS_THAN_:       return "LT";
-                case Type::GREATER_THAN_:    return "GT";
-                case Type::LESS_EQUAL_:      return "LEQ";
-                case Type::GREATER_EQUAL_:   return "GEQ";
+                case Type::PLUS_:
+                    return "PLUS";
+                case Type::MINUS_:
+                    return "MINUS";
+                case Type::MULTIPLY_:
+                    return "MULTIPLY";
+                case Type::DIVIDE_:
+                    return "DIVIDE";
+                case Type::ASSIGNMENT_:
+                    return "ASSIGN";
+                case Type::EQUAL_:
+                    return "EQ";
+                case Type::NOT_EQUAL_:
+                    return "NEQ";
+                case Type::LESS_THAN_:
+                    return "LT";
+                case Type::GREATER_THAN_:
+                    return "GT";
+                case Type::LESS_EQUAL_:
+                    return "LEQ";
+                case Type::GREATER_EQUAL_:
+                    return "GEQ";
 
-                case Type::OPEN_PAREN_:      return "OPEN_PAREN";
-                case Type::CLOSE_PAREN_:     return "CLOSE_PAREN";
-                case Type::OPEN_BRACE_:      return "OPEN_BRACE";
-                case Type::CLOSE_BRACE_:     return "CLOSE_BRACE";
-                case Type::OPEN_BRACKET_:    return "OPEN_BRACKET";
-                case Type::CLOSE_BRACKET_:   return "CLOSE_BRACKET";
+                case Type::OPEN_PAREN_:
+                    return "OPEN_PAREN";
+                case Type::CLOSE_PAREN_:
+                    return "CLOSE_PAREN";
+                case Type::OPEN_BRACE_:
+                    return "OPEN_BRACE";
+                case Type::CLOSE_BRACE_:
+                    return "CLOSE_BRACE";
+                case Type::OPEN_BRACKET_:
+                    return "OPEN_BRACKET";
+                case Type::CLOSE_BRACKET_:
+                    return "CLOSE_BRACKET";
 
-                case Type::SEMICOLON_:       return "SEMICOLON";
-                case Type::COMMA_:           return "COMMA";
-                case Type::DOT_:             return "DOT";
-                case Type::COLON_:           return "COLON";
-                case Type::COLON_COLON_:     return "COLON_COLON";
+                case Type::SEMICOLON_:
+                    return "SEMICOLON";
+                case Type::COMMA_:
+                    return "COMMA";
+                case Type::DOT_:
+                    return "DOT";
+                case Type::COLON_:
+                    return "COLON";
+                case Type::COLON_COLON_:
+                    return "COLON_COLON";
 
                     // --- Errors/EOF ---
-                case Type::INVALID_ID_:      return "INVALID_ID";
-                case Type::INVALID_NUMBER_:  return "INVALID_NUMBER";
-                case Type::INVALID_CHAR_:    return "INVALID_CHAR";
-                case Type::BLOCK_COMMENT_: return "BLOCK_COMMENT";
-                case Type::INLINE_COMMENT_: return "INLINE_COMMENT";
-                case Type::UNTERMINATED_COMMENT_: return "UNTERMINATED_COMMENT";
-                case Type::TERMINATED_COMMENT_: return "TERMINATED_COMMENT_";
-                case Type::END_OF_FILE_:     return "EOF";
+                case Type::INVALID_ID_:
+                    return "INVALID_ID";
+                case Type::INVALID_NUMBER_:
+                    return "INVALID_NUMBER";
+                case Type::INVALID_CHAR_:
+                    return "INVALID_CHAR";
+                case Type::BLOCK_COMMENT_:
+                    return "BLOCK_COMMENT";
+                case Type::INLINE_COMMENT_:
+                    return "INLINE_COMMENT";
+                case Type::UNTERMINATED_COMMENT_:
+                    return "UNTERMINATED_COMMENT";
+                case Type::TERMINATED_COMMENT_:
+                    return "TERMINATED_COMMENT_";
+                case Type::END_OF_FILE_:
+                    return "EOF";
 
-                default:                     return "UNKNOWN_TYPE";
+                default:
+                    return "UNKNOWN_TYPE";
             }
         }
 

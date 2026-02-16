@@ -13,7 +13,7 @@ void writeTokensToFile(const std::string& filename, const std::vector<std::vecto
 
 void writeErrorsToFile(const std::string& filename, const std::vector<std::vector<Token>>& tokens);
 
-void lex_file(const std::string& input_file,  const std::string valid_out_file, const std::string valid_in_file);
+std::vector<std::vector<Token>> lex_file(const std::string& input_file,  const std::string valid_out_file, const std::string invalid_out_file);
 
 #endif // IO_H
 

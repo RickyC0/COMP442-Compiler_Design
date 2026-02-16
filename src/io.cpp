@@ -54,7 +54,7 @@ void writeTokensToFile(const std::string& filename, const std::vector<std::vecto
     file.close();
 }
 
-void lex_file(const std::string& input_file,  const std::string valid_out_file, const std::string invalid_out_file){
+std::vector<std::vector<Token>> lex_file(const std::string& input_file,  const std::string valid_out_file, const std::string invalid_out_file){
     auto valid_and_invalid_tokens = tokenizeFile(input_file);
 
     auto valids = std::get<0>(valid_and_invalid_tokens);
@@ -63,8 +63,7 @@ void lex_file(const std::string& input_file,  const std::string valid_out_file, 
     writeTokensToFile(valid_out_file, valids);
     writeErrorsToFile(invalid_out_file, invalids);
 
-    //TODO CONTINUE
-
+    return valids;
 }
 
 void writeErrorsToFile(const std::string& filename, const std::vector<std::vector<Token>>& tokens){

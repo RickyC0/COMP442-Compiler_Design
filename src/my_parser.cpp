@@ -1,13 +1,22 @@
-#include "parser.h"
+#include "my_parser.h"
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
 #define TTYPE Token::Type
 #define LTTYPE _lookaheadToken.getType()
 
-static bool Parser::_nextToken() {
-    if (_currentTokenIndex < _tokens.size()) {
-        Token token = _tokens[_currentTokenIndex++];
+// Static member definitions
+Token Parser::_lookaheadToken(Token::Type::END_OF_FILE_, "", 0);
+int Parser::_currentTokenIndex = 0;
+bool Parser::_inErrorRecoveryMode = false;
+std::vector<std::vector<Token>> Parser::_tokens;
+std::vector<Token> Parser::_flatTokens;
+std::vector<std::string> Parser::_errorMessages;
+
+bool Parser::_nextToken() {
+    if (_currentTokenIndex < _flatTokens.size()) {
+        Token token = _flatTokens[_currentTokenIndex++];
         _lookaheadToken = token;
         return true;
     } else {
@@ -16,9 +25,9 @@ static bool Parser::_nextToken() {
     }
 }
 
-static void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
-    while (_currentTokenIndex < _tokens.size()) {
-        _lookaheadToken = _tokens[_currentTokenIndex];
+void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
+    while (_currentTokenIndex < _flatTokens.size()) {
+        _lookaheadToken = _flatTokens[_currentTokenIndex];
 
         if (std::find(followSet.begin(), followSet.end(), LTTYPE) != followSet.end()) {
             return; // Found a token in the follow set, stop skipping
@@ -27,12 +36,32 @@ static void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
     }
 }
 
-static bool Parser::parseTokens(std::vector<Token>& tokens) {
+bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     _tokens = tokens;
+    // Flatten vector<vector<Token>> into a single vector<Token>
+    _flatTokens.clear();
+    for (const auto& line : tokens) {
+        for (const auto& token : line) {
+            _flatTokens.push_back(token);
+        }
+    }
     _currentTokenIndex = 0;
+    _errorMessages.clear();
+    _inErrorRecoveryMode = false;
 
+    // Prime the lookahead token
+    if (!_nextToken()) {
+        _errorMessages.push_back("[ERROR][SYNTAX] Empty token stream");
+        return false;
+    }
 
-    //TODO
+    try {
+        _parseProgram();
+    } catch (const SyntaxError& e) {
+        // Error already logged in _reportError
+    }
+
+    return _errorMessages.empty();
 }
 
 std::string Parser::_formatError(const std::string& message, const Token& token, const std::vector<Token::Type>& expectedTokens) {
@@ -56,7 +85,7 @@ void Parser::_reportError(const std::string& message, const std::vector<Token::T
     throw SyntaxError(msg);
 }
 
-static void Parser::_match(Token::Type expectedType) {
+void Parser::_match(Token::Type expectedType) {
     // The token matches what we expect
     if (LTTYPE == expectedType) {
         
@@ -90,7 +119,7 @@ static void Parser::_match(Token::Type expectedType) {
 // OPERATOR PARSING FUNCTIONS
 // ============================================================================
 
-static bool Parser::_parseRelOp() {
+bool Parser::_parseRelOp() {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -104,11 +133,11 @@ static bool Parser::_parseRelOp() {
             return true;
             
         default:
-            _reportError("Expected relational operator", {TTYPE::EQUAL_, TTYPE::NOT_EQUAL_, TTYPE::LESS_THAN_, TTYPE::GREATER_THAN_, TTYPE::LESS_EQUAL_, TTYPE::GREATER_EQUAL_});
+            return false;
     }
 }
 
-static bool Parser::_parseAddOp() {
+bool Parser::_parseAddOp() {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -119,11 +148,11 @@ static bool Parser::_parseAddOp() {
             return true;
             
         default:
-            _reportError("Expected '+', '-', or 'or'", {TTYPE::PLUS_, TTYPE::MINUS_, TTYPE::OR_});
+            return false;
     }
 }
 
-static bool Parser::_parseMultOp() {
+bool Parser::_parseMultOp() {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -134,12 +163,12 @@ static bool Parser::_parseMultOp() {
             return true;
             
         default:
-            _reportError("Expected '*', '/', or '&'", {TTYPE::MULTIPLY_, TTYPE::DIVIDE_, TTYPE::AND_});
+            return false;
     }
 
 }
 
-static bool Parser::_parseSign() {
+bool Parser::_parseSign() {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -149,20 +178,20 @@ static bool Parser::_parseSign() {
             return true;
             
         default:
-            _reportError("Expected '+' or '-'", {TTYPE::PLUS_, TTYPE::MINUS_});
+            return false;
     }
 }
 
-static bool Parser::_parseAssignOp() {
+bool Parser::_parseAssignOp() {
     if (LTTYPE == TTYPE::ASSIGNMENT_) {
         _match(TTYPE::ASSIGNMENT_);
         return true;
     } else {
-        _reportError("Expected assignment operator '='", {TTYPE::ASSIGNMENT_});
+        return false;
     }
 }
 
-static bool Parser::_parseType(){
+bool Parser::_parseType(){
     switch (LTTYPE)
     {
         case TTYPE::INTEGER_TYPE_:
@@ -172,7 +201,7 @@ static bool Parser::_parseType(){
             return true;
 
         default:
-            _reportError("Expected type (int, float, or identifier)", {TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
+            return false;
     }
 }
 
@@ -180,12 +209,12 @@ static bool Parser::_parseType(){
 // ARRAY PARSING FUNCTIONS
 // ============================================================================
 
-static void Parser::_parseArraySizeTail() {
+void Parser::_parseArraySizeTail() {
     // Grammar: ArraySizeTail -> intNum ] | ]
     
     // Case 1: intNum ]
-    if (LTTYPE == TTYPE::INTEGER_LITERAL) { // Assuming INTEGER_LITERAL for numbers
-        _match(TTYPE::INTEGER_LITERAL);
+    if (LTTYPE == TTYPE::INTEGER_LITERAL_) {
+        _match(TTYPE::INTEGER_LITERAL_);
         _match(TTYPE::CLOSE_BRACKET_);
     }
     // Case 2: ]
@@ -194,11 +223,11 @@ static void Parser::_parseArraySizeTail() {
     }
     // Error
     else {
-        _reportError("Expected integer or ']'", {TTYPE::INTEGER_LITERAL, TTYPE::CLOSE_BRACKET_});
+        _reportError("Expected integer or ']'", {TTYPE::INTEGER_LITERAL_, TTYPE::CLOSE_BRACKET_});
     }
 }
 
-static void Parser::_parseArraySize() {
+void Parser::_parseArraySize() {
     // Grammar: ArraySize -> [ ArraySizeTail
     _match(TTYPE::OPEN_BRACKET_);
     
@@ -206,7 +235,7 @@ static void Parser::_parseArraySize() {
     _parseArraySizeTail();
 }
 
-static void Parser::_parseArraySizeList() {
+void Parser::_parseArraySizeList() {
     // Grammar: ArraySizeList -> ArraySize ArraySizeList | EPSILON
     
     // Check FIRST set of ArraySize -> { [ }
@@ -218,19 +247,23 @@ static void Parser::_parseArraySizeList() {
     // If we don't see '[', we do nothing (return)
 }
 
-static void Parser::_parseIndice() {
+void Parser::_parseIndice() {
     // Grammar: Indice -> [ Expr ]
     _match(TTYPE::OPEN_BRACKET_);
     _parseExpr();
     _match(TTYPE::CLOSE_BRACKET_);
 }
 
-static void Parser::_parseIndiceList(){
-    _parseIndice();
-    _parseIndiceList(); // Recursive step for multiple indices
+void Parser::_parseIndiceList(){
+    // Grammar: IndiceList -> Indice IndiceList | EPSILON
+    if (LTTYPE == TTYPE::OPEN_BRACKET_) {
+        _parseIndice();
+        _parseIndiceList(); // Recursive step for multiple indices
+    }
+    // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseAParamsTail() {
+void Parser::_parseAParamsTail() {
     // Grammar: AParamsTail -> , Expr AParamsTail | EPSILON
     
     // Case 1: , Expr AParamsTail
@@ -243,18 +276,18 @@ static void Parser::_parseAParamsTail() {
     // If we don't see a comma, we do nothing (return)
 }
 
-static void Parser::_parseAParams() {
+void Parser::_parseAParams() {
     // Grammar: AParams -> Expr AParamsTail
     _parseExpr();
     _parseAParamsTail();
 }
 
-static void Parser::_parseVariable(){
+void Parser::_parseVariable(){
     _match(TTYPE::ID_);
     _parseFactorIdTail(); // Check for array access or function call
 }
 
-static void Parser::_parseFactorCallTail(){
+void Parser::_parseFactorCallTail(){
     if(LTTYPE == TTYPE::DOT_){
         _match(TTYPE::DOT_);
         _match(TTYPE::ID_);
@@ -263,7 +296,7 @@ static void Parser::_parseFactorCallTail(){
     // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseFactorRest(){
+void Parser::_parseFactorRest(){
     switch (LTTYPE)
     {
     case TTYPE::DOT_:
@@ -284,12 +317,12 @@ static void Parser::_parseFactorRest(){
     }
 }
 
-static void Parser::_parseFactorIdTail(){
+void Parser::_parseFactorIdTail(){
     _parseIndiceList(); // Check for array access
     _parseFactorRest(); // Check for function call or member access
 }
 
-static void Parser::_parseFactor() {
+void Parser::_parseFactor() {
     switch (LTTYPE)
     {
     case TTYPE::ID_:
@@ -297,9 +330,8 @@ static void Parser::_parseFactor() {
         _parseFactorIdTail();
         break;
 
-    case TTYPE::INTEGER_LITERAL:
-    case TTYPE::FLOAT_LITERAL:
-    case TTYPE::STRING_LITERAL:
+    case TTYPE::INTEGER_LITERAL_:
+    case TTYPE::FLOAT_LITERAL_:
         _match(LTTYPE); // Match the literal
         break;
 
@@ -322,13 +354,13 @@ static void Parser::_parseFactor() {
         break;
     
     default:
-        _reportError("Expected factor (identifier, literal, '(', sign, or '!')", {TTYPE::ID_, TTYPE::INTEGER_LITERAL, TTYPE::FLOAT_LITERAL, TTYPE::STRING_LITERAL, TTYPE::OPEN_PAREN_, TTYPE::MINUS_, TTYPE::PLUS_, TTYPE::NOT_});
+        _reportError("Expected factor (identifier, literal, '(', sign, or '!')", {TTYPE::ID_, TTYPE::INTEGER_LITERAL_, TTYPE::FLOAT_LITERAL_, TTYPE::OPEN_PAREN_, TTYPE::MINUS_, TTYPE::PLUS_, TTYPE::NOT_});
     }
 }
 
-//TODO CHECK FIRST SET INSTEAD OF CALLING _parseMultOp() WHICH THROWS AN ERROR IF IT DOESN'T MATCH
-static void Parser::_parseMultOpTail(){
-    if(LLTYPE == TTYPE::MULTIPLY_ || LTTYPE == TTYPE::DIVIDE_ || LTTYPE == TTYPE::AND_){ // First set of MultOp
+void Parser::_parseMultOpTail(){
+    if(LTTYPE == TTYPE::MULTIPLY_ || LTTYPE == TTYPE::DIVIDE_ || LTTYPE == TTYPE::AND_){ // First set of MultOp
+        _parseMultOp(); // Consume the operator
         _parseFactor();
         _parseMultOpTail(); // Recursive step for multiple operations
     }
@@ -336,43 +368,45 @@ static void Parser::_parseMultOpTail(){
 }
 
 
-static void Parser::_parseTerm(){
+void Parser::_parseTerm(){
     _parseFactor();
     _parseMultOpTail(); // Check for multiplication/division
 }
 
-static void Parser::_parseAddOpTail(){
-    if(LLTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::OR_){ // First set of AddOp
+void Parser::_parseAddOpTail(){
+    if(LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::OR_){ // First set of AddOp
+        _parseAddOp(); // Consume the operator
         _parseTerm();
         _parseAddOpTail(); // Recursive step for multiple operations
     }
-
     // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseArithExpr(){
+void Parser::_parseArithExpr(){
     _parseTerm();
     _parseAddOpTail(); // Check for addition/subtraction
 }
 
-static void Parser::_parseRelExpr(){
+void Parser::_parseRelExpr(){
     _parseArithExpr();
-    _parseRelOp();
+    if(!_parseRelOp()){
+        _reportError("Expected relational operator", {TTYPE::EQUAL_, TTYPE::NOT_EQUAL_, TTYPE::LESS_THAN_, TTYPE::GREATER_THAN_, TTYPE::LESS_EQUAL_, TTYPE::GREATER_EQUAL_});
+    }
     _parseArithExpr();
 }
 
-static void Parser::_parseExprTail(){
+void Parser::_parseExprTail(){
     if(_parseRelOp()){
         _parseArithExpr();
     }
 }
 
-static void Parser::_parseExpr(){
+void Parser::_parseExpr(){
     _parseArithExpr();
     _parseExprTail(); // Check for relational operator
 }
 
-static void Parser::_parseStatementCallTail(){
+void Parser::_parseStatementCallTail(){
     if(LTTYPE == TTYPE::DOT_){
         _match(TTYPE::DOT_);
         _match(TTYPE::ID_);
@@ -386,7 +420,7 @@ static void Parser::_parseStatementCallTail(){
     }
 }
 
-static void Parser::_parseStatementRest(){
+void Parser::_parseStatementRest(){
     if(LTTYPE == TTYPE::DOT_){
         _match(TTYPE::DOT_);
         _match(TTYPE::ID_);
@@ -410,12 +444,12 @@ static void Parser::_parseStatementRest(){
     }
 }
 
-static void Parser::_parseStatementIdTail(){
+void Parser::_parseStatementIdTail(){
     _parseIndiceList(); // Check for array access
     _parseStatementRest(); // Check for function call, member access, or assignment    
 }
 
-static void Parser::_parseStatBlock(){
+void Parser::_parseStatBlock(){
     if(LTTYPE == TTYPE::OPEN_BRACE_) {
         _match(TTYPE::OPEN_BRACE_);
         _parseStatementList();
@@ -429,7 +463,7 @@ static void Parser::_parseStatBlock(){
     }
 }
 
-static void Parser::_parseStatement() {
+bool Parser::_parseStatement() {
     switch(LTTYPE) {
         case TTYPE::IF_KEYWORD_:
             _match(TTYPE::IF_KEYWORD_);
@@ -440,8 +474,8 @@ static void Parser::_parseStatement() {
             _parseStatBlock();
             _match(TTYPE::ELSE_KEYWORD_);
             _parseStatBlock();
-            _match(TTYPE::SEMICOLON_); 
-            break;
+            _match(TTYPE::SEMICOLON_);
+            return true;
 
         case TTYPE::WHILE_KEYWORD_:
             _match(TTYPE::WHILE_KEYWORD_);
@@ -450,7 +484,7 @@ static void Parser::_parseStatement() {
             _match(TTYPE::CLOSE_PAREN_);
             _parseStatBlock();
             _match(TTYPE::SEMICOLON_);
-            break;
+            return true;
 
         case TTYPE::READ_KEYWORD_:
             _match(TTYPE::READ_KEYWORD_);
@@ -458,7 +492,7 @@ static void Parser::_parseStatement() {
             _parseVariable();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            break;
+            return true;
 
         case TTYPE::WRITE_KEYWORD_:
             _match(TTYPE::WRITE_KEYWORD_);
@@ -466,7 +500,7 @@ static void Parser::_parseStatement() {
             _parseExpr();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            break;
+            return true;
 
         case TTYPE::RETURN_KEYWORD_:
             _match(TTYPE::RETURN_KEYWORD_);
@@ -474,18 +508,18 @@ static void Parser::_parseStatement() {
             _parseExpr();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            break;
+            return true;
 
         case TTYPE::ID_:
             _match(TTYPE::ID_);
             _parseStatementIdTail(); // Check for function call, member access, or assignment
-            break;
+            return true;
 
         default:
-            _reportError("Expected statement (if, while, read, write, return, or identifier)", {TTYPE::IF_KEYWORD_, TTYPE::WHILE_KEYWORD_, TTYPE::READ_KEYWORD_, TTYPE::WRITE_KEYWORD_, TTYPE::RETURN_KEYWORD_, TTYPE::ID_});
+            return false;
     }
 }
-static void Parser::_parseStatementList() {
+void Parser::_parseStatementList() {
     // Grammar: StatementList -> Statement StatementList | EPSILON
     
     // Case 1: Statement StatementList
@@ -494,41 +528,46 @@ static void Parser::_parseStatementList() {
     }
     // Case 2: EPSILON
 }
-static void Parser::_parseVarDecl() {
-    _parseType();
+bool Parser::_parseVarDecl() {
+    if(!_parseType()){
+        return false; // No type found, not a var declaration
+    }
     _match(TTYPE::ID_);
     _parseArraySizeList(); // Check for array declaration
     _match(TTYPE::SEMICOLON_);
+    return true;
 }
 
-static void Parser::_parseVarDeclList() {
+void Parser::_parseVarDeclList() {
     if (_parseVarDecl()) {
         _parseVarDeclList(); // Recursive step for more variable declarations
     }
     // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseLocalVarDeclList(){
+void Parser::_parseLocalVarDeclList(){
     if(LTTYPE == TTYPE::LOCAL_){
-        _parseValDeclList(); // Recursive step for more variable declarations
+        _parseVarDeclList(); // Recursive step for more variable declarations
     }
     // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseFuncBody() {
+void Parser::_parseFuncBody() {
     _parseLocalVarDeclList(); // Parse local variable declarations
     _match(TTYPE::DO_KEYWORD_);
     _parseStatementList(); // Parse the statements in the function body
     _match(TTYPE::END_KEYWORD_);
 }
 
-static void Parser::_parseFParamsTail() {
+void Parser::_parseFParamsTail() {
     // Grammar: FParamsTail -> , Type id FParamsTail | EPSILON
     
     // Case 1: , Type id FParamsTail
     if (LTTYPE == TTYPE::COMMA_) {
         _match(TTYPE::COMMA_);
-        _parseType();
+        if(!_parseType()){
+            _reportError("Expected type (int, float, or identifier)", {TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
+        }
         _match(TTYPE::ID_);
         _parseArraySizeList(); // Check for array parameter
         _parseFParamsTail(); // Recursive step for more parameters
@@ -537,8 +576,8 @@ static void Parser::_parseFParamsTail() {
     // If we don't see a comma, we do nothing (return)
 }
 
-// TODO CHECK FIRST SET INSTEAD OF CALLING _parseType() WHICH THROWS AN ERROR IF IT DOESN'T MATCH
-static void Parser::_parseFParams() {
+
+void Parser::_parseFParams() {
     if(_parseType()){
         _match(TTYPE::ID_);
         _parseArraySizeList(); // Check for array parameter
@@ -547,8 +586,8 @@ static void Parser::_parseFParams() {
     // EPSILON case: do nothing (return)
 }
 
-// TODO CHECK FIRST SET INSTEAD OF CALLING _parseType() WHICH THROWS AN ERROR IF IT DOESN'T MATCH
-static void Parser::_parseReturnType(){
+
+void Parser::_parseReturnType(){
     if(LTTYPE == TTYPE::VOID_TYPE_){
         _match(TTYPE::VOID_TYPE_);
     }
@@ -560,7 +599,7 @@ static void Parser::_parseReturnType(){
     }
 }
 
-static void Parser::_parseFuncHeadTail() {
+void Parser::_parseFuncHeadTail() {
     if(LTTYPE == TTYPE::COLON_COLON_){
         _match(TTYPE::COLON_COLON_);
         _match(TTYPE::ID_);
@@ -583,12 +622,12 @@ static void Parser::_parseFuncHeadTail() {
     }
 }
 
-static void Parser::_parseFuncHead() {
+void Parser::_parseFuncHead() {
     _match(TTYPE::ID_); // Function name
     _parseFuncHeadTail(); // Check for parameters and return type
 }
 
-static void Parser::_parseFuncDef() {
+void Parser::_parseFuncDef() {
     if(LTTYPE == TTYPE::ID_){ // First set of FuncHead
         _parseFuncHead(); // Parse function header
         _parseFuncBody(); // Parse function body
@@ -598,14 +637,14 @@ static void Parser::_parseFuncDef() {
     }
 }
 
-static void Parser::_parseMemberDeclIdTail(){
+void Parser::_parseMemberDeclIdTail(){
     if(LTTYPE == TTYPE::ID_){
         _parseArraySizeList(); // Check for array declaration
         _match(TTYPE::SEMICOLON_);
     }
 }
 
-static void Parser::_parseMemberDecl() {
+void Parser::_parseMemberDecl() {
     switch(LTTYPE){
         case TTYPE::ID_:
             _match(TTYPE::ID_);
@@ -614,33 +653,38 @@ static void Parser::_parseMemberDecl() {
 
         case TTYPE::INTEGER_TYPE_:
         case TTYPE::FLOAT_TYPE_:
+            _match(LTTYPE); // Match the type (int or float)
             _match(TTYPE::ID_);
             _parseArraySizeList(); // Check for array declaration
             _match(TTYPE::SEMICOLON_);
+            break;
+
+        default:
+            _reportError("Expected member declaration (type or identifier)", {TTYPE::ID_, TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_});
     }
 }
 
-static bool Parser::_parseVisibility(){
+bool Parser::_parseVisibility(){
     switch(LTTYPE){
-        case TTYPE::PUBLIC_:
-            _match(TTYPE::PUBLIC_);
+        case TTYPE::PUBLIC_KEYWORD_:
+            _match(TTYPE::PUBLIC_KEYWORD_);
             return true;
 
-        case TTYPE::PRIVATE_:
-            _match(TTYPE::PRIVATE_);
+        case TTYPE::PRIVATE_KEYWORD_:
+            _match(TTYPE::PRIVATE_KEYWORD_);
             return false;
 
         default:
-            _reportError("Expected visibility modifier (public, private, or protected)", {TTYPE::PUBLIC_, TTYPE::PRIVATE_});
+            _reportError("Expected visibility modifier (public or private)", {TTYPE::PUBLIC_KEYWORD_, TTYPE::PRIVATE_KEYWORD_});
     }
 }
 
-static void Parser::_parseClassMemberDecl() {
+void Parser::_parseClassMemberDecl() {
     _parseVisibility(); // Parse visibility modifier
     _parseMemberDecl(); // Parse the member declaration
 }
 
-static void Parser::_parseClassBody(){
+void Parser::_parseClassBody(){
     if(LTTYPE == TTYPE::PUBLIC_KEYWORD_ || LTTYPE == TTYPE::PRIVATE_KEYWORD_){ // First set of ClassMemberDecl AND visibility
         _parseClassMemberDecl(); // Parse class member declaration
         _parseClassBody(); // Recursive step for more members
@@ -649,18 +693,19 @@ static void Parser::_parseClassBody(){
     // EPSILON case: do nothing (return)
 }
 
-static void Parser::_parseInheritsList(){
-    if(LTTYPE == TTYPE::ID_){
-        _match(TTYPE::ID_);
+void Parser::_parseInheritsList(){
+    // Grammar: InheritsList -> , id InheritsList | EPSILON
+    if(LTTYPE == TTYPE::COMMA_){
         _match(TTYPE::COMMA_);
+        _match(TTYPE::ID_);
         _parseInheritsList(); // Recursive step for more inherited classes
     }
     // Case 2: EPSILON
 }
 
-static void Parser::_parseInheritanceOpt(){
-    if(LTTPE == TTYPE::INHERITS_KEYWORD_){
-        _match(TTYPE::INHERITS_KEYWORD_);
+void Parser::_parseInheritanceOpt(){
+    if(LTTYPE == TTYPE::INHERITS_){
+        _match(TTYPE::INHERITS_);
         _match(TTYPE::ID_);
         _parseInheritsList(); // Parse the list of inherited classes
     }
@@ -669,7 +714,7 @@ static void Parser::_parseInheritanceOpt(){
 }
 
 
-static void Parser::_parseClassDecl() {
+void Parser::_parseClassDecl() {
     _match(TTYPE::CLASS_KEYWORD_);
     _match(TTYPE::ID_); // Class name
     _parseInheritanceOpt(); // Check for optional inheritance
@@ -679,7 +724,7 @@ static void Parser::_parseClassDecl() {
     _match(TTYPE::SEMICOLON_);
 }
 
-static void Parser::_parseFuncDefList() {
+void Parser::_parseFuncDefList() {
     if(LTTYPE == TTYPE::ID_){ // First set of FuncDef
         _parseFuncDef(); // Parse function definition
         _parseFuncDefList(); // Recursive step for more function definitions
@@ -687,7 +732,7 @@ static void Parser::_parseFuncDefList() {
     // Case 2: EPSILON
 }
 
-static void Parser::_parseClassDeclList() {
+void Parser::_parseClassDeclList() {
     if(LTTYPE == TTYPE::CLASS_KEYWORD_){ // First set of ClassDecl
         _parseClassDecl(); // Parse class declaration
         _parseClassDeclList(); // Recursive step for more class declarations
@@ -695,7 +740,7 @@ static void Parser::_parseClassDeclList() {
     // Case 2: EPSILON
 }
 
-static void Parser::_parseProgram() {
+void Parser::_parseProgram() {
     _parseClassDeclList(); // Parse class declarations
     _parseFuncDefList(); // Parse function definitions
     _match(TTYPE::MAIN_);

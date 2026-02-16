@@ -1,8 +1,15 @@
-#ifndef PARSER_H
-#define PARSER_H
+#ifndef MY_PARSER_H
+#define MY_PARSER_H
 
 #include "Token.h"
 #include <initializer_list>
+#include <stdexcept>
+#include <algorithm>
+
+class SyntaxError : public std::runtime_error {
+public:
+    explicit SyntaxError(const std::string& message) : std::runtime_error(message) {}
+};
 
 class Parser {
     private:
@@ -265,7 +272,9 @@ class Parser {
 
         static bool _inErrorRecoveryMode;
 
-        static std::vector<Token> _tokens;
+        static std::vector<std::vector<Token>> _tokens;
+
+        static std::vector<Token> _flatTokens;
 
         static void _match(Token::Type expectedType);  
 
@@ -304,7 +313,7 @@ class Parser {
         static void _parseFuncBody();
         static void _parseLocalVarDeclList();
         static void _parseVarDeclList();
-        static void _parseVarDecl();
+        static bool _parseVarDecl();
 
         // ========================================================================
         // STATEMENTS
@@ -360,9 +369,9 @@ class Parser {
 
         bool parseProgram(std::string token_filepath);
 
-        bool parseTokens(std::vector<Token>& tokens); // instead of reading a file with text representation of the tokens, take the tokens directly from the lexer
+        static bool parseTokens(const std::vector<std::vector<Token>>& tokens); // instead of reading a file with text representation of the tokens, take the tokens directly from the lexer
 
 
 };
 
-#endif // PARSER_H
+#endif // MY_PARSER_H
