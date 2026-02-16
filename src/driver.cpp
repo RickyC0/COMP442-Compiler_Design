@@ -1,61 +1,87 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <iomanip> // Required for std::setw
 
 #include "../include/io.h"
 #include "../include/token.h"
 #include "../include/my_parser.h"
 
+// Helper for printing section headers
+void printHeader(const std::string& title) {
+    std::cout << "\n" << std::string(60, '=') << "\n";
+    std::cout << "  " << title << "\n";
+    std::cout << std::string(60, '=') << std::endl;
+}
+
+// Helper for printing file paths nicely
+void printPath(const std::string& label, const std::string& path) {
+    std::cout << std::left << std::setw(20) << label << ": " << path << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     // Check if the user provided a file argument
-   if (argc < 2) {
-       std::cerr << "Usage: " << argv[0] << " <source_file>" << std::endl;
-       return 1;
-   }
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <source_file>" << std::endl;
+        return 1;
+    }
 
-   std::string sourceFile = argv[1];
-   std::cout << "Lexical analysis started for file: " << sourceFile << std::endl;
+    std::string sourceFile = argv[1];
 
-   // Derive output filenames from the input filename
-   std::string baseName = sourceFile;
-   size_t lastDot = sourceFile.find_last_of('.');
+    // SETUP PHASE
+    printHeader("COMPILER DRIVER STARTING");
+    std::cout << "[INFO] Processing file: " << sourceFile << std::endl;
 
-   if (lastDot != std::string::npos) {
-       baseName = sourceFile.substr(0, lastDot);
-   }
+    // Create output directory: output/<baseName>/
+    std::string baseName = getBaseName(sourceFile);
+    std::string outputDir = createOutputDir(sourceFile);
+    std::cout << "[INFO] Output directory: " << outputDir << std::endl;
 
-    // Create the new filenames
-    std::string valid_output_file = baseName + ".outlextokensflaci";
-    std::string invalid_output_file = baseName + ".outlexerrors";
+    // Build output file paths
+    std::string valid_output_file = buildOutputPath(outputDir, baseName, ".outlextokens");
+    std::string invalid_output_file = buildOutputPath(outputDir, baseName, ".outlexerrors");
+    std::string derivation_file = buildOutputPath(outputDir, baseName, ".outderivation");
+    std::string syntax_errors_file = buildOutputPath(outputDir, baseName, ".outsyntaxerrors");
 
     std::vector<std::vector<Token>> valid_tokens;
 
-    // LEXER
+    // LEXER PHASE
+    printHeader("PHASE 1: LEXICAL ANALYSIS");
     try {
         valid_tokens = lex_file(sourceFile, valid_output_file, invalid_output_file);
 
-        std::cout << "Tokenization completed." << std::endl;
-        std::cout << "Tokens written to: " << valid_output_file << std::endl;
-        std::cout << "Errors written to: " << invalid_output_file << std::endl;
+        std::cout << "[SUCCESS] Tokenization completed." << std::endl;
+        printPath("   -> Tokens", valid_output_file);
+        printPath("   -> Lex Errors", invalid_output_file);
 
     } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "[FATAL] Lexer Error: " << e.what() << std::endl;
         return 1;
     }
 
-    // PARSER
+    // PARSER PHASE
+    printHeader("PHASE 2: SYNTACTIC ANALYSIS");
     try {
-        bool success = Parser::parseTokens(valid_tokens); // Assuming we want to parse the tokens from the first line for simplicity
+        bool success = Parser::parseTokens(valid_tokens);
+
+        writeSyntaxErrorsToFile(syntax_errors_file, Parser::getErrorMessages());
+        writeDerivationToFile(derivation_file);
 
         if (success) {
-            std::cout << "Parsing completed successfully. No syntax errors found." << std::endl;
+            std::cout << "[SUCCESS] Parsing completed. No syntax errors found." << std::endl;
         } else {
-            std::cout << "Parsing completed with syntax errors. Check the error messages for details." << std::endl;
+            std::cout << "[FAIL] Parsing completed with syntax errors." << std::endl;
+            printPath("   -> Syntax Errors", syntax_errors_file);
         }
+        printPath("   -> Derivation", derivation_file);
+
     } catch (const std::exception& e) {
-        std::cerr << "Error during parsing: " << e.what() << std::endl;
+        std::cerr << "[FATAL] Parser crashed: " << e.what() << std::endl;
         return 1;
     }
+
+    std::cout << "\n" << std::string(60, '-') << std::endl;
+    std::cout << "Done." << std::endl;
 
     return 0;
 }

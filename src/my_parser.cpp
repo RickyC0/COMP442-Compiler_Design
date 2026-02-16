@@ -64,6 +64,10 @@ bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     return _errorMessages.empty();
 }
 
+const std::vector<std::string>& Parser::getErrorMessages() {
+    return _errorMessages;
+}
+
 std::string Parser::_formatError(const std::string& message, const Token& token, const std::vector<Token::Type>& expectedTokens) {
     std::string errorMsg = "[ERROR][SYNTAX] " 
                             + message 

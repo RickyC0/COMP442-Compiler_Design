@@ -2,6 +2,28 @@
 #include "../include/token.h"
 #include <stdexcept>
 #include <iostream>
+#include <filesystem>
+
+namespace fs = std::filesystem;
+
+// ============================================================================
+// Output path helpers
+// ============================================================================
+
+std::string getBaseName(const std::string& sourceFile) {
+    return fs::path(sourceFile).stem().string();
+}
+
+std::string createOutputDir(const std::string& sourceFile) {
+    std::string baseName = getBaseName(sourceFile);
+    fs::path outputDir = fs::path("../output") / baseName;
+    fs::create_directories(outputDir);
+    return outputDir.string();
+}
+
+std::string buildOutputPath(const std::string& outputDir, const std::string& baseName, const std::string& extension) {
+    return (fs::path(outputDir) / (baseName + extension)).string();
+}
 
 
 std::tuple<std::vector<std::vector<Token>>, std::vector<std::vector<Token>>> tokenizeFile(const std::string& filename) {
@@ -81,8 +103,37 @@ void writeErrorsToFile(const std::string& filename, const std::vector<std::vecto
             file << token.getErrorString("Lexical Error");
             file << "\n";
         }
-        
+
     }
 
+    file.close();
+}
+
+// ============================================================================
+// Parser I/O
+// ============================================================================
+
+void writeSyntaxErrorsToFile(const std::string& filename, const std::vector<std::string>& errors) {
+    std::ofstream file(filename);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file for writing: " + filename);
+    }
+
+    for (const auto& err : errors) {
+        file << err << "\n";
+    }
+
+    file.close();
+}
+
+void writeDerivationToFile(const std::string& filename) {
+    std::ofstream file(filename);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open file for writing: " + filename);
+    }
+
+    // Placeholder for future derivation output
     file.close();
 }

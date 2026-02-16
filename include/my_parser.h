@@ -371,6 +371,7 @@ class Parser {
 
         static bool parseTokens(const std::vector<std::vector<Token>>& tokens); // instead of reading a file with text representation of the tokens, take the tokens directly from the lexer
 
+        static const std::vector<std::string>& getErrorMessages();
 
 };
 
