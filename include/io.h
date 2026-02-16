@@ -20,7 +20,7 @@ std::vector<std::vector<Token>> lex_file(const std::string& input_file, const st
 
 // Parser I/O
 void writeSyntaxErrorsToFile(const std::string& filename, const std::vector<std::string>& errors);
-void writeDerivationToFile(const std::string& filename);
+void writeDerivationToFile(const std::string& filename, const std::vector<std::string>& derivationSteps);
 
 #endif // IO_H
 

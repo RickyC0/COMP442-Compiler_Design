@@ -14,11 +14,17 @@ ClassBody         -> ClassMemberDecl ClassBody | EPSILON
 ClassMemberDecl   -> Visibility MemberDecl
 Visibility        -> 'PUBLIC_KEYWORD_' | 'PRIVATE_KEYWORD_'
 
-MemberDecl        -> 'ID_' MemberDeclIdTail 
-                      | 'INTEGER_TYPE_' 'ID_' ArraySizeList 'SEMICOLON_'
-                      | 'FLOAT_TYPE_' 'ID_' ArraySizeList 'SEMICOLON_'
+MemberDecl        -> 'ID_' MemberDeclIdTail
+                      | 'INTEGER_TYPE_' 'ID_' MemberDeclTypeTail
+                      | 'FLOAT_TYPE_' 'ID_' MemberDeclTypeTail
 
-MemberDeclIdTail  -> 'ID_' ArraySizeList 'SEMICOLON_'
+MemberDeclIdTail  -> 'OPEN_PAREN_' FParams 'CLOSE_PAREN_' 'COLON_' ReturnType 'SEMICOLON_'
+                        | ArraySizeList 'SEMICOLON_'
+                   
+
+MemberDeclTypeTail -> ArraySizeList 'SEMICOLON_'
+                    | 'OPEN_PAREN_' FParams 'CLOSE_PAREN_' 'COLON_' ReturnType 'SEMICOLON_'
+
 FuncDef           -> FuncHead FuncBody 
 
 FuncHead          -> 'ID_' FuncHeadTail

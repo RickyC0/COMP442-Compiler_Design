@@ -107,11 +107,11 @@ class Token {
 
                     // --- Types ---
                 case Type::INTEGER_TYPE_:
-                    return "INTEGER";
+                    return "INTEGER_TYPE";
                 case Type::FLOAT_TYPE_:
-                    return "FLOAT";
+                    return "FLOAT_TYPE";
                 case Type::VOID_TYPE_:
-                    return "VOID";
+                    return "VOID_TYPE";
 
                     // --- Logic Operators ---
                 case Type::AND_:

@@ -140,13 +140,16 @@ void writeSyntaxErrorsToFile(const std::string& filename, const std::vector<std:
     file.close();
 }
 
-void writeDerivationToFile(const std::string& filename) {
+void writeDerivationToFile(const std::string& filename, const std::vector<std::string>& derivationSteps) {
     std::ofstream file(filename);
 
     if (!file.is_open()) {
         throw std::runtime_error("Could not open file for writing: " + filename);
     }
 
-    // Placeholder for future derivation output
+    for (const auto& step : derivationSteps) {
+        file << step << "\n";
+    }
+
     file.close();
 }

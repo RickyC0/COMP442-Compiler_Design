@@ -260,6 +260,8 @@ class Parser {
 
         static std::vector<std::string> _errorMessages;
 
+        static std::vector<std::string> _derivationSteps;
+
         // ============================================================================
         // PARSER STATE
         // ============================================================================
@@ -296,6 +298,7 @@ class Parser {
 
         static void _parseMemberDecl();
         static void _parseMemberDeclIdTail();
+        static void _parseMemberDeclTypeTail();
 
         // ========================================================================
         // FUNCTIONS
@@ -372,6 +375,8 @@ class Parser {
         static bool parseTokens(const std::vector<std::vector<Token>>& tokens); // instead of reading a file with text representation of the tokens, take the tokens directly from the lexer
 
         static const std::vector<std::string>& getErrorMessages();
+
+        static const std::vector<std::string>& getDerivationSteps();
 
 };
 

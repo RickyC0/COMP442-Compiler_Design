@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
         bool success = Parser::parseTokens(valid_tokens);
 
         writeSyntaxErrorsToFile(syntax_errors_file, Parser::getErrorMessages());
-        writeDerivationToFile(derivation_file);
+        writeDerivationToFile(derivation_file, Parser::getDerivationSteps());
 
         if (success) {
             std::cout << "[SUCCESS] Parsing completed. No syntax errors found." << std::endl;

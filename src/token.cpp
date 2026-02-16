@@ -100,18 +100,54 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
 		}
 
 		switch (current_char) {
-			case '+':  type = Type::PLUS_; break;
-			case '-': type = Type::MINUS_; break;
-			case '*': type = Type::MULTIPLY_; break;
-			case '{': type = Type::OPEN_BRACE_; break;
-			case '}': type = Type::CLOSE_BRACE_; break;
-			case '(': type = Type::OPEN_PAREN_; break;
-			case ')': type = Type::CLOSE_PAREN_; break;
-			case '[': type = Type::OPEN_BRACKET_; break;
-			case ']': type = Type::CLOSE_BRACKET_; break;
-			case ',': type = Type::COMMA_; break;
-			case ';': type = Type::SEMICOLON_; break;
-            case '.': type = Type::DOT_; break;
+			case '+':
+                type = Type::PLUS_;
+                index++;
+                break;
+			case '-':
+                type = Type::MINUS_;
+                index++;
+                break;
+			case '*':
+                type = Type::MULTIPLY_;
+                index++;
+                break;
+			case '{':
+                type = Type::OPEN_BRACE_;
+                index++;
+                break;
+			case '}':
+                type = Type::CLOSE_BRACE_;
+                index++;
+                break;
+			case '(':
+                type = Type::OPEN_PAREN_;
+                index++;
+                break;
+			case ')':
+                type = Type::CLOSE_PAREN_;
+                index++;
+                break;
+			case '[':
+                type = Type::OPEN_BRACKET_;
+                index++;
+                break;
+			case ']':
+                type = Type::CLOSE_BRACKET_;
+                index++;
+                break;
+			case ',':
+                type = Type::COMMA_;
+                index++;
+                break;
+			case ';':
+                type = Type::SEMICOLON_;
+                index++;
+                break;
+            case '.':
+                type = Type::DOT_;
+                index++;
+                break;
 
             //Not a single character Type
 			default:
@@ -150,7 +186,7 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
             } else {
                 all_tokens.emplace_back(type, lexeme, lineNumber);
             }
-        }else{ //None of the above cases updated the index
+        }else{ //None of the above cases updated the index -> NO TOKEN
             index++;
         }
 
