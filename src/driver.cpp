@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <iomanip> // Required for std::setw
+#include <cstdlib>
 
 #include "../include/io.h"
 #include "../include/token.h"
@@ -17,6 +18,19 @@ void printHeader(const std::string& title) {
 // Helper for printing file paths nicely
 void printPath(const std::string& label, const std::string& path) {
     std::cout << std::left << std::setw(20) << label << ": " << path << std::endl;
+}
+
+bool isGraphvizDotAvailable() {
+#ifdef _WIN32
+    return std::system("dot -V >NUL 2>&1") == 0;
+#else
+    return std::system("dot -V >/dev/null 2>&1") == 0;
+#endif
+}
+
+bool renderDotImage(const std::string& inputDot, const std::string& format, const std::string& outputPath) {
+    std::string cmd = "dot -T" + format + " \"" + inputDot + "\" -o \"" + outputPath + "\"";
+    return std::system(cmd.c_str()) == 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -42,6 +56,9 @@ int main(int argc, char* argv[]) {
     std::string invalid_output_file = buildOutputPath(outputDir, baseName, ".outlexerrors");
     std::string derivation_file = buildOutputPath(outputDir, baseName, ".outderivation");
     std::string syntax_errors_file = buildOutputPath(outputDir, baseName, ".outsyntaxerrors");
+    std::string ast_file = buildOutputPath(outputDir, baseName, ".outast");
+    std::string ast_dot_file = buildOutputPath(outputDir, baseName, ".outast.dot");
+    std::string ast_png_file = buildOutputPath(outputDir, baseName, ".outast.png");
 
     std::vector<std::vector<Token>> valid_tokens;
 
@@ -66,6 +83,14 @@ int main(int argc, char* argv[]) {
 
         writeSyntaxErrorsToFile(syntax_errors_file, Parser::getErrorMessages());
         writeDerivationToFile(derivation_file, Parser::getDerivationSteps());
+        ASTPrinter::writeToFile(Parser::getASTRoot(), ast_file);
+        ASTPrinter::writeDotToFile(Parser::getASTRoot(), ast_dot_file);
+
+        bool dotAvailable = isGraphvizDotAvailable();
+        bool pngGenerated = false;
+        if (dotAvailable) {
+            pngGenerated = renderDotImage(ast_dot_file, "png", ast_png_file);
+        }
 
         if (success) {
             std::cout << "[SUCCESS] Parsing completed. No syntax errors found." << std::endl;
@@ -74,6 +99,16 @@ int main(int argc, char* argv[]) {
             printPath("   -> Syntax Errors", syntax_errors_file);
         }
         printPath("   -> Derivation", derivation_file);
+        printPath("   -> AST", ast_file);
+        printPath("   -> AST DOT", ast_dot_file);
+        if (pngGenerated) {
+            printPath("   -> AST PNG", ast_png_file);
+        }
+        if (!dotAvailable) {
+            std::cout << "[WARN] Graphviz 'dot' not found. Skipped AST image generation." << std::endl;
+        } else if (!pngGenerated) {
+            std::cout << "[WARN] Failed to generate AST image from DOT." << std::endl;
+        }
 
     } catch (const std::exception& e) {
         std::cerr << "[FATAL] Parser crashed: " << e.what() << std::endl;

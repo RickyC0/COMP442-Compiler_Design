@@ -113,6 +113,7 @@ class DataMemberNode : public ASTNode {
         DataMemberNode(int line, const std::string& name) : ASTNode(line), idName(name) {}
 
         void addIndex(std::shared_ptr<ASTNode> indexExpr) { indices.push_back(indexExpr); }
+        std::vector<std::shared_ptr<ASTNode>> getIndices() const { return indices; }
         std::string getValue() const override { return idName; }
 };
 
@@ -199,6 +200,7 @@ class VarDeclNode : public ASTNode {
             : ASTNode(line), type(t), name(n), visibility(vis) {}
 
         void addDimension(int size) { arrayDimensions.push_back(size); }
+        std::vector<int> getDimensions() const { return arrayDimensions; }
         std::string getValue() const override { return visibility + " " + type + " " + name; }
 };
 
@@ -215,6 +217,8 @@ class FuncDefNode : public ASTNode {
 
         void addParam(std::shared_ptr<VarDeclNode> param) { parameters.push_back(param); }
         void addLocalVar(std::shared_ptr<VarDeclNode> var) { localVariables.push_back(var); }
+        std::vector<std::shared_ptr<VarDeclNode>> getParams() const { return parameters; }
+        std::vector<std::shared_ptr<VarDeclNode>> getLocalVars() const { return localVariables; }
         
         std::string getValue() const override { 
             return (className.empty() ? "" : className + "::") + name + "() -> " + returnType; 
@@ -231,6 +235,8 @@ class ClassDeclNode : public ASTNode {
 
         void addParentClass(const std::string& parentName) { inheritedClasses.push_back(parentName); }
         void addMember(std::shared_ptr<ASTNode> member) { members.push_back(member); }
+        std::vector<std::string> getParents() const { return inheritedClasses; }
+        std::vector<std::shared_ptr<ASTNode>> getMembers() const { return members; }
 
         std::string getValue() const override { return "Class " + name; }
 };
@@ -244,8 +250,17 @@ class ProgNode : public ASTNode {
 
         void addClass(std::shared_ptr<ClassDeclNode> cls) { classes.push_back(cls); }
         void addFunction(std::shared_ptr<FuncDefNode> func) { functions.push_back(func); }
+        std::vector<std::shared_ptr<ClassDeclNode>> getClasses() const { return classes; }
+        std::vector<std::shared_ptr<FuncDefNode>> getFunctions() const { return functions; }
 
         std::string getValue() const override { return "Program"; }
 };
+
+    namespace ASTPrinter {
+        std::string toString(const std::shared_ptr<ASTNode>& root);
+        bool writeToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath);
+        std::string toDot(const std::shared_ptr<ASTNode>& root);
+        bool writeDotToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath);
+    }
 
 #endif // AST_H
