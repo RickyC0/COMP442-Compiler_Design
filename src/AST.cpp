@@ -4,129 +4,28 @@
 #include <sstream>
 #include <unordered_map>
 
+void IdNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void IntLitNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void FloatLitNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void TypeNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void BinaryOpNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void UnaryOpNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void FuncCallNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void DataMemberNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void AssignStmtNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void IfStmtNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void WhileStmtNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void IOStmtNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void ReturnStmtNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void BlockNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void VarDeclNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void FuncDefNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void ClassDeclNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+void ProgNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
+
 namespace {
 std::string makeIndent(int depth) {
 	return std::string(depth * 2, ' ');
-}
-
-void appendLine(std::ostringstream& out, int depth, const std::string& text) {
-	out << makeIndent(depth) << text << "\n";
-}
-
-void dumpNode(const std::shared_ptr<ASTNode>& node, std::ostringstream& out, int depth) {
-	if (node == nullptr) {
-		appendLine(out, depth, "<null>");
-		return;
-	}
-
-	appendLine(
-		out,
-		depth,
-		node->getValue() + " [line " + std::to_string(node->getLineNumber()) + "]"
-	);
-
-	if (auto prog = std::dynamic_pointer_cast<ProgNode>(node)) {
-		appendLine(out, depth + 1, "classes:");
-		for (const auto& cls : prog->getClasses()) {
-			dumpNode(cls, out, depth + 2);
-		}
-
-		appendLine(out, depth + 1, "functions:");
-		for (const auto& fn : prog->getFunctions()) {
-			dumpNode(fn, out, depth + 2);
-		}
-		return;
-	}
-
-	if (auto cls = std::dynamic_pointer_cast<ClassDeclNode>(node)) {
-		const auto parents = cls->getParents();
-		if (!parents.empty()) {
-			appendLine(out, depth + 1, "inherits:");
-			for (const auto& p : parents) {
-				appendLine(out, depth + 2, p);
-			}
-		}
-
-		appendLine(out, depth + 1, "members:");
-		for (const auto& member : cls->getMembers()) {
-			dumpNode(member, out, depth + 2);
-		}
-		return;
-	}
-
-	if (auto fn = std::dynamic_pointer_cast<FuncDefNode>(node)) {
-		appendLine(out, depth + 1, "params:");
-		for (const auto& param : fn->getParams()) {
-			dumpNode(param, out, depth + 2);
-		}
-
-		appendLine(out, depth + 1, "locals:");
-		for (const auto& local : fn->getLocalVars()) {
-			dumpNode(local, out, depth + 2);
-		}
-
-		appendLine(out, depth + 1, "body:");
-		dumpNode(fn->getRight(), out, depth + 2);
-		return;
-	}
-
-	if (auto block = std::dynamic_pointer_cast<BlockNode>(node)) {
-		for (const auto& stmt : block->getStatements()) {
-			dumpNode(stmt, out, depth + 1);
-		}
-		return;
-	}
-
-	if (auto call = std::dynamic_pointer_cast<FuncCallNode>(node)) {
-		if (call->getLeft() != nullptr) {
-			appendLine(out, depth + 1, "callee:");
-			dumpNode(call->getLeft(), out, depth + 2);
-		}
-
-		appendLine(out, depth + 1, "args:");
-		for (const auto& arg : call->getArgs()) {
-			dumpNode(arg, out, depth + 2);
-		}
-		return;
-	}
-
-	if (auto member = std::dynamic_pointer_cast<DataMemberNode>(node)) {
-		if (member->getLeft() != nullptr) {
-			appendLine(out, depth + 1, "owner:");
-			dumpNode(member->getLeft(), out, depth + 2);
-		}
-
-		const auto indices = member->getIndices();
-		if (!indices.empty()) {
-			appendLine(out, depth + 1, "indices:");
-			for (const auto& idx : indices) {
-				dumpNode(idx, out, depth + 2);
-			}
-		}
-		return;
-	}
-
-	if (auto ifNode = std::dynamic_pointer_cast<IfStmtNode>(node)) {
-		appendLine(out, depth + 1, "cond:");
-		dumpNode(ifNode->getLeft(), out, depth + 2);
-		appendLine(out, depth + 1, "then:");
-		dumpNode(ifNode->getRight(), out, depth + 2);
-		if (ifNode->getElseBlock() != nullptr) {
-			appendLine(out, depth + 1, "else:");
-			dumpNode(ifNode->getElseBlock(), out, depth + 2);
-		}
-		return;
-	}
-
-	if (node->getLeft() != nullptr) {
-		appendLine(out, depth + 1, "left:");
-		dumpNode(node->getLeft(), out, depth + 2);
-	}
-
-	if (node->getRight() != nullptr) {
-		appendLine(out, depth + 1, "right:");
-		dumpNode(node->getRight(), out, depth + 2);
-	}
 }
 
 std::string escapeDotLabel(const std::string& text) {
@@ -141,208 +40,315 @@ std::string escapeDotLabel(const std::string& text) {
 	return escaped;
 }
 
-std::string nodeLabel(const std::shared_ptr<ASTNode>& node) {
-	if (node == nullptr) {
-		return "<null>";
-	}
-	return node->getValue() + " [line " + std::to_string(node->getLineNumber()) + "]";
+std::string nodeLabel(ASTNode& node) {
+	return node.getValue() + " [line " + std::to_string(node.getLineNumber()) + "]";
 }
 
-void ensureDotNode(
-	const std::shared_ptr<ASTNode>& node,
-	std::unordered_map<const ASTNode*, std::string>& ids,
-	std::vector<std::string>& nodes,
-	int& counter
-) {
-	if (node == nullptr || ids.find(node.get()) != ids.end()) {
-		return;
-	}
+class TextASTVisitor : public ASTVisitor {
+	public:
+		std::string str() const { return _out.str(); }
 
-	std::string id = "n" + std::to_string(counter++);
-	ids[node.get()] = id;
-	nodes.push_back("  " + id + " [label=\"" + escapeDotLabel(nodeLabel(node)) + "\"];");
-}
+		void visit(IdNode& node) override { visitLeaf(node); }
+		void visit(IntLitNode& node) override { visitLeaf(node); }
+		void visit(FloatLitNode& node) override { visitLeaf(node); }
+		void visit(TypeNode& node) override { visitLeaf(node); }
+		void visit(VarDeclNode& node) override { visitLeaf(node); }
 
-void addEdge(
-	const std::string& from,
-	const std::string& to,
-	const std::string& label,
-	std::vector<std::string>& edges
-) {
-	if (label.empty()) {
-		edges.push_back("  " + from + " -> " + to + ";");
-	} else {
-		edges.push_back("  " + from + " -> " + to + " [label=\"" + escapeDotLabel(label) + "\"];");
-	}
-}
+		void visit(BinaryOpNode& node) override { visitBinaryLike(node); }
+		void visit(UnaryOpNode& node) override { visitBinaryLike(node); }
+		void visit(AssignStmtNode& node) override { visitBinaryLike(node); }
+		void visit(WhileStmtNode& node) override { visitBinaryLike(node, "cond", "body"); }
+		void visit(IOStmtNode& node) override { visitBinaryLike(node); }
+		void visit(ReturnStmtNode& node) override { visitBinaryLike(node); }
 
-void walkDot(
-	const std::shared_ptr<ASTNode>& node,
-	std::unordered_map<const ASTNode*, std::string>& ids,
-	std::vector<std::string>& nodes,
-	std::vector<std::string>& edges,
-	int& counter
-) {
-	if (node == nullptr) {
-		return;
-	}
+		void visit(IfStmtNode& node) override {
+			writeNode(node);
+			section("cond");
+			visitChild(node.getLeft(), 0);
+			section("then");
+			visitChild(node.getRight(), 0);
+			if (node.getElseBlock() != nullptr) {
+				section("else");
+				visitChild(node.getElseBlock(), 0);
+			}
+			_depth--;
+		}
 
-	ensureDotNode(node, ids, nodes, counter);
-	const std::string fromId = ids[node.get()];
+		void visit(FuncCallNode& node) override {
+			writeNode(node);
+			if (node.getLeft() != nullptr) {
+				section("callee");
+				visitChild(node.getLeft(), 0);
+			}
+			section("args");
+			for (const auto& arg : node.getArgs()) {
+				visitChild(arg, 1);
+			}
+			_depth--;
+		}
 
-	if (auto prog = std::dynamic_pointer_cast<ProgNode>(node)) {
-		for (const auto& cls : prog->getClasses()) {
-			ensureDotNode(cls, ids, nodes, counter);
-			addEdge(fromId, ids[cls.get()], "class", edges);
-			walkDot(cls, ids, nodes, edges, counter);
+		void visit(DataMemberNode& node) override {
+			writeNode(node);
+			if (node.getLeft() != nullptr) {
+				section("owner");
+				visitChild(node.getLeft(), 0);
+			}
+			if (!node.getIndices().empty()) {
+				section("indices");
+				for (const auto& idx : node.getIndices()) {
+					visitChild(idx, 1);
+				}
+			}
+			_depth--;
 		}
-		for (const auto& fn : prog->getFunctions()) {
-			ensureDotNode(fn, ids, nodes, counter);
-			addEdge(fromId, ids[fn.get()], "function", edges);
-			walkDot(fn, ids, nodes, edges, counter);
-		}
-		return;
-	}
 
-	if (auto cls = std::dynamic_pointer_cast<ClassDeclNode>(node)) {
-		for (const auto& member : cls->getMembers()) {
-			ensureDotNode(member, ids, nodes, counter);
-			addEdge(fromId, ids[member.get()], "member", edges);
-			walkDot(member, ids, nodes, edges, counter);
+		void visit(BlockNode& node) override {
+			writeNode(node);
+			for (const auto& stmt : node.getStatements()) {
+				visitChild(stmt, 0);
+			}
+			_depth--;
 		}
-		return;
-	}
 
-	if (auto fn = std::dynamic_pointer_cast<FuncDefNode>(node)) {
-		for (const auto& param : fn->getParams()) {
-			ensureDotNode(param, ids, nodes, counter);
-			addEdge(fromId, ids[param.get()], "param", edges);
-			walkDot(param, ids, nodes, edges, counter);
+		void visit(FuncDefNode& node) override {
+			writeNode(node);
+			section("params");
+			for (const auto& param : node.getParams()) {
+				visitChild(param, 1);
+			}
+			section("locals");
+			for (const auto& local : node.getLocalVars()) {
+				visitChild(local, 1);
+			}
+			section("body");
+			visitChild(node.getRight(), 0);
+			_depth--;
 		}
-		for (const auto& local : fn->getLocalVars()) {
-			ensureDotNode(local, ids, nodes, counter);
-			addEdge(fromId, ids[local.get()], "local", edges);
-			walkDot(local, ids, nodes, edges, counter);
-		}
-		if (fn->getRight() != nullptr) {
-			ensureDotNode(fn->getRight(), ids, nodes, counter);
-			addEdge(fromId, ids[fn->getRight().get()], "body", edges);
-			walkDot(fn->getRight(), ids, nodes, edges, counter);
-		}
-		return;
-	}
 
-	if (auto block = std::dynamic_pointer_cast<BlockNode>(node)) {
-		for (const auto& stmt : block->getStatements()) {
-			ensureDotNode(stmt, ids, nodes, counter);
-			addEdge(fromId, ids[stmt.get()], "stmt", edges);
-			walkDot(stmt, ids, nodes, edges, counter);
+		void visit(ClassDeclNode& node) override {
+			writeNode(node);
+			if (!node.getParents().empty()) {
+				section("inherits");
+				for (const auto& parent : node.getParents()) {
+					line(parent, _depth + 1);
+				}
+			}
+			section("members");
+			for (const auto& member : node.getMembers()) {
+				visitChild(member, 1);
+			}
+			_depth--;
 		}
-		return;
-	}
 
-	if (auto call = std::dynamic_pointer_cast<FuncCallNode>(node)) {
-		if (call->getLeft() != nullptr) {
-			ensureDotNode(call->getLeft(), ids, nodes, counter);
-			addEdge(fromId, ids[call->getLeft().get()], "callee", edges);
-			walkDot(call->getLeft(), ids, nodes, edges, counter);
+		void visit(ProgNode& node) override {
+			writeNode(node);
+			section("classes");
+			for (const auto& cls : node.getClasses()) {
+				visitChild(cls, 1);
+			}
+			section("functions");
+			for (const auto& fn : node.getFunctions()) {
+				visitChild(fn, 1);
+			}
+			_depth--;
 		}
-		for (const auto& arg : call->getArgs()) {
-			ensureDotNode(arg, ids, nodes, counter);
-			addEdge(fromId, ids[arg.get()], "arg", edges);
-			walkDot(arg, ids, nodes, edges, counter);
-		}
-		return;
-	}
 
-	if (auto member = std::dynamic_pointer_cast<DataMemberNode>(node)) {
-		if (member->getLeft() != nullptr) {
-			ensureDotNode(member->getLeft(), ids, nodes, counter);
-			addEdge(fromId, ids[member->getLeft().get()], "owner", edges);
-			walkDot(member->getLeft(), ids, nodes, edges, counter);
-		}
-		for (const auto& idx : member->getIndices()) {
-			ensureDotNode(idx, ids, nodes, counter);
-			addEdge(fromId, ids[idx.get()], "index", edges);
-			walkDot(idx, ids, nodes, edges, counter);
-		}
-		return;
-	}
+	private:
+		std::ostringstream _out;
+		int _depth = 0;
 
-	if (auto ifNode = std::dynamic_pointer_cast<IfStmtNode>(node)) {
-		if (ifNode->getLeft() != nullptr) {
-			ensureDotNode(ifNode->getLeft(), ids, nodes, counter);
-			addEdge(fromId, ids[ifNode->getLeft().get()], "cond", edges);
-			walkDot(ifNode->getLeft(), ids, nodes, edges, counter);
+		void line(const std::string& text, int depth) {
+			_out << makeIndent(depth) << text << "\n";
 		}
-		if (ifNode->getRight() != nullptr) {
-			ensureDotNode(ifNode->getRight(), ids, nodes, counter);
-			addEdge(fromId, ids[ifNode->getRight().get()], "then", edges);
-			walkDot(ifNode->getRight(), ids, nodes, edges, counter);
-		}
-		if (ifNode->getElseBlock() != nullptr) {
-			ensureDotNode(ifNode->getElseBlock(), ids, nodes, counter);
-			addEdge(fromId, ids[ifNode->getElseBlock().get()], "else", edges);
-			walkDot(ifNode->getElseBlock(), ids, nodes, edges, counter);
-		}
-		return;
-	}
 
-    if (auto whileNode = std::dynamic_pointer_cast<WhileStmtNode>(node)) {
-        if (whileNode->getLeft() != nullptr) {
-            ensureDotNode(whileNode->getLeft(), ids, nodes, counter);
-            addEdge(fromId, ids[whileNode->getLeft().get()], "cond", edges);
-            walkDot(whileNode->getLeft(), ids, nodes, edges, counter);
+		void writeNode(ASTNode& node) {
+			line(nodeLabel(node), _depth);
+			_depth++;
+		}
+
+		void section(const std::string& label) {
+			line(label + ":", _depth);
+		}
+
+		void visitChild(const std::shared_ptr<ASTNode>& node, int extraIndent) {
+			if (node == nullptr) {
+				line("<null>", _depth + extraIndent);
+				return;
+			}
+			if (extraIndent == 1) {
+				_depth++;
+				node->accept(*this);
+				_depth--;
+			} else {
+				node->accept(*this);
+			}
+		}
+
+		void visitLeaf(ASTNode& node) {
+			line(nodeLabel(node), _depth);
+		}
+
+		void visitBinaryLike(ASTNode& node, const std::string& leftLabel = "left", const std::string& rightLabel = "right") {
+			writeNode(node);
+			if (node.getLeft() != nullptr) {
+				section(leftLabel);
+				visitChild(node.getLeft(), 0);
+			}
+			if (node.getRight() != nullptr) {
+				section(rightLabel);
+				visitChild(node.getRight(), 0);
+			}
+			_depth--;
+		}
+};
+
+class DotASTVisitor : public ASTVisitor {
+	public:
+		std::string dot() const {
+			std::ostringstream out;
+			out << "digraph AST {\n";
+			out << "  rankdir=TB;\n";
+			out << "  graph [fontname=\"Consolas\"];\n";
+			out << "  node [shape=box, style=rounded, fontname=\"Consolas\"];\n";
+			out << "  edge [fontname=\"Consolas\"];\n";
+			for (const auto& n : _nodeLines) {
+				out << n << "\n";
+			}
+			for (const auto& e : _edgeLines) {
+				out << e << "\n";
+			}
+			out << "}\n";
+			return out.str();
+		}
+
+		void visit(IdNode& node) override { ensureNode(node); }
+		void visit(IntLitNode& node) override { ensureNode(node); }
+		void visit(FloatLitNode& node) override { ensureNode(node); }
+		void visit(TypeNode& node) override { ensureNode(node); }
+		void visit(VarDeclNode& node) override { ensureNode(node); }
+
+		void visit(BinaryOpNode& node) override { visitBinaryLike(node); }
+		void visit(UnaryOpNode& node) override { visitBinaryLike(node); }
+		void visit(AssignStmtNode& node) override { visitBinaryLike(node, "target", "value"); }
+		void visit(WhileStmtNode& node) override { visitBinaryLike(node, "cond", "body"); }
+		void visit(IOStmtNode& node) override { visitBinaryLike(node, "target"); }
+		void visit(ReturnStmtNode& node) override { visitBinaryLike(node, "value"); }
+
+		void visit(IfStmtNode& node) override {
+			ensureNode(node);
+			visitChild(node, node.getLeft(), "cond");
+			visitChild(node, node.getRight(), "then");
+			visitChild(node, node.getElseBlock(), "else");
+		}
+
+		void visit(FuncCallNode& node) override {
+			ensureNode(node);
+			visitChild(node, node.getLeft(), "callee");
+			for (const auto& arg : node.getArgs()) {
+				visitChild(node, arg, "arg");
+			}
+		}
+
+		void visit(DataMemberNode& node) override {
+			ensureNode(node);
+			visitChild(node, node.getLeft(), "owner");
+			for (const auto& idx : node.getIndices()) {
+				visitChild(node, idx, "index");
+			}
+		}
+
+		void visit(BlockNode& node) override {
+			ensureNode(node);
+			for (const auto& stmt : node.getStatements()) {
+				visitChild(node, stmt, "stmt");
+			}
+		}
+
+		void visit(FuncDefNode& node) override {
+			ensureNode(node);
+			for (const auto& param : node.getParams()) {
+				visitChild(node, param, "param");
+			}
+			for (const auto& local : node.getLocalVars()) {
+				visitChild(node, local, "local");
+			}
+			visitChild(node, node.getRight(), "body");
+		}
+
+		void visit(ClassDeclNode& node) override {
+            ensureNode(node);
+            
+            // Create dashed dummy nodes to show inheritance in the graph
+            for (const auto& parentName : node.getParents()) {
+                std::string parentDummyId = "n" + std::to_string(_counter++);
+                _nodeLines.push_back("  " + parentDummyId + " [label=\"Parent: " + escapeDotLabel(parentName) + "\", style=dashed];");
+                _edgeLines.push_back("  " + ensureNode(node) + " -> " + parentDummyId + " [label=\"inherits\"];");
+            }
+
+            // Process actual class members
+            for (const auto& member : node.getMembers()) {
+                visitChild(node, member, "member");
+            }
         }
-        if (whileNode->getRight() != nullptr) {
-            ensureDotNode(whileNode->getRight(), ids, nodes, counter);
-            addEdge(fromId, ids[whileNode->getRight().get()], "body", edges);
-            walkDot(whileNode->getRight(), ids, nodes, edges, counter);
-        }
-        return;
-    }
 
-    if (auto assignNode = std::dynamic_pointer_cast<AssignStmtNode>(node)) {
-        if (assignNode->getLeft() != nullptr) {
-            ensureDotNode(assignNode->getLeft(), ids, nodes, counter);
-            addEdge(fromId, ids[assignNode->getLeft().get()], "target", edges);
-            walkDot(assignNode->getLeft(), ids, nodes, edges, counter);
-        }
-        if (assignNode->getRight() != nullptr) {
-            ensureDotNode(assignNode->getRight(), ids, nodes, counter);
-            addEdge(fromId, ids[assignNode->getRight().get()], "value", edges);
-            walkDot(assignNode->getRight(), ids, nodes, edges, counter);
-        }
-        return;
-    }
+		void visit(ProgNode& node) override {
+			ensureNode(node);
+			for (const auto& cls : node.getClasses()) {
+				visitChild(node, cls, "class");
+			}
+			for (const auto& fn : node.getFunctions()) {
+				visitChild(node, fn, "function");
+			}
+		}
 
-    if (auto ioNode = std::dynamic_pointer_cast<IOStmtNode>(node)) {
-        if (ioNode->getLeft() != nullptr) {
-            ensureDotNode(ioNode->getLeft(), ids, nodes, counter);
-            addEdge(fromId, ids[ioNode->getLeft().get()], "target", edges);
-            walkDot(ioNode->getLeft(), ids, nodes, edges, counter);
-        }
-        return;
-    }
+	private:
+		std::unordered_map<const ASTNode*, std::string> _ids;
+		std::vector<std::string> _nodeLines;
+		std::vector<std::string> _edgeLines;
+		int _counter = 0;
 
-	if (node->getLeft() != nullptr) {
-		ensureDotNode(node->getLeft(), ids, nodes, counter);
-		addEdge(fromId, ids[node->getLeft().get()], "left", edges);
-		walkDot(node->getLeft(), ids, nodes, edges, counter);
-	}
+		std::string ensureNode(ASTNode& node) {
+			const ASTNode* ptr = &node;
+			auto it = _ids.find(ptr);
+			if (it != _ids.end()) {
+				return it->second;
+			}
 
-	if (node->getRight() != nullptr) {
-		ensureDotNode(node->getRight(), ids, nodes, counter);
-		addEdge(fromId, ids[node->getRight().get()], "right", edges);
-		walkDot(node->getRight(), ids, nodes, edges, counter);
-	}
-}
+			std::string id = "n" + std::to_string(_counter++);
+			_ids[ptr] = id;
+			_nodeLines.push_back("  " + id + " [label=\"" + escapeDotLabel(nodeLabel(node)) + "\"];");
+			return id;
+		}
+
+		void addEdge(ASTNode& parent, ASTNode& child, const std::string& label) {
+			const std::string from = ensureNode(parent);
+			const std::string to = ensureNode(child);
+			_edgeLines.push_back("  " + from + " -> " + to + " [label=\"" + escapeDotLabel(label) + "\"];");
+		}
+
+		void visitChild(ASTNode& parent, const std::shared_ptr<ASTNode>& child, const std::string& label) {
+			if (child == nullptr) {
+				return;
+			}
+			addEdge(parent, *child, label);
+			child->accept(*this);
+		}
+
+		void visitBinaryLike(ASTNode& node, const std::string& leftLabel = "left", const std::string& rightLabel = "right") {
+			ensureNode(node);
+			visitChild(node, node.getLeft(), leftLabel);
+			visitChild(node, node.getRight(), rightLabel);
+		}
+};
 }
 
 std::string ASTPrinter::toString(const std::shared_ptr<ASTNode>& root) {
-	std::ostringstream out;
-	dumpNode(root, out, 0);
-	return out.str();
+	TextASTVisitor visitor;
+	if (root == nullptr) {
+		return "<null>\n";
+	}
+	root->accept(visitor);
+	return visitor.str();
 }
 
 bool ASTPrinter::writeToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath) {
@@ -356,31 +362,11 @@ bool ASTPrinter::writeToFile(const std::shared_ptr<ASTNode>& root, const std::st
 }
 
 std::string ASTPrinter::toDot(const std::shared_ptr<ASTNode>& root) {
-	std::vector<std::string> dotNodes;
-	std::vector<std::string> dotEdges;
-	std::unordered_map<const ASTNode*, std::string> ids;
-	int counter = 0;
-
+	DotASTVisitor visitor;
 	if (root != nullptr) {
-		walkDot(root, ids, dotNodes, dotEdges, counter);
+		root->accept(visitor);
 	}
-
-	std::ostringstream out;
-	out << "digraph AST {\n";
-	out << "  rankdir=TB;\n";
-	out << "  graph [fontname=\"Consolas\"];\n";
-	out << "  node [shape=box, style=rounded, fontname=\"Consolas\"];\n";
-	out << "  edge [fontname=\"Consolas\"];\n";
-
-	for (const auto& line : dotNodes) {
-		out << line << "\n";
-	}
-	for (const auto& line : dotEdges) {
-		out << line << "\n";
-	}
-	out << "}\n";
-
-	return out.str();
+	return visitor.dot();
 }
 
 bool ASTPrinter::writeDotToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath) {

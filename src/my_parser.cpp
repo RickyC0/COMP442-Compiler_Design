@@ -471,10 +471,12 @@ std::shared_ptr<ASTNode> Parser::_parseFactorRest(const std::shared_ptr<ASTNode>
         {
         Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        std::shared_ptr<ASTNode> memberId = std::make_shared<IdNode>(memberToken.getLineNumber(), memberToken.getValue());
-        std::shared_ptr<ASTNode> member = _parseFactorIdTail(memberId);
-        member->setLeft(base);
-        return member;
+        
+        // Immediately create a DataMemberNode
+        std::shared_ptr<ASTNode> memberId = std::make_shared<DataMemberNode>(memberToken.getLineNumber(), memberToken.getValue());
+        memberId->setLeft(base); // Set the owner (e.g. 'p') right away
+        
+        return _parseFactorIdTail(memberId);
         }
 
     case TTYPE::OPEN_PAREN_:
@@ -504,7 +506,12 @@ std::shared_ptr<ASTNode> Parser::_parseFactorIdTail(const std::shared_ptr<ASTNod
 
     std::shared_ptr<ASTNode> base = baseId;
     if (!indices.empty()) {
-        auto dataMember = std::make_shared<DataMemberNode>(baseId->getLineNumber(), baseId->getValue());
+        // Safely upgrade to DataMemberNode without losing the owner
+        auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(baseId);
+        if (!dataMember) {
+            dataMember = std::make_shared<DataMemberNode>(baseId->getLineNumber(), baseId->getValue());
+            dataMember->setLeft(baseId->getLeft());
+        }
         for (const auto& idx : indices) {
             dataMember->addIndex(idx);
         }
@@ -678,11 +685,12 @@ std::shared_ptr<ASTNode> Parser::_parseStatementRest(const std::shared_ptr<ASTNo
         _match(TTYPE::DOT_);
         Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        std::shared_ptr<ASTNode> memberBase = std::make_shared<IdNode>(memberToken.getLineNumber(), memberToken.getValue());
+        
+        // Immediately create a DataMemberNode, not an IdNode
+        std::shared_ptr<ASTNode> memberBase = std::make_shared<DataMemberNode>(memberToken.getLineNumber(), memberToken.getValue());
+        memberBase->setLeft(lhsBase); // Set the owner (e.g. 'p') right away
+        
         StatementIdTailResult tail = _parseStatementIdTail(memberBase);
-        if (tail.base != nullptr) {
-            tail.base->setLeft(lhsBase);
-        }
         if (tail.statementNode != nullptr) {
             return tail.statementNode;
         }
@@ -721,7 +729,12 @@ Parser::StatementIdTailResult Parser::_parseStatementIdTail(const std::shared_pt
 
     std::shared_ptr<ASTNode> base = lhsBase;
     if (!indices.empty()) {
-        auto dataMember = std::make_shared<DataMemberNode>(lhsBase->getLineNumber(), lhsBase->getValue());
+        // Safely upgrade to DataMemberNode without losing the owner
+        auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(lhsBase);
+        if (!dataMember) {
+            dataMember = std::make_shared<DataMemberNode>(lhsBase->getLineNumber(), lhsBase->getValue());
+            dataMember->setLeft(lhsBase->getLeft());
+        }
         for (const auto& idx : indices) {
             dataMember->addIndex(idx);
         }
