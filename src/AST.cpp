@@ -46,10 +46,9 @@ std::string nodeLabel(ASTNode& node) {
 }
 
 // ============================================================================
-// TEXT VISITOR (Unchanged)
+// TEXT VISITOR
 // ============================================================================
 class TextASTVisitor : public ASTVisitor {
-    // ... (Keep your exact TextASTVisitor code here) ...
     public:
         std::string str() const { return _out.str(); }
 

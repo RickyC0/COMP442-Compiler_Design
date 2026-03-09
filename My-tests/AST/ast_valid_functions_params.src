@@ -1,0 +1,30 @@
+// AST coverage: free functions, mixed parameter types, array params, and return statements
+
+sum(integer a, integer b) : integer
+    do
+        return(a + b);
+    end
+
+scale(float x, integer n, integer arr[]) : float
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < n) do
+            arr[i] = arr[i] + 1;
+            i = i + 1;
+        end;
+        return(x * n);
+    end
+
+main
+    local
+        integer v[5];
+        integer r;
+        float f;
+    do
+        r = sum(1, 2);
+        f = scale(2.5, 5, v);
+        write(r);
+        write(f);
+    end

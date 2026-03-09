@@ -1,0 +1,27 @@
+// AST coverage: array declarations, multi-dimensional indexing, and method call statements
+
+class Buffer {
+    public integer data[10];
+    public integer grid[3][4];
+    public put(integer idx, integer value) : void;
+};
+
+Buffer::put(integer idx, integer value) : void
+    do
+        data[idx] = value;
+        grid[1][idx] = data[idx] + value * 2;
+    end
+
+main
+    local
+        Buffer b;
+        integer i;
+    do
+        i = 0;
+        while (i < 4) do
+            b.put(i, i * 3);
+            i = i + 1;
+        end;
+
+        write(b.grid[1][2]);
+    end
