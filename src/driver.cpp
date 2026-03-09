@@ -1,114 +1,15 @@
-#include <iostream>
-#include <vector>
-#include <string>
-#include <iomanip> // Required for std::setw
-#include <cstdlib>
 #include <filesystem>
 #include <chrono>
+#include <iostream>
+#include <string>
+#include <vector>
 
 #include "../include/io.h"
 #include "../include/token.h"
 #include "../include/my_parser.h"
+#include "../include/ui.h"
 
 namespace fs = std::filesystem;
-
-struct PhaseSummary {
-    std::string name;
-    bool success;
-    long long durationMs;
-    std::string details;
-};
-
-namespace ANSI {
-    const std::string Reset = "\033[0m";
-    const std::string Bold = "\033[1m";
-    const std::string Cyan = "\033[36m";
-    const std::string Green = "\033[32m";
-    const std::string Yellow = "\033[33m";
-    const std::string Red = "\033[31m";
-    const std::string Gray = "\033[90m";
-}
-
-bool shouldUseColor() {
-    return std::getenv("NO_COLOR") == nullptr;
-}
-
-std::string colorize(const std::string& text, const std::string& color) {
-    if (!shouldUseColor()) {
-        return text;
-    }
-    return color + text + ANSI::Reset;
-}
-
-std::string statusTag(bool success) {
-    return success
-        ? colorize("[OK]", ANSI::Green)
-        : colorize("[FAIL]", ANSI::Red);
-}
-
-void printRule(char c = '=', int width = 90) {
-    std::cout << colorize(std::string(width, c), ANSI::Gray) << "\n";
-}
-
-void printTitle(const std::string& title) {
-    std::cout << "\n";
-    printRule('=');
-    std::cout << colorize(title, ANSI::Bold + ANSI::Cyan) << "\n";
-    printRule('=');
-}
-
-void printSection(const std::string& title) {
-    std::cout << "\n";
-    printRule('-');
-    std::cout << colorize(title, ANSI::Bold + ANSI::Cyan) << "\n";
-    printRule('-');
-}
-
-void printKV(const std::string& key, const std::string& value) {
-    std::cout << std::left << std::setw(14) << key << value << "\n";
-}
-
-void printArtifactList(const std::string& title, const std::vector<std::pair<std::string, std::string>>& artifacts) {
-    std::cout << "\n" << colorize(title, ANSI::Bold + ANSI::Cyan) << "\n";
-    for (const auto& artifact : artifacts) {
-        std::cout << "  " << std::left << std::setw(14) << artifact.first << artifact.second << "\n";
-    }
-}
-
-void printSummaryTable(const std::vector<PhaseSummary>& phases) {
-    std::cout << "\n";
-    printRule('=');
-    std::cout << colorize("RUN SUMMARY", ANSI::Bold + ANSI::Cyan) << "\n";
-    printRule('=');
-
-    std::cout << std::left << std::setw(12) << "Phase"
-              << std::setw(10) << "Status"
-              << std::setw(10) << "Time"
-              << "Details\n";
-    printRule('-');
-
-    for (const auto& phase : phases) {
-        std::cout << std::left << std::setw(12) << phase.name
-                  << std::setw(10) << statusTag(phase.success)
-                  << std::setw(10) << (std::to_string(phase.durationMs) + "ms")
-                  << phase.details << "\n";
-    }
-
-    printRule('=');
-}
-
-bool isGraphvizDotAvailable() {
-#ifdef _WIN32
-    return std::system("dot -V >NUL 2>&1") == 0;
-#else
-    return std::system("dot -V >/dev/null 2>&1") == 0;
-#endif
-}
-
-bool renderDotImage(const std::string& inputDot, const std::string& format, const std::string& outputPath) {
-    std::string cmd = "dot -T" + format + " \"" + inputDot + "\" -o \"" + outputPath + "\"";
-    return std::system(cmd.c_str()) == 0;
-}
 
 int main(int argc, char* argv[]) {
     // Check if the user provided a file argument
@@ -121,13 +22,13 @@ int main(int argc, char* argv[]) {
     std::vector<PhaseSummary> phases;
 
     // SETUP PHASE
-    printTitle("COMP442 COMPILER DRIVER DASHBOARD");
-    printKV("Source", sourceFile);
+    UI::printTitle("COMP442 COMPILER DRIVER DASHBOARD");
+    UI::printKV("Source", sourceFile);
 
     // Create output directory: output/<baseName>/
     std::string baseName = getBaseName(sourceFile);
     std::string outputDir = createOutputDir(sourceFile);
-    printKV("Output", outputDir);
+    UI::printKV("Output", outputDir);
 
     fs::path lexerDir = fs::path(outputDir) / "Lexer";
     fs::path parserDir = fs::path(outputDir) / "Parser";
@@ -151,25 +52,25 @@ int main(int argc, char* argv[]) {
     bool pngGenerated = false;
 
     // LEXER PHASE
-    printSection("[1/3] LEXICAL ANALYSIS");
+    UI::printSection("[1/3] LEXICAL ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
         valid_tokens = lex_file(sourceFile, valid_output_file, invalid_output_file);
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        std::cout << statusTag(true) << " Tokenization completed\n";
+        UI::printStatusLine(true, "Tokenization completed");
         phases.push_back({"Lexer", true, durationMs, "Generated token and lexical error files"});
 
     } catch (const std::exception& e) {
-        std::cerr << statusTag(false) << " Lexer crashed: " << e.what() << "\n";
+        UI::printCrash("Lexer", e.what());
         phases.push_back({"Lexer", false, 0, e.what()});
-        printSummaryTable(phases);
+        UI::printSummaryTable(phases);
         return 1;
     }
 
     // PARSER PHASE
-    printSection("[2/3] SYNTACTIC ANALYSIS");
+    UI::printSection("[2/3] SYNTACTIC ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
         parseSuccess = Parser::parseTokens(valid_tokens);
@@ -180,31 +81,31 @@ int main(int argc, char* argv[]) {
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
         if (parseSuccess) {
-            std::cout << statusTag(true) << " Parsing completed (no syntax errors)\n";
+            UI::printStatusLine(true, "Parsing completed (no syntax errors)");
             phases.push_back({"Parser", true, durationMs, "No syntax errors"});
         } else {
-            std::cout << statusTag(false) << " Parsing completed with syntax errors\n";
+            UI::printStatusLine(false, "Parsing completed with syntax errors");
             phases.push_back({"Parser", false, durationMs, "Syntax errors written to file"});
         }
 
     } catch (const std::exception& e) {
-        std::cerr << statusTag(false) << " Parser crashed: " << e.what() << "\n";
+        UI::printCrash("Parser", e.what());
         phases.push_back({"Parser", false, 0, e.what()});
-        printSummaryTable(phases);
+        UI::printSummaryTable(phases);
         return 1;
     }
 
     // AST PHASE
-    printSection("[3/3] AST EXPORT");
+    UI::printSection("[3/3] AST EXPORT");
     try {
         auto start = std::chrono::steady_clock::now();
         ASTPrinter::writeToFile(Parser::getASTRoot(), ast_file);
         ASTPrinter::writeDotToFile(Parser::getASTRoot(), ast_dot_file);
 
-        dotAvailable = isGraphvizDotAvailable();
-        if (dotAvailable) {
-            pngGenerated = renderDotImage(ast_dot_file, "png", ast_png_file);
-        }
+        UI::PngRenderResult pngResult = UI::renderAstPngFromDot(ast_dot_file, ast_png_file);
+        dotAvailable = pngResult.dotAvailable;
+        pngGenerated = pngResult.pngGenerated;
+
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -215,32 +116,28 @@ int main(int argc, char* argv[]) {
         phases.push_back({"AST", astSuccess, durationMs, details});
 
         if (astSuccess) {
-            std::cout << statusTag(true) << " AST export completed\n";
+            UI::printStatusLine(true, "AST export completed");
         } else {
-            std::cout << colorize("[WARN]", ANSI::Yellow) << " AST export completed with warnings\n";
+            UI::printWarning("AST export completed with warnings");
         }
 
-        if (!dotAvailable) {
-            std::cout << colorize("[WARN]", ANSI::Yellow) << " Graphviz 'dot' not found. Skipped PNG generation.\n";
-        } else if (!pngGenerated) {
-            std::cout << colorize("[WARN]", ANSI::Yellow) << " Failed to generate AST image from DOT.\n";
-        }
+        UI::printPngGenerationNotes(pngResult);
 
     } catch (const std::exception& e) {
-        std::cerr << statusTag(false) << " AST export crashed: " << e.what() << "\n";
+        UI::printCrash("AST export", e.what());
         phases.push_back({"AST", false, 0, e.what()});
-        printSummaryTable(phases);
+        UI::printSummaryTable(phases);
         return 1;
     }
 
-    printSummaryTable(phases);
+    UI::printSummaryTable(phases);
 
-    printArtifactList("Lexer Outputs", {
+    UI::printArtifactList("Lexer Outputs", {
         {"Tokens", valid_output_file},
         {"Lex Errors", invalid_output_file}
     });
 
-    printArtifactList("Parser Outputs", {
+    UI::printArtifactList("Parser Outputs", {
         {"Derivation", derivation_file},
         {"Syntax Errors", syntax_errors_file}
     });
@@ -252,9 +149,9 @@ int main(int argc, char* argv[]) {
     if (dotAvailable && pngGenerated) {
         astArtifacts.push_back({"PNG", ast_png_file});
     }
-    printArtifactList("AST Outputs", astArtifacts);
+    UI::printArtifactList("AST Outputs", astArtifacts);
 
-    std::cout << "\nDone.\n";
+    UI::printDone();
 
     return 0;
 }
