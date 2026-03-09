@@ -1,7 +1,8 @@
 ## Build
 
 ```bash
-g++ -std=c++17 -static -I../include -o parser_driver *.cpp
+cd ./src/
+g++ -std=c++17 -static -I../include -o driver *.cpp
 ```
 
 ## Compiler Status
