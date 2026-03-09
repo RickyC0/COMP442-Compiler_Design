@@ -77,7 +77,7 @@ class Parser {
         static std::string _parseVisibility(); 
 
         static std::shared_ptr<ASTNode> _parseMemberDecl(const std::string& visibility);
-        static std::shared_ptr<ASTNode> _parseMemberDeclIdTail(const std::string& typeName, const std::string& memberName, const std::string& visibility, int line);
+        static std::shared_ptr<ASTNode> _parseMemberDeclIdTail(const std::string& memberName, const std::string& visibility, int line);
         static std::shared_ptr<ASTNode> _parseMemberDeclTypeTail(const std::string& typeName, const std::string& memberName, const std::string& visibility, int line);
 
         // ========================================================================

@@ -1071,8 +1071,8 @@ std::shared_ptr<FuncDefNode> Parser::_parseFuncDef() {
     }
 }
 
-std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& typeName, const std::string& memberName, const std::string& visibility, int line){
-    // Grammar: MemberDeclIdTail -> ArraySizeList ';'
+std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& memberName, const std::string& visibility, int line){
+    // Grammar: MemberDeclIdTail -> ID_ ArraySizeList ';'
     //                            | '(' FParams ')' ':' ReturnType ';'
     if(LTTYPE == TTYPE::OPEN_PAREN_){
         // Function prototype
@@ -1090,13 +1090,33 @@ std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& typeN
         }
         return funcProto;
     }
+    else if (LTTYPE == TTYPE::ID_) {
+        // Variable declaration (e.g., "public Point p;")
+        // Here, 'memberName' is the type ("Point").
+        _derivationSteps.push_back("MemberDeclIdTail -> 'id' ArraySizeList ';'");
+        
+        // We MUST consume the variable name! (e.g., "p")
+        std::string varName = _lookaheadToken.getValue();
+        _match(TTYPE::ID_); 
+        
+        std::vector<int> dims = _parseArraySizeList();
+        _match(TTYPE::SEMICOLON_);
+
+        // Now we pass ALL 4 arguments: line, type (firstId), name (varName), visibility
+        auto var = std::make_shared<VarDeclNode>(line, memberName, varName, visibility);
+        for (int dim : dims) {
+            var->addDimension(dim);
+        }
+        return var;
+    }
+
     else {
         // Variable declaration
         _derivationSteps.push_back("MemberDeclIdTail -> ArraySizeList ';'");
         std::vector<int> dims = _parseArraySizeList();
         _match(TTYPE::SEMICOLON_);
 
-        auto var = std::make_shared<VarDeclNode>(line, typeName, memberName, visibility);
+        auto var = std::make_shared<VarDeclNode>(line, memberName, visibility);
         for (int dim : dims) {
             var->addDimension(dim);
         }
@@ -1145,11 +1165,9 @@ std::shared_ptr<ASTNode> Parser::_parseMemberDecl(const std::string& visibility)
         case TTYPE::ID_:
         {
             _derivationSteps.push_back("MemberDecl -> 'id' MemberDeclIdTail");
-            Token typeToken = _lookaheadToken;
-            _match(TTYPE::ID_);
             Token nameToken = _lookaheadToken;
             _match(TTYPE::ID_);
-            return _parseMemberDeclIdTail(typeToken.getValue(), nameToken.getValue(), visibility, nameToken.getLineNumber());
+            return _parseMemberDeclIdTail(nameToken.getValue(), visibility, nameToken.getLineNumber());
         }
 
         case TTYPE::INTEGER_TYPE_:

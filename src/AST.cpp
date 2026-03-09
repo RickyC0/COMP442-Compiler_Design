@@ -288,6 +288,43 @@ void walkDot(
 		return;
 	}
 
+    if (auto whileNode = std::dynamic_pointer_cast<WhileStmtNode>(node)) {
+        if (whileNode->getLeft() != nullptr) {
+            ensureDotNode(whileNode->getLeft(), ids, nodes, counter);
+            addEdge(fromId, ids[whileNode->getLeft().get()], "cond", edges);
+            walkDot(whileNode->getLeft(), ids, nodes, edges, counter);
+        }
+        if (whileNode->getRight() != nullptr) {
+            ensureDotNode(whileNode->getRight(), ids, nodes, counter);
+            addEdge(fromId, ids[whileNode->getRight().get()], "body", edges);
+            walkDot(whileNode->getRight(), ids, nodes, edges, counter);
+        }
+        return;
+    }
+
+    if (auto assignNode = std::dynamic_pointer_cast<AssignStmtNode>(node)) {
+        if (assignNode->getLeft() != nullptr) {
+            ensureDotNode(assignNode->getLeft(), ids, nodes, counter);
+            addEdge(fromId, ids[assignNode->getLeft().get()], "target", edges);
+            walkDot(assignNode->getLeft(), ids, nodes, edges, counter);
+        }
+        if (assignNode->getRight() != nullptr) {
+            ensureDotNode(assignNode->getRight(), ids, nodes, counter);
+            addEdge(fromId, ids[assignNode->getRight().get()], "value", edges);
+            walkDot(assignNode->getRight(), ids, nodes, edges, counter);
+        }
+        return;
+    }
+
+    if (auto ioNode = std::dynamic_pointer_cast<IOStmtNode>(node)) {
+        if (ioNode->getLeft() != nullptr) {
+            ensureDotNode(ioNode->getLeft(), ids, nodes, counter);
+            addEdge(fromId, ids[ioNode->getLeft().get()], "target", edges);
+            walkDot(ioNode->getLeft(), ids, nodes, edges, counter);
+        }
+        return;
+    }
+
 	if (node->getLeft() != nullptr) {
 		ensureDotNode(node->getLeft(), ids, nodes, counter);
 		addEdge(fromId, ids[node->getLeft().get()], "left", edges);
