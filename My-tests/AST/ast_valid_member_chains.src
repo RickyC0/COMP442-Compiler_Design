@@ -1,0 +1,21 @@
+// AST coverage: member access and chained method/member usage in expressions and assignments
+
+class Node {
+    public integer value;
+    public next() : Node;
+};
+
+Node::next() : Node
+    do
+        return(self);
+    end
+
+main
+    local
+        Node n;
+        integer x;
+    do
+        x = n.next().value;
+        n.next().value = x + 1;
+        write(n.next().value);
+    end

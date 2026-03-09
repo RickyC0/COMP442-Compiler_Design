@@ -1,0 +1,17 @@
+// AST/error coverage: class/member declaration mistakes and invalid call/assignment forms
+
+class Bad {
+    public integer x
+    public foo(integer a : void;
+    public void void_before_function_name();
+};
+
+main
+    local
+        Bad b;
+    do
+        b.foo(1,);
+        b. = 2;
+        b.x = 3;
+        write(b.x);
+    end

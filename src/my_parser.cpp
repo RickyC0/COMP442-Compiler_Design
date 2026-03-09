@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <cstdlib>
 
 #define TTYPE Token::Type
 #define LTTYPE _lookaheadToken.getType()
@@ -14,6 +15,7 @@ std::vector<std::vector<Token>> Parser::_tokens;
 std::vector<Token> Parser::_flatTokens;
 std::vector<std::string> Parser::_errorMessages;
 std::vector<std::string> Parser::_derivationSteps;
+std::shared_ptr<ProgNode> Parser::_astRoot = nullptr;
 
 bool Parser::_nextToken() {
     if (_currentTokenIndex < _flatTokens.size()) {
@@ -65,6 +67,7 @@ bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     _errorMessages.clear();
     _derivationSteps.clear();
     _inErrorRecoveryMode = false;
+    _astRoot = nullptr;
 
     // Prime the lookahead token
     if (!_nextToken()) {
@@ -73,12 +76,16 @@ bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     }
 
     try {
-        _parseProgram();
+        _astRoot = _parseProgram();
     } catch (const SyntaxError& e) {
         // Error already logged in _reportError
     }
 
     return _errorMessages.empty();
+}
+
+std::shared_ptr<ProgNode> Parser::getASTRoot() {
+    return _astRoot;
 }
 
 const std::vector<std::string>& Parser::getErrorMessages() {
@@ -144,32 +151,50 @@ void Parser::_match(Token::Type expectedType) {
 // OPERATOR PARSING FUNCTIONS
 // ============================================================================
 
-bool Parser::_parseRelOp() {
+bool Parser::_parseRelOp(std::string* opLexeme) {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
         case TTYPE::EQUAL_ :
             _derivationSteps.push_back("RelOp -> 'eq'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::NOT_EQUAL_:
             _derivationSteps.push_back("RelOp -> 'neq'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::LESS_THAN_:
             _derivationSteps.push_back("RelOp -> 'lt'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::GREATER_THAN_:
             _derivationSteps.push_back("RelOp -> 'gt'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::LESS_EQUAL_:
             _derivationSteps.push_back("RelOp -> 'leq'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::GREATER_EQUAL_:
             _derivationSteps.push_back("RelOp -> 'geq'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
 
@@ -178,20 +203,29 @@ bool Parser::_parseRelOp() {
     }
 }
 
-bool Parser::_parseAddOp() {
+bool Parser::_parseAddOp(std::string* opLexeme) {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
         case TTYPE::PLUS_:
             _derivationSteps.push_back("AddOp -> '+'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::MINUS_:
             _derivationSteps.push_back("AddOp -> '-'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::OR_:
             _derivationSteps.push_back("AddOp -> 'or'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
 
@@ -200,20 +234,29 @@ bool Parser::_parseAddOp() {
     }
 }
 
-bool Parser::_parseMultOp() {
+bool Parser::_parseMultOp(std::string* opLexeme) {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
         case TTYPE::MULTIPLY_:
             _derivationSteps.push_back("MultOp -> '*'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::DIVIDE_:
             _derivationSteps.push_back("MultOp -> '/'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::AND_:
             _derivationSteps.push_back("MultOp -> 'and'");
+            if (opLexeme != nullptr) {
+                *opLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
 
@@ -223,16 +266,22 @@ bool Parser::_parseMultOp() {
 
 }
 
-bool Parser::_parseSign() {
+bool Parser::_parseSign(std::string* signLexeme) {
     Token::Type opType = LTTYPE;
 
     switch (opType) {
         case TTYPE::PLUS_:
             _derivationSteps.push_back("Sign -> '+'");
+            if (signLexeme != nullptr) {
+                *signLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
         case TTYPE::MINUS_:
             _derivationSteps.push_back("Sign -> '-'");
+            if (signLexeme != nullptr) {
+                *signLexeme = _lookaheadToken.getValue();
+            }
             _match(opType);
             return true;
 
@@ -251,24 +300,25 @@ bool Parser::_parseAssignOp() {
     }
 }
 
-bool Parser::_parseType(){
+std::shared_ptr<TypeNode> Parser::_parseType(){
+    Token typeToken = _lookaheadToken;
     switch (LTTYPE)
     {
         case TTYPE::INTEGER_TYPE_:
             _derivationSteps.push_back("Type -> 'integer'");
             _match(LTTYPE);
-            return true;
+            return std::make_shared<TypeNode>(typeToken.getLineNumber(), "integer");
         case TTYPE::FLOAT_TYPE_:
             _derivationSteps.push_back("Type -> 'float'");
             _match(LTTYPE);
-            return true;
+            return std::make_shared<TypeNode>(typeToken.getLineNumber(), "float");
         case TTYPE::ID_:
             _derivationSteps.push_back("Type -> 'id'");
             _match(LTTYPE);
-            return true;
+            return std::make_shared<TypeNode>(typeToken.getLineNumber(), typeToken.getValue());
 
         default:
-            return false;
+            return nullptr;
     }
 }
 
@@ -276,19 +326,22 @@ bool Parser::_parseType(){
 // ARRAY PARSING FUNCTIONS
 // ============================================================================
 
-void Parser::_parseArraySizeTail() {
+int Parser::_parseArraySizeTail() {
     // Grammar: ArraySizeTail -> intNum ] | ]
 
     // Case 1: intNum ]
     if (LTTYPE == TTYPE::INTEGER_LITERAL_) {
+        Token sizeToken = _lookaheadToken;
         _derivationSteps.push_back("ArraySizeTail -> 'intNum' ']'");
         _match(TTYPE::INTEGER_LITERAL_);
         _match(TTYPE::CLOSE_BRACKET_);
+        return std::atoi(sizeToken.getValue().c_str());
     }
     // Case 2: ]
     else if (LTTYPE == TTYPE::CLOSE_BRACKET_) {
         _derivationSteps.push_back("ArraySizeTail -> ']'");
         _match(TTYPE::CLOSE_BRACKET_);
+        return -1;
     }
     // Error
     else {
@@ -296,60 +349,68 @@ void Parser::_parseArraySizeTail() {
     }
 }
 
-void Parser::_parseArraySize() {
+int Parser::_parseArraySize() {
     // Grammar: ArraySize -> [ ArraySizeTail
     _derivationSteps.push_back("ArraySize -> '[' ArraySizeTail");
     _match(TTYPE::OPEN_BRACKET_);
     
-    // we parse the tail (size or empty)
-    _parseArraySizeTail();
+    return _parseArraySizeTail();
 }
 
-void Parser::_parseArraySizeList() {
+std::vector<int> Parser::_parseArraySizeList() {
+    std::vector<int> dimensions;
     // Grammar: ArraySizeList -> ArraySize ArraySizeList | EPSILON
 
     // Check FIRST set of ArraySize -> { [ }
     if (LTTYPE == TTYPE::OPEN_BRACKET_) {
         _derivationSteps.push_back("ArraySizeList -> ArraySize ArraySizeList");
-        _parseArraySize();
-        _parseArraySizeList(); // Recursive step
+        dimensions.push_back(_parseArraySize());
+        std::vector<int> tail = _parseArraySizeList();
+        dimensions.insert(dimensions.end(), tail.begin(), tail.end());
     }
     // EPSILON CASE:
     else {
         _derivationSteps.push_back("ArraySizeList -> EPSILON");
     }
+
+    return dimensions;
 }
 
-void Parser::_parseIndice() {
+std::shared_ptr<ASTNode> Parser::_parseIndice() {
     // Grammar: Indice -> [ Expr ]
     _derivationSteps.push_back("Indice -> '[' Expr ']'");
     _match(TTYPE::OPEN_BRACKET_);
-    _parseExpr();
+    std::shared_ptr<ASTNode> indexExpr = _parseExpr();
     _match(TTYPE::CLOSE_BRACKET_);
+    return indexExpr;
 }
 
-void Parser::_parseIndiceList(){
+std::vector<std::shared_ptr<ASTNode>> Parser::_parseIndiceList(){
+    std::vector<std::shared_ptr<ASTNode>> indices;
     // Grammar: IndiceList -> Indice IndiceList | EPSILON
     if (LTTYPE == TTYPE::OPEN_BRACKET_) {
         _derivationSteps.push_back("IndiceList -> Indice IndiceList");
-        _parseIndice();
-        _parseIndiceList(); // Recursive step for multiple indices
+        indices.push_back(_parseIndice());
+        std::vector<std::shared_ptr<ASTNode>> tail = _parseIndiceList();
+        indices.insert(indices.end(), tail.begin(), tail.end());
     }
     // EPSILON case
     else {
         _derivationSteps.push_back("IndiceList -> EPSILON");
     }
+
+    return indices;
 }
 
-void Parser::_parseAParamsTail() {
+void Parser::_parseAParamsTail(std::vector<std::shared_ptr<ASTNode>>& params) {
     // Grammar: AParamsTail -> , Expr AParamsTail | EPSILON
 
     // Case 1: , Expr AParamsTail
     if (LTTYPE == TTYPE::COMMA_) {
         _derivationSteps.push_back("AParamsTail -> ',' Expr AParamsTail");
         _match(TTYPE::COMMA_);
-        _parseExpr();
-        _parseAParamsTail(); // Recursive step for more parameters
+        params.push_back(_parseExpr());
+        _parseAParamsTail(params);
     }
     // Case 2: EPSILON
     else {
@@ -357,215 +418,304 @@ void Parser::_parseAParamsTail() {
     }
 }
 
-void Parser::_parseAParams() {
+std::vector<std::shared_ptr<ASTNode>> Parser::_parseAParams() {
+    std::vector<std::shared_ptr<ASTNode>> params;
     // Grammar: AParams -> Expr AParamsTail | EPSILON
     // Check FIRST set of Expr (starts with Factor's FIRST set)
     if (LTTYPE == TTYPE::ID_ || LTTYPE == TTYPE::INTEGER_LITERAL_ ||
         LTTYPE == TTYPE::FLOAT_LITERAL_ || LTTYPE == TTYPE::OPEN_PAREN_ ||
         LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::NOT_) {
         _derivationSteps.push_back("AParams -> Expr AParamsTail");
-        _parseExpr();
-        _parseAParamsTail();
+        params.push_back(_parseExpr());
+        _parseAParamsTail(params);
     }
     else {
         _derivationSteps.push_back("AParams -> EPSILON");
     }
+
+    return params;
 }
 
-void Parser::_parseVariable(){
+std::shared_ptr<ASTNode> Parser::_parseVariable(){
     _derivationSteps.push_back("Variable -> 'id' FactorIdTail");
+    Token idToken = _lookaheadToken;
     _match(TTYPE::ID_);
-    _parseFactorIdTail(); // Check for array access or function call
+    std::shared_ptr<ASTNode> base = std::make_shared<IdNode>(idToken.getLineNumber(), idToken.getValue());
+    return _parseFactorIdTail(base);
 }
 
-void Parser::_parseFactorCallTail(){
+std::shared_ptr<ASTNode> Parser::_parseFactorCallTail(const std::shared_ptr<ASTNode>& base){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("FactorCallTail -> '.' 'id' FactorIdTail");
         _match(TTYPE::DOT_);
+        Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseFactorIdTail(); // Check for more accesses or calls
+        std::shared_ptr<ASTNode> memberId = std::make_shared<IdNode>(memberToken.getLineNumber(), memberToken.getValue());
+        std::shared_ptr<ASTNode> member = _parseFactorIdTail(memberId);
+        member->setLeft(base);
+        return member;
     }
     // EPSILON case
     else {
         _derivationSteps.push_back("FactorCallTail -> EPSILON");
+        return base;
     }
 }
 
-void Parser::_parseFactorRest(){
+std::shared_ptr<ASTNode> Parser::_parseFactorRest(const std::shared_ptr<ASTNode>& base){
     switch (LTTYPE)
     {
     case TTYPE::DOT_:
         _derivationSteps.push_back("FactorRest -> '.' 'id' FactorIdTail");
         _match(TTYPE::DOT_);
+        {
+        Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseFactorIdTail(); // Check for more accesses or calls
-        break;
+        
+        // Immediately create a DataMemberNode
+        std::shared_ptr<ASTNode> memberId = std::make_shared<DataMemberNode>(memberToken.getLineNumber(), memberToken.getValue());
+        memberId->setLeft(base); // Set the owner (e.g. 'p') right away
+        
+        return _parseFactorIdTail(memberId);
+        }
 
     case TTYPE::OPEN_PAREN_:
         _derivationSteps.push_back("FactorRest -> '(' AParams ')' FactorCallTail");
+        {
+        Token openToken = _lookaheadToken;
         _match(TTYPE::OPEN_PAREN_);
-        _parseAParams(); // Parse arguments
+        std::vector<std::shared_ptr<ASTNode>> args = _parseAParams();
         _match(TTYPE::CLOSE_PAREN_);
-        _parseFactorCallTail(); // Check for method calls on the result
-        break;
+        std::shared_ptr<FuncCallNode> call = std::make_shared<FuncCallNode>(openToken.getLineNumber(), base->getValue());
+        for (const auto& arg : args) {
+            call->addArgument(arg);
+        }
+        call->setLeft(base);
+        return _parseFactorCallTail(call);
+        }
 
     default:
         _derivationSteps.push_back("FactorRest -> EPSILON");
-        break;
+        return base;
     }
 }
 
-void Parser::_parseFactorIdTail(){
+std::shared_ptr<ASTNode> Parser::_parseFactorIdTail(const std::shared_ptr<ASTNode>& baseId){
     _derivationSteps.push_back("FactorIdTail -> IndiceList FactorRest");
-    _parseIndiceList(); // Check for array access
-    _parseFactorRest(); // Check for function call or member access
+    std::vector<std::shared_ptr<ASTNode>> indices = _parseIndiceList();
+
+    std::shared_ptr<ASTNode> base = baseId;
+    if (!indices.empty()) {
+        // Safely upgrade to DataMemberNode without losing the owner
+        auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(baseId);
+        if (!dataMember) {
+            dataMember = std::make_shared<DataMemberNode>(baseId->getLineNumber(), baseId->getValue());
+            dataMember->setLeft(baseId->getLeft());
+        }
+        for (const auto& idx : indices) {
+            dataMember->addIndex(idx);
+        }
+        base = dataMember;
+    }
+
+    return _parseFactorRest(base);
 }
 
-void Parser::_parseFactor() {
+std::shared_ptr<ASTNode> Parser::_parseFactor() {
     switch (LTTYPE)
     {
     case TTYPE::ID_:
+        {
         _derivationSteps.push_back("Factor -> 'id' FactorIdTail");
+        Token idToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseFactorIdTail();
-        break;
+        std::shared_ptr<ASTNode> base = std::make_shared<IdNode>(idToken.getLineNumber(), idToken.getValue());
+        return _parseFactorIdTail(base);
+        }
 
     case TTYPE::INTEGER_LITERAL_:
+        {
         _derivationSteps.push_back("Factor -> 'intLit'");
+        Token lit = _lookaheadToken;
         _match(LTTYPE); // Match the literal
-        break;
+        return std::make_shared<IntLitNode>(lit.getLineNumber(), std::atoi(lit.getValue().c_str()));
+        }
 
     case TTYPE::FLOAT_LITERAL_:
+        {
         _derivationSteps.push_back("Factor -> 'floatLit'");
+        Token lit = _lookaheadToken;
         _match(LTTYPE); // Match the literal
-        break;
+        return std::make_shared<FloatLitNode>(lit.getLineNumber(), std::strtof(lit.getValue().c_str(), nullptr));
+        }
 
     case TTYPE::OPEN_PAREN_:
         _derivationSteps.push_back("Factor -> '(' ArithExpr ')'");
         _match(TTYPE::OPEN_PAREN_);
-        _parseArithExpr();
+        {
+        std::shared_ptr<ASTNode> expr = _parseArithExpr();
         _match(TTYPE::CLOSE_PAREN_);
-        break;
+        return expr;
+        }
 
     // Need to check the first set of sign because we are in a switch statement and need to check something
     case TTYPE::MINUS_:
     case TTYPE::PLUS_:
+        {
         _derivationSteps.push_back("Factor -> Sign Factor");
-        _parseSign();
-        _parseFactor();
-        break;
+        std::string sign;
+        Token signToken = _lookaheadToken;
+        _parseSign(&sign);
+        return std::make_shared<UnaryOpNode>(signToken.getLineNumber(), sign, _parseFactor());
+        }
 
     case TTYPE::NOT_:
+        {
         _derivationSteps.push_back("Factor -> '!' Factor");
+        Token notToken = _lookaheadToken;
         _match(TTYPE::NOT_);
-        _parseFactor();
-        break;
+        return std::make_shared<UnaryOpNode>(notToken.getLineNumber(), "!", _parseFactor());
+        }
 
     default:
         _reportError("Expected factor (identifier, literal, '(', sign, or '!')", {TTYPE::ID_, TTYPE::INTEGER_LITERAL_, TTYPE::FLOAT_LITERAL_, TTYPE::OPEN_PAREN_, TTYPE::MINUS_, TTYPE::PLUS_, TTYPE::NOT_});
     }
 }
 
-void Parser::_parseMultOpTail(){
-    if(LTTYPE == TTYPE::MULTIPLY_ || LTTYPE == TTYPE::DIVIDE_ || LTTYPE == TTYPE::AND_){ // First set of MultOp
+std::shared_ptr<ASTNode> Parser::_parseMultOpTail(std::shared_ptr<ASTNode> left){
+    while (LTTYPE == TTYPE::MULTIPLY_ || LTTYPE == TTYPE::DIVIDE_ || LTTYPE == TTYPE::AND_) {
         _derivationSteps.push_back("MultOpTail -> MultOp Factor MultOpTail");
-        _parseMultOp(); // Consume the operator
-        _parseFactor();
-        _parseMultOpTail(); // Recursive step for multiple operations
+        std::string op;
+        Token opToken = _lookaheadToken;
+        _parseMultOp(&op);
+        std::shared_ptr<ASTNode> right = _parseFactor();
+        left = std::make_shared<BinaryOpNode>(opToken.getLineNumber(), op, left, right);
     }
-    // EPSILON case
-    else {
-        _derivationSteps.push_back("MultOpTail -> EPSILON");
-    }
+    _derivationSteps.push_back("MultOpTail -> EPSILON");
+    return left;
 }
 
 
-void Parser::_parseTerm(){
+std::shared_ptr<ASTNode> Parser::_parseTerm(){
     _derivationSteps.push_back("Term -> Factor MultOpTail");
-    _parseFactor();
-    _parseMultOpTail(); // Check for multiplication/division
+    std::shared_ptr<ASTNode> left = _parseFactor();
+    return _parseMultOpTail(left);
 }
 
-void Parser::_parseAddOpTail(){
-    if(LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::OR_){ // First set of AddOp
+std::shared_ptr<ASTNode> Parser::_parseAddOpTail(std::shared_ptr<ASTNode> left){
+    while (LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::OR_) {
         _derivationSteps.push_back("AddOpTail -> AddOp Term AddOpTail");
-        _parseAddOp(); // Consume the operator
-        _parseTerm();
-        _parseAddOpTail(); // Recursive step for multiple operations
+        std::string op;
+        Token opToken = _lookaheadToken;
+        _parseAddOp(&op);
+        std::shared_ptr<ASTNode> right = _parseTerm();
+        left = std::make_shared<BinaryOpNode>(opToken.getLineNumber(), op, left, right);
     }
-    // EPSILON case
-    else {
-        _derivationSteps.push_back("AddOpTail -> EPSILON");
-    }
+    _derivationSteps.push_back("AddOpTail -> EPSILON");
+    return left;
 }
 
-void Parser::_parseArithExpr(){
+std::shared_ptr<ASTNode> Parser::_parseArithExpr(){
     _derivationSteps.push_back("ArithExpr -> Term AddOpTail");
-    _parseTerm();
-    _parseAddOpTail(); // Check for addition/subtraction
+    std::shared_ptr<ASTNode> left = _parseTerm();
+    return _parseAddOpTail(left);
 }
 
-void Parser::_parseRelExpr(){
+std::shared_ptr<ASTNode> Parser::_parseRelExpr(){
     _derivationSteps.push_back("RelExpr -> ArithExpr RelOp ArithExpr");
-    _parseArithExpr();
-    if(!_parseRelOp()){
+    std::shared_ptr<ASTNode> left = _parseArithExpr();
+    std::string op;
+    Token opToken = _lookaheadToken;
+    if(!_parseRelOp(&op)){
         _reportError("Expected relational operator", {TTYPE::EQUAL_, TTYPE::NOT_EQUAL_, TTYPE::LESS_THAN_, TTYPE::GREATER_THAN_, TTYPE::LESS_EQUAL_, TTYPE::GREATER_EQUAL_});
     }
-    _parseArithExpr();
+    std::shared_ptr<ASTNode> right = _parseArithExpr();
+    return std::make_shared<BinaryOpNode>(opToken.getLineNumber(), op, left, right);
 }
 
-void Parser::_parseExprTail(){
-    if(_parseRelOp()){
+std::shared_ptr<ASTNode> Parser::_parseExprTail(const std::shared_ptr<ASTNode>& left){
+    std::string op;
+    Token opToken = _lookaheadToken;
+    if(_parseRelOp(&op)){
         _derivationSteps.push_back("ExprTail -> RelOp ArithExpr");
-        _parseArithExpr();
+        std::shared_ptr<ASTNode> right = _parseArithExpr();
+        return std::make_shared<BinaryOpNode>(opToken.getLineNumber(), op, left, right);
     }
     else {
         _derivationSteps.push_back("ExprTail -> EPSILON");
+        return left;
     }
 }
 
-void Parser::_parseExpr(){
+std::shared_ptr<ASTNode> Parser::_parseExpr(){
     _derivationSteps.push_back("Expr -> ArithExpr ExprTail");
-    _parseArithExpr();
-    _parseExprTail(); // Check for relational operator
+    std::shared_ptr<ASTNode> left = _parseArithExpr();
+    return _parseExprTail(left);
 }
 
-void Parser::_parseStatementCallTail(){
+std::shared_ptr<ASTNode> Parser::_parseStatementCallTail(const std::shared_ptr<ASTNode>& callOrMember){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("StatementCallTail -> '.' 'id' StatementIdTail");
         _match(TTYPE::DOT_);
+        Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseStatementIdTail(); // Check for more accesses or calls
+        std::shared_ptr<ASTNode> memberBase = std::make_shared<IdNode>(memberToken.getLineNumber(), memberToken.getValue());
+        StatementIdTailResult tail = _parseStatementIdTail(memberBase);
+        if (tail.base != nullptr) {
+            tail.base->setLeft(callOrMember);
+        }
+        if (tail.statementNode != nullptr) {
+            return tail.statementNode;
+        }
+        return tail.base;
     }
     else if(LTTYPE == TTYPE::SEMICOLON_){
         _derivationSteps.push_back("StatementCallTail -> ';'");
         _match(TTYPE::SEMICOLON_);
+        return callOrMember;
     }
     else{
         _reportError("Expected '.' for member access or ';' to end statement", {TTYPE::DOT_, TTYPE::SEMICOLON_});
     }
 }
 
-void Parser::_parseStatementRest(){
+std::shared_ptr<ASTNode> Parser::_parseStatementRest(const std::shared_ptr<ASTNode>& lhsBase){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("StatementRest -> '.' 'id' StatementIdTail");
         _match(TTYPE::DOT_);
+        Token memberToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseStatementIdTail(); // Check for more accesses or calls
+        
+        // Immediately create a DataMemberNode, not an IdNode
+        std::shared_ptr<ASTNode> memberBase = std::make_shared<DataMemberNode>(memberToken.getLineNumber(), memberToken.getValue());
+        memberBase->setLeft(lhsBase); // Set the owner (e.g. 'p') right away
+        
+        StatementIdTailResult tail = _parseStatementIdTail(memberBase);
+        if (tail.statementNode != nullptr) {
+            return tail.statementNode;
+        }
+        return tail.base;
     }
     else if(LTTYPE == TTYPE::OPEN_PAREN_){
         _derivationSteps.push_back("StatementRest -> '(' AParams ')' StatementCallTail");
+        Token openToken = _lookaheadToken;
         _match(TTYPE::OPEN_PAREN_);
-        _parseAParams(); // Parse arguments
+        std::vector<std::shared_ptr<ASTNode>> args = _parseAParams();
         _match(TTYPE::CLOSE_PAREN_);
-        _parseStatementCallTail(); // Check for method calls on the result
+        std::shared_ptr<FuncCallNode> call = std::make_shared<FuncCallNode>(openToken.getLineNumber(), lhsBase->getValue());
+        for (const auto& arg : args) {
+            call->addArgument(arg);
+        }
+        call->setLeft(lhsBase);
+        return _parseStatementCallTail(call);
     }
 
     else if(LTTYPE == TTYPE::ASSIGNMENT_){
         _derivationSteps.push_back("StatementRest -> AssignOp Expr ';'");
         _parseAssignOp();
-        _parseExpr();
+        std::shared_ptr<ASTNode> rhs = _parseExpr();
         _match(TTYPE::SEMICOLON_);
+        return std::make_shared<AssignStmtNode>(lhsBase->getLineNumber(), lhsBase, rhs);
     }
 
     else{
@@ -573,100 +723,150 @@ void Parser::_parseStatementRest(){
     }
 }
 
-void Parser::_parseStatementIdTail(){
+Parser::StatementIdTailResult Parser::_parseStatementIdTail(const std::shared_ptr<ASTNode>& lhsBase){
     _derivationSteps.push_back("StatementIdTail -> IndiceList StatementRest");
-    _parseIndiceList(); // Check for array access
-    _parseStatementRest(); // Check for function call, member access, or assignment
+    std::vector<std::shared_ptr<ASTNode>> indices = _parseIndiceList();
+
+    std::shared_ptr<ASTNode> base = lhsBase;
+    if (!indices.empty()) {
+        // Safely upgrade to DataMemberNode without losing the owner
+        auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(lhsBase);
+        if (!dataMember) {
+            dataMember = std::make_shared<DataMemberNode>(lhsBase->getLineNumber(), lhsBase->getValue());
+            dataMember->setLeft(lhsBase->getLeft());
+        }
+        for (const auto& idx : indices) {
+            dataMember->addIndex(idx);
+        }
+        base = dataMember;
+    }
+
+    std::shared_ptr<ASTNode> stmt = _parseStatementRest(base);
+    return {base, stmt};
 }
 
-void Parser::_parseStatBlock(){
+std::shared_ptr<ASTNode> Parser::_parseStatBlock(){
     if(LTTYPE == TTYPE::DO_KEYWORD_){
         _derivationSteps.push_back("StatBlock -> '{' StatementList '}'");
+        int blockLine = _lookaheadToken.getLineNumber();
         _match(TTYPE::DO_KEYWORD_);
-        _parseStatementList();
+        std::vector<std::shared_ptr<ASTNode>> statements = _parseStatementList();
         _match(TTYPE::END_KEYWORD_);
-    }
-    else if(_parseStatement()){
-        return;
+        std::shared_ptr<BlockNode> block = std::make_shared<BlockNode>(blockLine);
+        for (const auto& stmt : statements) {
+            if (stmt != nullptr) {
+                block->addStatement(stmt);
+            }
+        }
+        return block;
     }
     else {
+        std::shared_ptr<ASTNode> stmt = _parseStatement();
+        if (stmt != nullptr) {
+            return stmt;
+        }
         _derivationSteps.push_back("StatBlock -> EPSILON");
-        return; // EPSILON case: do nothing (return)
+        return nullptr;
     }
 }
 
-bool Parser::_parseStatement() {
+std::shared_ptr<ASTNode> Parser::_parseStatement() {
     switch(LTTYPE) {
         case TTYPE::IF_KEYWORD_:
+            {
             _derivationSteps.push_back("Statement -> 'if' '(' RelExpr ')' 'then' StatBlock 'else' StatBlock ';'");
+            Token ifToken = _lookaheadToken;
             _match(TTYPE::IF_KEYWORD_);
             _match(TTYPE::OPEN_PAREN_);
-            _parseRelExpr();
+            std::shared_ptr<ASTNode> cond = _parseRelExpr();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::THEN_KEYWORD_);
-            _parseStatBlock();
+            std::shared_ptr<ASTNode> thenBlock = _parseStatBlock();
             _match(TTYPE::ELSE_KEYWORD_);
-            _parseStatBlock();
+            std::shared_ptr<ASTNode> elseBlock = _parseStatBlock();
             _match(TTYPE::SEMICOLON_);
-            return true;
+            return std::make_shared<IfStmtNode>(ifToken.getLineNumber(), cond, thenBlock, elseBlock);
+            }
 
         case TTYPE::WHILE_KEYWORD_:
+            {
             _derivationSteps.push_back("Statement -> 'while' '(' RelExpr ')' StatBlock ';'");
+            Token whileToken = _lookaheadToken;
             _match(TTYPE::WHILE_KEYWORD_);
             _match(TTYPE::OPEN_PAREN_);
-            _parseRelExpr();
+            std::shared_ptr<ASTNode> cond = _parseRelExpr();
             _match(TTYPE::CLOSE_PAREN_);
-            _parseStatBlock();
+            std::shared_ptr<ASTNode> body = _parseStatBlock();
             _match(TTYPE::SEMICOLON_);
-            return true;
+            return std::make_shared<WhileStmtNode>(whileToken.getLineNumber(), cond, body);
+            }
 
         case TTYPE::READ_KEYWORD_:
+            {
             _derivationSteps.push_back("Statement -> 'read' '(' Variable ')' ';'");
+            Token readToken = _lookaheadToken;
             _match(TTYPE::READ_KEYWORD_);
             _match(TTYPE::OPEN_PAREN_);
-            _parseVariable();
+            std::shared_ptr<ASTNode> variable = _parseVariable();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            return true;
+            return std::make_shared<IOStmtNode>(readToken.getLineNumber(), "read", variable);
+            }
 
         case TTYPE::WRITE_KEYWORD_:
+            {
             _derivationSteps.push_back("Statement -> 'write' '(' Expr ')' ';'");
+            Token writeToken = _lookaheadToken;
             _match(TTYPE::WRITE_KEYWORD_);
             _match(TTYPE::OPEN_PAREN_);
-            _parseExpr();
+            std::shared_ptr<ASTNode> expr = _parseExpr();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            return true;
+            return std::make_shared<IOStmtNode>(writeToken.getLineNumber(), "write", expr);
+            }
 
         case TTYPE::RETURN_KEYWORD_:
+            {
             _derivationSteps.push_back("Statement -> 'return' '(' Expr ')' ';'");
+            Token retToken = _lookaheadToken;
             _match(TTYPE::RETURN_KEYWORD_);
             _match(TTYPE::OPEN_PAREN_);
-            _parseExpr();
+            std::shared_ptr<ASTNode> expr = _parseExpr();
             _match(TTYPE::CLOSE_PAREN_);
             _match(TTYPE::SEMICOLON_);
-            return true;
+            return std::make_shared<ReturnStmtNode>(retToken.getLineNumber(), expr);
+            }
 
         case TTYPE::ID_:
+            {
             _derivationSteps.push_back("Statement -> 'id' StatementIdTail");
+            Token idToken = _lookaheadToken;
             _match(TTYPE::ID_);
-            _parseStatementIdTail(); // Check for function call, member access, or assignment
-            return true;
+            std::shared_ptr<ASTNode> base = std::make_shared<IdNode>(idToken.getLineNumber(), idToken.getValue());
+            StatementIdTailResult tail = _parseStatementIdTail(base);
+            if (tail.statementNode != nullptr) {
+                return tail.statementNode;
+            }
+            return tail.base;
+            }
 
         default:
-            return false;
+            return nullptr;
     }
 }
-void Parser::_parseStatementList() {
+std::vector<std::shared_ptr<ASTNode>> Parser::_parseStatementList() {
+    std::vector<std::shared_ptr<ASTNode>> statements;
     // Grammar: StatementList -> Statement StatementList | EPSILON
     // Iterative with panic mode error recovery
     while (true) {
         try {
-            if (_parseStatement()) {
+            std::shared_ptr<ASTNode> stmt = _parseStatement();
+            if (stmt != nullptr) {
                 _derivationSteps.push_back("StatementList -> Statement StatementList");
+                statements.push_back(stmt);
             } else {
                 _derivationSteps.push_back("StatementList -> EPSILON");
-                return;
+                return statements;
             }
         } catch (const SyntaxError& e) {
             // Error already logged. Skip to next statement start or list end.
@@ -677,27 +877,38 @@ void Parser::_parseStatementList() {
         }
     }
 }
-bool Parser::_parseVarDecl() {
-    if(!_parseType()){
-        return false; // No type found, not a var declaration
+std::shared_ptr<VarDeclNode> Parser::_parseVarDecl(const std::string& visibility) {
+    std::shared_ptr<TypeNode> typeNode = _parseType();
+    if(typeNode == nullptr){
+        return nullptr;
     }
+
+    Token idToken = _lookaheadToken;
     _derivationSteps.push_back("VarDecl -> Type 'id' ArraySizeList ';'");
     _match(TTYPE::ID_);
-    _parseArraySizeList(); // Check for array declaration
+    std::vector<int> dims = _parseArraySizeList();
     _match(TTYPE::SEMICOLON_);
-    return true;
+
+    auto var = std::make_shared<VarDeclNode>(idToken.getLineNumber(), typeNode->getValue(), idToken.getValue(), visibility);
+    for (int dim : dims) {
+        var->addDimension(dim);
+    }
+    return var;
 }
 
-void Parser::_parseVarDeclList() {
+std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseVarDeclList() {
+    std::vector<std::shared_ptr<VarDeclNode>> decls;
     // Grammar: VarDeclList -> VarDecl VarDeclList | EPSILON
     // Iterative with panic mode error recovery
     while (true) {
         try {
-            if (_parseVarDecl()) {
+            std::shared_ptr<VarDeclNode> decl = _parseVarDecl();
+            if (decl != nullptr) {
                 _derivationSteps.push_back("VarDeclList -> VarDecl VarDeclList");
+                decls.push_back(decl);
             } else {
                 _derivationSteps.push_back("VarDeclList -> EPSILON");
-                return;
+                return decls;
             }
         } catch (const SyntaxError& e) {
             _skipUntil({TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_,
@@ -707,39 +918,62 @@ void Parser::_parseVarDeclList() {
     }
 }
 
-void Parser::_parseLocalVarDeclList(){
+std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseLocalVarDeclList(){
     if(LTTYPE == TTYPE::LOCAL_){
         _derivationSteps.push_back("LocalVarDeclList -> 'local' VarDeclList");
         _match(TTYPE::LOCAL_);
-        _parseVarDeclList(); // Parse variable declarations
+        return _parseVarDeclList();
     }
     // EPSILON case
     else {
         _derivationSteps.push_back("LocalVarDeclList -> EPSILON");
+        return {};
     }
 }
 
-void Parser::_parseFuncBody() {
+std::shared_ptr<BlockNode> Parser::_parseFuncBody(std::vector<std::shared_ptr<VarDeclNode>>* localVars) {
     _derivationSteps.push_back("FuncBody -> LocalVarDeclList 'do' StatementList 'end'");
-    _parseLocalVarDeclList(); // Parse local variable declarations
+    int line = _lookaheadToken.getLineNumber();
+    std::vector<std::shared_ptr<VarDeclNode>> locals = _parseLocalVarDeclList();
+    if (localVars != nullptr) {
+        *localVars = locals;
+    }
     _match(TTYPE::DO_KEYWORD_);
-    _parseStatementList(); // Parse the statements in the function body
+    std::vector<std::shared_ptr<ASTNode>> statements = _parseStatementList();
     _match(TTYPE::END_KEYWORD_);
+
+    std::shared_ptr<BlockNode> body = std::make_shared<BlockNode>(line);
+    for (const auto& localVar : locals) {
+        body->addStatement(localVar);
+    }
+    for (const auto& stmt : statements) {
+        if (stmt != nullptr) {
+            body->addStatement(stmt);
+        }
+    }
+    return body;
 }
 
-void Parser::_parseFParamsTail() {
+void Parser::_parseFParamsTail(std::vector<std::shared_ptr<VarDeclNode>>& params) {
     // Grammar: FParamsTail -> , Type id FParamsTail | EPSILON
 
     // Case 1: , Type id FParamsTail
     if (LTTYPE == TTYPE::COMMA_) {
         _derivationSteps.push_back("FParamsTail -> ',' Type 'id' ArraySizeList FParamsTail");
         _match(TTYPE::COMMA_);
-        if(!_parseType()){
+        std::shared_ptr<TypeNode> typeNode = _parseType();
+        if(typeNode == nullptr){
             _reportError("Expected type (INTEGER_TYPE_, FLOAT_TYPE_, or identifier)", {TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
         }
+        Token idToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseArraySizeList(); // Check for array parameter
-        _parseFParamsTail(); // Recursive step for more parameters
+        std::vector<int> dims = _parseArraySizeList();
+        auto param = std::make_shared<VarDeclNode>(idToken.getLineNumber(), typeNode->getValue(), idToken.getValue(), "param");
+        for (int dim : dims) {
+            param->addDimension(dim);
+        }
+        params.push_back(param);
+        _parseFParamsTail(params);
     }
     // Case 2: EPSILON
     else {
@@ -748,52 +982,68 @@ void Parser::_parseFParamsTail() {
 }
 
 
-void Parser::_parseFParams() {
-    if(_parseType()){
+std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseFParams() {
+    std::vector<std::shared_ptr<VarDeclNode>> params;
+    std::shared_ptr<TypeNode> typeNode = _parseType();
+    if(typeNode != nullptr){
         _derivationSteps.push_back("FParams -> Type 'id' ArraySizeList FParamsTail");
+        Token idToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseArraySizeList(); // Check for array parameter
-        _parseFParamsTail(); // Check for more parameters
+        std::vector<int> dims = _parseArraySizeList();
+        auto param = std::make_shared<VarDeclNode>(idToken.getLineNumber(), typeNode->getValue(), idToken.getValue(), "param");
+        for (int dim : dims) {
+            param->addDimension(dim);
+        }
+        params.push_back(param);
+        _parseFParamsTail(params);
     }
     // EPSILON case
     else {
         _derivationSteps.push_back("FParams -> EPSILON");
     }
+
+    return params;
 }
 
 
-void Parser::_parseReturnType(){
+std::string Parser::_parseReturnType(){
     if(LTTYPE == TTYPE::VOID_TYPE_){
         _derivationSteps.push_back("ReturnType -> 'void'");
         _match(TTYPE::VOID_TYPE_);
+        return "void";
     }
-    else if(_parseType()){
+    else {
+        std::shared_ptr<TypeNode> typeNode = _parseType();
+        if(typeNode != nullptr){
         _derivationSteps.push_back("ReturnType -> Type");
-        return;
+        return typeNode->getValue();
+        }
     }
-    else{
-        _reportError("Expected return type (VOID_TYPE_, INTEGER_TYPE_, FLOAT_TYPE_, or ID_)", {TTYPE::VOID_TYPE_, TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
-    }
+
+    _reportError("Expected return type (VOID_TYPE_, INTEGER_TYPE_, FLOAT_TYPE_, or ID_)", {TTYPE::VOID_TYPE_, TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
 }
 
-void Parser::_parseFuncHeadTail() {
+void Parser::_parseFuncHeadTail(FuncHeadInfo& info, int headLine) {
     if(LTTYPE == TTYPE::COLON_COLON_){
         _derivationSteps.push_back("FuncHeadTail -> '::' 'id' '(' FParams ')' ':' ReturnType");
+        info.className = info.name;
         _match(TTYPE::COLON_COLON_);
+        Token fnToken = _lookaheadToken;
         _match(TTYPE::ID_);
+        info.name = fnToken.getValue();
         _match(TTYPE::OPEN_PAREN_);
-        _parseFParams(); // Parse parameters
+        info.params = _parseFParams();
         _match(TTYPE::CLOSE_PAREN_);
         _match(TTYPE::COLON_);
-        _parseReturnType(); // Parse return type
+        info.returnType = _parseReturnType();
     }
     else if(LTTYPE == TTYPE::OPEN_PAREN_){
         _derivationSteps.push_back("FuncHeadTail -> '(' FParams ')' ':' ReturnType");
         _match(TTYPE::OPEN_PAREN_);
-        _parseFParams(); // Parse parameters
+        info.params = _parseFParams();
         _match(TTYPE::CLOSE_PAREN_);
         _match(TTYPE::COLON_);
-        _parseReturnType(); // Parse return type
+        info.returnType = _parseReturnType();
 
     }
     else{
@@ -801,119 +1051,187 @@ void Parser::_parseFuncHeadTail() {
     }
 }
 
-void Parser::_parseFuncHead() {
+Parser::FuncHeadInfo Parser::_parseFuncHead() {
     _derivationSteps.push_back("FuncHead -> 'id' FuncHeadTail");
+    Token idToken = _lookaheadToken;
+    FuncHeadInfo info;
+    info.name = idToken.getValue();
     _match(TTYPE::ID_); // Function name
-    _parseFuncHeadTail(); // Check for parameters and return type
+    _parseFuncHeadTail(info, idToken.getLineNumber());
+    return info;
 }
 
-void Parser::_parseFuncDef() {
+std::shared_ptr<FuncDefNode> Parser::_parseFuncDef() {
     if(LTTYPE == TTYPE::ID_){ // First set of FuncHead
         _derivationSteps.push_back("FuncDef -> FuncHead FuncBody");
-        _parseFuncHead(); // Parse function header
-        _parseFuncBody(); // Parse function body
+        int line = _lookaheadToken.getLineNumber();
+        FuncHeadInfo head = _parseFuncHead();
+        std::vector<std::shared_ptr<VarDeclNode>> locals;
+        std::shared_ptr<BlockNode> body = _parseFuncBody(&locals);
+
+        auto func = std::make_shared<FuncDefNode>(line, head.returnType, head.name, head.className);
+        for (const auto& param : head.params) {
+            func->addParam(param);
+        }
+        for (const auto& local : locals) {
+            func->addLocalVar(local);
+        }
+        func->setRight(body);
+        return func;
     }
     else{
         _reportError("Expected function definition (identifier)", {TTYPE::ID_});
     }
 }
 
-void Parser::_parseMemberDeclIdTail(){
-    // Grammar: MemberDeclIdTail -> ArraySizeList ';'
+std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& memberName, const std::string& visibility, int line){
+    // Grammar: MemberDeclIdTail -> ID_ ArraySizeList ';'
     //                            | '(' FParams ')' ':' ReturnType ';'
     if(LTTYPE == TTYPE::OPEN_PAREN_){
         // Function prototype
         _derivationSteps.push_back("MemberDeclIdTail -> '(' FParams ')' ':' ReturnType ';'");
         _match(TTYPE::OPEN_PAREN_);
-        _parseFParams();
+        std::vector<std::shared_ptr<VarDeclNode>> params = _parseFParams();
         _match(TTYPE::CLOSE_PAREN_);
         _match(TTYPE::COLON_);
-        _parseReturnType();
+        std::string returnType = _parseReturnType();
         _match(TTYPE::SEMICOLON_);
+
+        auto funcProto = std::make_shared<FuncDefNode>(line, returnType, memberName, "");
+        for (const auto& param : params) {
+            funcProto->addParam(param);
+        }
+        return funcProto;
     }
+    else if (LTTYPE == TTYPE::ID_) {
+        // Variable declaration (e.g., "public Point p;")
+        // Here, 'memberName' is the type ("Point").
+        _derivationSteps.push_back("MemberDeclIdTail -> 'id' ArraySizeList ';'");
+        
+        // We MUST consume the variable name! (e.g., "p")
+        std::string varName = _lookaheadToken.getValue();
+        _match(TTYPE::ID_); 
+        
+        std::vector<int> dims = _parseArraySizeList();
+        _match(TTYPE::SEMICOLON_);
+
+        // Now we pass ALL 4 arguments: line, type (firstId), name (varName), visibility
+        auto var = std::make_shared<VarDeclNode>(line, memberName, varName, visibility);
+        for (int dim : dims) {
+            var->addDimension(dim);
+        }
+        return var;
+    }
+
     else {
         // Variable declaration
         _derivationSteps.push_back("MemberDeclIdTail -> ArraySizeList ';'");
-        _parseArraySizeList();
+        std::vector<int> dims = _parseArraySizeList();
         _match(TTYPE::SEMICOLON_);
+
+        auto var = std::make_shared<VarDeclNode>(line, memberName, visibility);
+        for (int dim : dims) {
+            var->addDimension(dim);
+        }
+        return var;
     }
 }
 
-void Parser::_parseMemberDeclTypeTail(){
+std::shared_ptr<ASTNode> Parser::_parseMemberDeclTypeTail(const std::string& typeName, const std::string& memberName, const std::string& visibility, int line){
     // Grammar: MemberDeclTypeTail -> ArraySizeList ';'
     //                              | '(' FParams ')' ':' ReturnType ';'
     if(LTTYPE == TTYPE::OPEN_PAREN_){
         // Function prototype
         _derivationSteps.push_back("MemberDeclTypeTail -> '(' FParams ')' ':' ReturnType ';'");
         _match(TTYPE::OPEN_PAREN_);
-        _parseFParams();
+        std::vector<std::shared_ptr<VarDeclNode>> params = _parseFParams();
         _match(TTYPE::CLOSE_PAREN_);
         _match(TTYPE::COLON_);
-        _parseReturnType();
+        std::string returnType = _parseReturnType();
         _match(TTYPE::SEMICOLON_);
+
+        auto funcProto = std::make_shared<FuncDefNode>(line, returnType, memberName, "");
+        for (const auto& param : params) {
+            funcProto->addParam(param);
+        }
+        return funcProto;
     }
     else {
         // Variable declaration
         _derivationSteps.push_back("MemberDeclTypeTail -> ArraySizeList ';'");
-        _parseArraySizeList();
+        std::vector<int> dims = _parseArraySizeList();
         _match(TTYPE::SEMICOLON_);
+
+        auto var = std::make_shared<VarDeclNode>(line, typeName, memberName, visibility);
+        for (int dim : dims) {
+            var->addDimension(dim);
+        }
+        return var;
     }
 }
 
-void Parser::_parseMemberDecl() {
+std::shared_ptr<ASTNode> Parser::_parseMemberDecl(const std::string& visibility) {
     // Grammar: MemberDecl -> 'ID_' 'ID_' MemberDeclIdTail
     //                      | 'INTEGER_TYPE_' 'ID_' MemberDeclTypeTail
     //                      | 'FLOAT_TYPE_' 'ID_' MemberDeclTypeTail
     switch(LTTYPE){
         case TTYPE::ID_:
+        {
             _derivationSteps.push_back("MemberDecl -> 'id' MemberDeclIdTail");
-            _match(TTYPE::ID_);  // Match the type (class name)
-            _parseMemberDeclIdTail();
-            break;
+            Token nameToken = _lookaheadToken;
+            _match(TTYPE::ID_);
+            return _parseMemberDeclIdTail(nameToken.getValue(), visibility, nameToken.getLineNumber());
+        }
 
         case TTYPE::INTEGER_TYPE_:
         case TTYPE::FLOAT_TYPE_:
+        {
             _derivationSteps.push_back("MemberDecl -> Type 'id' MemberDeclTypeTail");
-            _match(LTTYPE); // Match the type (int or float)
-            _match(TTYPE::ID_); // Match the member name
-            _parseMemberDeclTypeTail();
-            break;
+            std::shared_ptr<TypeNode> typeNode = _parseType();
+            Token nameToken = _lookaheadToken;
+            _match(TTYPE::ID_);
+            return _parseMemberDeclTypeTail(typeNode->getValue(), nameToken.getValue(), visibility, nameToken.getLineNumber());
+        }
 
         default:
             _reportError("Expected member declaration (type or identifier)", {TTYPE::ID_, TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_});
     }
 }
 
-bool Parser::_parseVisibility(){
+std::string Parser::_parseVisibility(){
     switch(LTTYPE){
         case TTYPE::PUBLIC_KEYWORD_:
             _derivationSteps.push_back("Visibility -> 'public'");
             _match(TTYPE::PUBLIC_KEYWORD_);
-            return true;
+            return "public";
 
         case TTYPE::PRIVATE_KEYWORD_:
             _derivationSteps.push_back("Visibility -> 'private'");
             _match(TTYPE::PRIVATE_KEYWORD_);
-            return false;
+            return "private";
 
         default:
             _reportError("Expected visibility modifier (public or private)", {TTYPE::PUBLIC_KEYWORD_, TTYPE::PRIVATE_KEYWORD_});
     }
 }
 
-void Parser::_parseClassMemberDecl() {
+std::shared_ptr<ASTNode> Parser::_parseClassMemberDecl() {
     _derivationSteps.push_back("ClassMemberDecl -> Visibility MemberDecl");
-    _parseVisibility(); // Parse visibility modifier
-    _parseMemberDecl(); // Parse the member declaration
+    std::string visibility = _parseVisibility();
+    return _parseMemberDecl(visibility);
 }
 
-void Parser::_parseClassBody(){
+std::vector<std::shared_ptr<ASTNode>> Parser::_parseClassBody(){
+    std::vector<std::shared_ptr<ASTNode>> members;
     // Grammar: ClassBody -> ClassMemberDecl ClassBody | EPSILON
     // Iterative with panic mode error recovery
     while (LTTYPE == TTYPE::PUBLIC_KEYWORD_ || LTTYPE == TTYPE::PRIVATE_KEYWORD_) {
         try {
             _derivationSteps.push_back("ClassBody -> ClassMemberDecl ClassBody");
-            _parseClassMemberDecl();
+            std::shared_ptr<ASTNode> member = _parseClassMemberDecl();
+            if (member != nullptr) {
+                members.push_back(member);
+            }
         } catch (const SyntaxError& e) {
             _skipUntil({TTYPE::PUBLIC_KEYWORD_, TTYPE::PRIVATE_KEYWORD_,
                        TTYPE::CLOSE_BRACE_, TTYPE::END_OF_FILE_});
@@ -921,99 +1239,150 @@ void Parser::_parseClassBody(){
         }
     }
     _derivationSteps.push_back("ClassBody -> EPSILON");
+    return members;
 }
 
-void Parser::_parseInheritsList(){
+std::vector<std::string> Parser::_parseInheritsList(){
+    std::vector<std::string> parents;
     // Grammar: InheritsList -> , id InheritsList | EPSILON
     if(LTTYPE == TTYPE::COMMA_){
         _derivationSteps.push_back("InheritsList -> ',' 'id' InheritsList");
         _match(TTYPE::COMMA_);
+        Token parentToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseInheritsList(); // Recursive step for more inherited classes
+        parents.push_back(parentToken.getValue());
+        std::vector<std::string> tail = _parseInheritsList();
+        parents.insert(parents.end(), tail.begin(), tail.end());
     }
     // Case 2: EPSILON
     else {
         _derivationSteps.push_back("InheritsList -> EPSILON");
     }
+
+    return parents;
 }
 
-void Parser::_parseInheritanceOpt(){
+std::vector<std::string> Parser::_parseInheritanceOpt(){
     if(LTTYPE == TTYPE::INHERITS_){
         _derivationSteps.push_back("InheritanceOpt -> 'inherits' 'id' InheritsList");
         _match(TTYPE::INHERITS_);
+        Token parentToken = _lookaheadToken;
         _match(TTYPE::ID_);
-        _parseInheritsList(); // Parse the list of inherited classes
+        std::vector<std::string> parents = {parentToken.getValue()};
+        std::vector<std::string> tail = _parseInheritsList();
+        parents.insert(parents.end(), tail.begin(), tail.end());
+        return parents;
     }
     // Case 2: EPSILON
     else {
         _derivationSteps.push_back("InheritanceOpt -> EPSILON");
+        return {};
     }
 }
 
 
-void Parser::_parseClassDecl() {
+std::shared_ptr<ClassDeclNode> Parser::_parseClassDecl() {
     _derivationSteps.push_back("ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'");
     _match(TTYPE::CLASS_KEYWORD_);
+    Token classToken = _lookaheadToken;
     _match(TTYPE::ID_); // Class name
-    _parseInheritanceOpt(); // Check for optional inheritance
+    std::vector<std::string> parents = _parseInheritanceOpt();
     _match(TTYPE::OPEN_BRACE_);
-    _parseClassBody(); // Parse class body
+    std::vector<std::shared_ptr<ASTNode>> members = _parseClassBody();
     _match(TTYPE::CLOSE_BRACE_);
     _match(TTYPE::SEMICOLON_);
+
+    auto classNode = std::make_shared<ClassDeclNode>(classToken.getLineNumber(), classToken.getValue());
+    for (const auto& parent : parents) {
+        classNode->addParentClass(parent);
+    }
+    for (const auto& member : members) {
+        classNode->addMember(member);
+    }
+    return classNode;
 }
 
-void Parser::_parseFuncDefList() {
+std::vector<std::shared_ptr<FuncDefNode>> Parser::_parseFuncDefList() {
+    std::vector<std::shared_ptr<FuncDefNode>> funcs;
     // Grammar: FuncDefList -> FuncDef FuncDefList | EPSILON
     // Iterative with panic mode error recovery
     while (LTTYPE == TTYPE::ID_) {
         try {
             _derivationSteps.push_back("FuncDefList -> FuncDef FuncDefList");
-            _parseFuncDef();
+            std::shared_ptr<FuncDefNode> func = _parseFuncDef();
+            if (func != nullptr) {
+                funcs.push_back(func);
+            }
         } catch (const SyntaxError& e) {
             _skipUntil({TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
             _inErrorRecoveryMode = false;
         }
     }
     _derivationSteps.push_back("FuncDefList -> EPSILON");
+    return funcs;
 }
 
-void Parser::_parseClassDeclList() {
+std::vector<std::shared_ptr<ClassDeclNode>> Parser::_parseClassDeclList() {
+    std::vector<std::shared_ptr<ClassDeclNode>> classes;
     // Grammar: ClassDeclList -> ClassDecl ClassDeclList | EPSILON
     // Iterative with panic mode error recovery
     while (LTTYPE == TTYPE::CLASS_KEYWORD_) {
         try {
             _derivationSteps.push_back("ClassDeclList -> ClassDecl ClassDeclList");
-            _parseClassDecl();
+            std::shared_ptr<ClassDeclNode> cls = _parseClassDecl();
+            if (cls != nullptr) {
+                classes.push_back(cls);
+            }
         } catch (const SyntaxError& e) {
             _skipUntil({TTYPE::CLASS_KEYWORD_, TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
             _inErrorRecoveryMode = false;
         }
     }
     _derivationSteps.push_back("ClassDeclList -> EPSILON");
+    return classes;
 }
 
-void Parser::_parseProgram() {
+std::shared_ptr<ProgNode> Parser::_parseProgram() {
     _derivationSteps.push_back("Program -> ClassDeclList FuncDefList 'main' FuncBody");
 
+    auto program = std::make_shared<ProgNode>(_lookaheadToken.getLineNumber());
+
     try {
-        _parseClassDeclList();
+        std::vector<std::shared_ptr<ClassDeclNode>> classes = _parseClassDeclList();
+        for (const auto& cls : classes) {
+            program->addClass(cls);
+        }
     } catch (const SyntaxError& e) {
         _skipUntil({TTYPE::CLASS_KEYWORD_, TTYPE::ID_, TTYPE::MAIN_, TTYPE::END_OF_FILE_});
         _inErrorRecoveryMode = false;
     }
 
     try {
-        _parseFuncDefList();
+        std::vector<std::shared_ptr<FuncDefNode>> funcs = _parseFuncDefList();
+        for (const auto& fn : funcs) {
+            program->addFunction(fn);
+        }
     } catch (const SyntaxError& e) {
         _skipUntil({TTYPE::MAIN_, TTYPE::END_OF_FILE_});
         _inErrorRecoveryMode = false;
     }
 
     try {
+        Token mainToken = _lookaheadToken;
         _match(TTYPE::MAIN_);
-        _parseFuncBody();
+        std::vector<std::shared_ptr<VarDeclNode>> locals;
+        std::shared_ptr<BlockNode> mainBody = _parseFuncBody(&locals);
+
+        auto mainFunc = std::make_shared<FuncDefNode>(mainToken.getLineNumber(), "void", "main");
+        for (const auto& local : locals) {
+            mainFunc->addLocalVar(local);
+        }
+        mainFunc->setRight(mainBody);
+        program->addFunction(mainFunc);
     } catch (const SyntaxError& e) {
         _skipUntil({TTYPE::END_OF_FILE_});
         _inErrorRecoveryMode = false;
     }
+
+    return program;
 }

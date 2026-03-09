@@ -1,0 +1,27 @@
+// AST coverage: nested if/while blocks and single-statement stat blocks
+
+main
+    local
+        integer i;
+        integer j;
+    do
+        i = 0;
+        j = 3;
+
+        while (i < 5)
+            if (j > 0) then
+                j = j - 1;
+            else
+                j = 2;
+            ;
+        ;
+
+        if (i == 0) then
+            i = i + 10;
+        else
+            i = i - 10;
+        ;
+
+        write(i);
+        write(j);
+    end

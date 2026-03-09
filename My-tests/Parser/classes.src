@@ -10,6 +10,7 @@ class Mammal inherits Animal {
 
 class Dog inherits Mammal {
     public integer breedId;
+    private Animal test;
 };
 
 // Empty function to test minimal body

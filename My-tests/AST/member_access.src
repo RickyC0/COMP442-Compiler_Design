@@ -1,0 +1,40 @@
+// tests/member_access.src
+
+//private int x;
+
+class Point inherits Geometry {
+    private float x;
+    public float y;
+    
+    // Method declaration inside class
+    public print() : void; 
+};
+
+class Circle {
+    private float radius;
+    public Point name;
+    public draw() : void;
+};
+
+// Function definition
+Point::print() : void 
+    do
+        write(x);
+        write(y);
+    end
+
+main
+    local
+        Point p;
+        float temp;
+    do
+        // Test 1: Member assignment
+        p.x = 10.5;
+        p.y = 20.0;
+
+        // Test 2: Reading from member
+        temp = p.x;
+
+        // Test 3: Method call
+        p.print();
+    end
