@@ -106,6 +106,17 @@ void SemanticAnalyzer::visit(TypeNode&) {}
 void SemanticAnalyzer::visit(BinaryOpNode& node) {
     visitNode(node.getLeft());
     visitNode(node.getRight());
+    
+    std::string leftType = inferExprType(node.getLeft());
+    std::string rightType = inferExprType(node.getRight());
+    
+    // Make sure we are adding numbers!
+    if (leftType != "integer" && leftType != "float") {
+        reportError(node.getLineNumber(), "Left side of math operation must be a number");
+    }
+    if (rightType != "integer" && rightType != "float") {
+        reportError(node.getLineNumber(), "Right side of math operation must be a number");
+    }
 }
 
 void SemanticAnalyzer::visit(UnaryOpNode& node) {
@@ -113,6 +124,8 @@ void SemanticAnalyzer::visit(UnaryOpNode& node) {
 }
 
 void SemanticAnalyzer::visit(FuncCallNode& node) {
+    // TODO(semantics-gap3): Validate argument count and argument types against the
+    // callee signature (e.g., parse symbol->type like "void(integer, float)").
     const SymbolEntry* symbol = nullptr;
 
     if (node.getLeft() != nullptr) {
@@ -176,15 +189,29 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
 void SemanticAnalyzer::visit(AssignStmtNode& node) {
     visitNode(node.getLeft());
     visitNode(node.getRight());
+    
+    std::string leftType = inferExprType(node.getLeft());
+    std::string rightType = inferExprType(node.getRight());
+    
+    if (leftType != "null" && rightType != "null" && leftType != rightType) {
+        // Allow int to float promotion, but block float to int, or int to Class.
+        if (!(leftType == "float" && rightType == "integer")) {
+             reportError(node.getLineNumber(), "Type mismatch in assignment: cannot assign '" + rightType + "' to '" + leftType + "'");
+        }
+    }
 }
 
 void SemanticAnalyzer::visit(IfStmtNode& node) {
+    // TODO(semantics-gap-if-while): Enforce condition expression type rules
+    // (numeric/boolean-compatible only) and reject class/object conditions.
     visitNode(node.getLeft());
     visitNode(node.getRight());
     visitNode(node.getElseBlock());
 }
 
 void SemanticAnalyzer::visit(WhileStmtNode& node) {
+    // TODO(semantics-gap-if-while): Enforce condition expression type rules
+    // (numeric/boolean-compatible only) and reject class/object conditions.
     visitNode(node.getLeft());
     visitNode(node.getRight());
 }
@@ -194,6 +221,8 @@ void SemanticAnalyzer::visit(IOStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(ReturnStmtNode& node) {
+    // TODO(semantics-gap-return): Compare returned expression type with the
+    // current function's declared return type.
     visitNode(node.getLeft());
 }
 
@@ -220,6 +249,8 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
 }
 
 void SemanticAnalyzer::visit(FuncDefNode& node) {
+    // TODO(semantics-gap-return): Track current function return type while
+    // visiting function bodies (consider stack-based context for nesting safety).
     std::shared_ptr<SymbolTable> ownerScope = _currentScope;
     std::string ownerClass;
 
@@ -498,6 +529,17 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
             return signature;
         }
         return signature.substr(0, paren);
+    }
+
+    if (auto binaryNode = std::dynamic_pointer_cast<BinaryOpNode>(node)) {
+        std::string leftType = inferExprType(binaryNode->getLeft());
+        std::string rightType = inferExprType(binaryNode->getRight());
+        if (leftType == "float" || rightType == "float") {
+            return "float";
+        }
+        if (leftType == "integer" && rightType == "integer") {
+            return "integer";
+        }
     }
 
     // Keep this conservative for now; richer synthesis will be added incrementally.
