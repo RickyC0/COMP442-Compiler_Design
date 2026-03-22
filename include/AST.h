@@ -82,6 +82,7 @@ class IdNode : public ASTNode {
         std::string name;
     public:
         IdNode(int line, const std::string& idName) : ASTNode(line), name(idName) {}
+        const std::string& getName() const { return name; }
         std::string getValue() const override { return name; }
         void accept(ASTVisitor& visitor) override;
 };
@@ -91,6 +92,7 @@ class IntLitNode : public ASTNode {
         int value;
     public:
         IntLitNode(int line, int val) : ASTNode(line), value(val) {}
+        int getIntValue() const { return value; }
         std::string getValue() const override { return std::to_string(value); }
         void accept(ASTVisitor& visitor) override;
 };
@@ -100,6 +102,7 @@ class FloatLitNode : public ASTNode {
         float value;
     public:
         FloatLitNode(int line, float val) : ASTNode(line), value(val) {}
+        float getFloatValue() const { return value; }
         std::string getValue() const override { return std::to_string(value); }
         void accept(ASTVisitor& visitor) override;
 };
@@ -109,6 +112,7 @@ class TypeNode : public ASTNode {
         std::string typeName;
     public:
         TypeNode(int line, const std::string& type) : ASTNode(line), typeName(type) {}
+        const std::string& getTypeName() const { return typeName; }
         std::string getValue() const override { return typeName; }
         void accept(ASTVisitor& visitor) override;
 };
@@ -126,6 +130,7 @@ class BinaryOpNode : public ASTNode {
             setLeft(l);
             setRight(r);
         }
+        const std::string& getOperator() const { return op; }
         std::string getValue() const override { return op; }
         void accept(ASTVisitor& visitor) override;
 };
@@ -138,6 +143,7 @@ class UnaryOpNode : public ASTNode {
             : ASTNode(line), op(oper) {
             setLeft(operand); 
         }
+        const std::string& getOperator() const { return op; }
         std::string getValue() const override { return op; }
         void accept(ASTVisitor& visitor) override;
 };
@@ -150,6 +156,7 @@ class FuncCallNode : public ASTNode {
         FuncCallNode(int line, const std::string& name) : ASTNode(line), funcName(name) {}
 
         void addArgument(std::shared_ptr<ASTNode> arg) { arguments.push_back(arg); }
+        const std::string& getFunctionName() const { return funcName; }
         std::vector<std::shared_ptr<ASTNode>> getArgs() const { return arguments; }
         
         std::string getValue() const override { return funcName + "()"; }
@@ -164,6 +171,7 @@ class DataMemberNode : public ASTNode {
         DataMemberNode(int line, const std::string& name) : ASTNode(line), idName(name) {}
 
         void addIndex(std::shared_ptr<ASTNode> indexExpr) { indices.push_back(indexExpr); }
+        const std::string& getName() const { return idName; }
         std::vector<std::shared_ptr<ASTNode>> getIndices() const { return indices; }
         std::string getValue() const override { return idName; }
         void accept(ASTVisitor& visitor) override;
@@ -258,6 +266,9 @@ class VarDeclNode : public ASTNode {
             : ASTNode(line), type(t), name(n), visibility(vis) {}
 
         void addDimension(int size) { arrayDimensions.push_back(size); }
+        const std::string& getTypeName() const { return type; }
+        const std::string& getName() const { return name; }
+        const std::string& getVisibility() const { return visibility; }
         std::vector<int> getDimensions() const { return arrayDimensions; }
         std::string getValue() const override { return visibility + " " + type + " " + name; }
         void accept(ASTVisitor& visitor) override;
@@ -276,6 +287,9 @@ class FuncDefNode : public ASTNode {
 
         void addParam(std::shared_ptr<VarDeclNode> param) { parameters.push_back(param); }
         void addLocalVar(std::shared_ptr<VarDeclNode> var) { localVariables.push_back(var); }
+        const std::string& getReturnType() const { return returnType; }
+        const std::string& getName() const { return name; }
+        const std::string& getClassName() const { return className; }
         std::vector<std::shared_ptr<VarDeclNode>> getParams() const { return parameters; }
         std::vector<std::shared_ptr<VarDeclNode>> getLocalVars() const { return localVariables; }
         
@@ -295,6 +309,7 @@ class ClassDeclNode : public ASTNode {
 
         void addParentClass(const std::string& parentName) { inheritedClasses.push_back(parentName); }
         void addMember(std::shared_ptr<ASTNode> member) { members.push_back(member); }
+        const std::string& getName() const { return name; }
         std::vector<std::string> getParents() const { return inheritedClasses; }
         std::vector<std::shared_ptr<ASTNode>> getMembers() const { return members; }
 

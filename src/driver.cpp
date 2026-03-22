@@ -1,12 +1,15 @@
 #include <filesystem>
+#include <fstream>
 #include <chrono>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include "../include/io.h"
 #include "../include/token.h"
 #include "../include/my_parser.h"
+#include "../include/semantic.h"
 #include "../include/ui.h"
 
 namespace fs = std::filesystem;
@@ -33,9 +36,11 @@ int main(int argc, char* argv[]) {
     fs::path lexerDir = fs::path(outputDir) / "Lexer";
     fs::path parserDir = fs::path(outputDir) / "Parser";
     fs::path astDir = fs::path(outputDir) / "AST";
+    fs::path semanticDir = fs::path(outputDir) / "Semantics";
     fs::create_directories(lexerDir);
     fs::create_directories(parserDir);
     fs::create_directories(astDir);
+    fs::create_directories(semanticDir);
 
     // Build output file paths
     std::string valid_output_file = buildOutputPath(lexerDir.string(), baseName, ".outlextokens");
@@ -45,14 +50,28 @@ int main(int argc, char* argv[]) {
     std::string ast_file = buildOutputPath(astDir.string(), baseName, ".outast");
     std::string ast_dot_file = buildOutputPath(astDir.string(), baseName, ".outast.dot");
     std::string ast_png_file = buildOutputPath(astDir.string(), baseName, ".outast.png");
+    std::string symbol_tables_file = buildOutputPath(semanticDir.string(), baseName, ".outsymboltables");
+    std::string semantic_errors_file = buildOutputPath(semanticDir.string(), baseName, ".outsemanticerrors");
 
     std::vector<std::vector<Token>> valid_tokens;
     bool parseSuccess = false;
     bool dotAvailable = false;
     bool pngGenerated = false;
 
+    auto writeLinesToFile = [](const std::string& path, const std::vector<std::string>& lines) {
+        std::ofstream out(path, std::ios::out | std::ios::trunc);
+        if (!out.is_open()) {
+            return false;
+        }
+
+        for (const auto& line : lines) {
+            out << line << "\n";
+        }
+        return true;
+    };
+
     // LEXER PHASE
-    UI::printSection("[1/3] LEXICAL ANALYSIS");
+    UI::printSection("[1/4] LEXICAL ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
         valid_tokens = lex_file(sourceFile, valid_output_file, invalid_output_file);
@@ -70,7 +89,7 @@ int main(int argc, char* argv[]) {
     }
 
     // PARSER PHASE
-    UI::printSection("[2/3] SYNTACTIC ANALYSIS");
+    UI::printSection("[2/4] SYNTACTIC ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
         parseSuccess = Parser::parseTokens(valid_tokens);
@@ -96,7 +115,7 @@ int main(int argc, char* argv[]) {
     }
 
     // AST PHASE
-    UI::printSection("[3/3] AST EXPORT");
+    UI::printSection("[3/4] AST EXPORT");
     try {
         auto start = std::chrono::steady_clock::now();
         ASTPrinter::writeToFile(Parser::getASTRoot(), ast_file);
@@ -130,6 +149,45 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // SEMANTIC PHASE
+    UI::printSection("[4/4] SEMANTIC ANALYSIS");
+    try {
+        auto start = std::chrono::steady_clock::now();
+
+        SemanticAnalyzer semanticAnalyzer;
+        bool semanticSuccess = semanticAnalyzer.analyze(Parser::getASTRoot());
+
+        std::ofstream symbolOut(symbol_tables_file, std::ios::out | std::ios::trunc);
+        if (!symbolOut.is_open()) {
+            throw std::runtime_error("Failed to open symbol table output file: " + symbol_tables_file);
+        }
+        symbolOut << semanticAnalyzer.dumpSymbolTables();
+
+        if (!writeLinesToFile(semantic_errors_file, semanticAnalyzer.getErrors())) {
+            throw std::runtime_error("Failed to open semantic errors output file: " + semantic_errors_file);
+        }
+
+        auto end = std::chrono::steady_clock::now();
+        long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+        std::string details = semanticSuccess
+            ? "Symbol tables generated, no semantic errors"
+            : "Symbol tables generated, semantic errors reported";
+        phases.push_back({"Semantic", semanticSuccess, durationMs, details});
+
+        if (semanticSuccess) {
+            UI::printStatusLine(true, "Semantic analysis completed (no semantic errors)");
+        } else {
+            UI::printWarning("Semantic analysis completed with errors");
+        }
+
+    } catch (const std::exception& e) {
+        UI::printCrash("Semantic analysis", e.what());
+        phases.push_back({"Semantic", false, 0, e.what()});
+        UI::printSummaryTable(phases);
+        return 1;
+    }
+
     UI::printSummaryTable(phases);
 
     UI::printArtifactList("Lexer Outputs", {
@@ -150,6 +208,11 @@ int main(int argc, char* argv[]) {
         astArtifacts.push_back({"PNG", ast_png_file});
     }
     UI::printArtifactList("AST Outputs", astArtifacts);
+
+    UI::printArtifactList("Semantic Outputs", {
+        {"Symbol Tables", symbol_tables_file},
+        {"Sem Errors", semantic_errors_file}
+    });
 
     UI::printDone();
 
