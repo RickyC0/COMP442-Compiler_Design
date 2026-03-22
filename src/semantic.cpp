@@ -124,8 +124,6 @@ void SemanticAnalyzer::visit(UnaryOpNode& node) {
 }
 
 void SemanticAnalyzer::visit(FuncCallNode& node) {
-    // TODO(semantics-gap3): Validate argument count and argument types against the
-    // callee signature (e.g., parse symbol->type like "void(integer, float)").
     const SymbolEntry* symbol = nullptr;
 
     if (node.getLeft() != nullptr) {
@@ -160,6 +158,42 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
     visitNode(node.getLeft());
     for (const auto& arg : node.getArgs()) {
         visitNode(arg);
+    }
+
+    if (symbol != nullptr && symbol->kind == SymbolKind::Function) {
+        auto isAssignableTo = [](const std::string& expectedType, const std::string& actualType) {
+            if (expectedType == "null" || actualType == "null") {
+                return true;
+            }
+            if (expectedType == actualType) {
+                return true;
+            }
+            return expectedType == "float" && actualType == "integer";
+        };
+
+        const std::vector<std::string>& expectedParamTypes = symbol->paramTypes;
+        const auto& args = node.getArgs();
+        if (expectedParamTypes.size() != args.size()) {
+            reportError(
+                node.getLineNumber(),
+                "argument count mismatch in call to '" + node.getFunctionName() +
+                "': expected " + std::to_string(expectedParamTypes.size()) +
+                ", got " + std::to_string(args.size())
+            );
+            return;
+        }
+
+        for (size_t i = 0; i < args.size(); ++i) {
+            const std::string actualType = inferExprType(args[i]);
+            const std::string& expectedType = expectedParamTypes[i];
+            if (!isAssignableTo(expectedType, actualType)) {
+                reportError(
+                    node.getLineNumber(),
+                    "argument " + std::to_string(i + 1) + " type mismatch in call to '" + node.getFunctionName() +
+                    "': expected '" + expectedType + "', got '" + actualType + "'"
+                );
+            }
+        }
     }
 }
 
@@ -241,6 +275,8 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = node.getTypeName();
+    entry.returnType = "";
+    entry.paramTypes.clear();
     entry.kind = node.getVisibility() == "local" ? SymbolKind::Variable : SymbolKind::Field;
     entry.visibility = node.getVisibility();
     entry.details = "";
@@ -280,6 +316,11 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = functionSignature(node);
+    entry.returnType = node.getReturnType();
+    entry.paramTypes.clear();
+    for (const auto& param : node.getParams()) {
+        entry.paramTypes.push_back(param->getTypeName());
+    }
     entry.kind = SymbolKind::Function;
     entry.visibility = "n/a";
     const bool isImplementation = node.getRight() != nullptr;
@@ -336,6 +377,8 @@ void SemanticAnalyzer::visit(ClassDeclNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = classTypeName(node);
+    entry.returnType = "";
+    entry.paramTypes.clear();
     entry.kind = SymbolKind::Class;
     entry.visibility = "n/a";
     entry.details = node.getParents().empty() ? "no inheritance" : "inherits " + std::to_string(node.getParents().size()) + " class(es)";

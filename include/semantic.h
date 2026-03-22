@@ -19,6 +19,8 @@ enum class SymbolKind {
 struct SymbolEntry {
     std::string name;
     std::string type;
+    std::string returnType;
+    std::vector<std::string> paramTypes;
     SymbolKind kind;
     std::string visibility;
     std::string details;
