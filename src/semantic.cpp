@@ -126,19 +126,14 @@ void SemanticAnalyzer::visit(UnaryOpNode& node) {
 void SemanticAnalyzer::visit(FuncCallNode& node) {
     const SymbolEntry* symbol = nullptr;
 
-    if (node.getLeft() != nullptr) {
-        std::string methodName = node.getFunctionName();
-        std::string ownerType;
-
         auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(node.getLeft());
-        if (calleeMember != nullptr && calleeMember->getLeft() != nullptr) {
+    const bool isOwnerQualifiedMethodCall = calleeMember != nullptr && calleeMember->getLeft() != nullptr;
+
+    if (isOwnerQualifiedMethodCall) {
             // For calls like p.print(), the callee node is the member (print),
-            // so receiver type must come from the owner expression (p).
-            ownerType = inferExprType(calleeMember->getLeft());
-            methodName = calleeMember->getName();
-        } else {
-            ownerType = inferExprType(node.getLeft());
-        }
+        // so receiver type comes from the owner expression (p).
+        std::string ownerType = inferExprType(calleeMember->getLeft());
+        std::string methodName = calleeMember->getName();
 
         if (ownerType.empty()) {
             reportError(node.getLineNumber(), "cannot resolve receiver type for method call '" + node.getFunctionName() + "'");
@@ -149,6 +144,7 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
             }
         }
     } else {
+        // Free function call. Some AST shapes keep the callee identifier in node.getLeft().
         symbol = _currentScope->resolve(node.getFunctionName());
         if (symbol == nullptr || symbol->kind != SymbolKind::Function) {
             reportError(node.getLineNumber(), "call to undeclared function '" + node.getFunctionName() + "'");
@@ -546,19 +542,11 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
     }
     if (auto callNode = std::dynamic_pointer_cast<FuncCallNode>(node)) {
         const SymbolEntry* symbol = nullptr;
-        if (callNode->getLeft() != nullptr) {
-            std::string methodName = callNode->getFunctionName();
-            std::string ownerType;
-
             auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(callNode->getLeft());
-            if (calleeMember != nullptr && calleeMember->getLeft() != nullptr) {
-                ownerType = inferExprType(calleeMember->getLeft());
-                methodName = calleeMember->getName();
-            } else {
-                ownerType = inferExprType(callNode->getLeft());
-            }
-
-            symbol = resolveClassMember(ownerType, methodName);
+        const bool isOwnerQualifiedMethodCall = calleeMember != nullptr && calleeMember->getLeft() != nullptr;
+        if (isOwnerQualifiedMethodCall) {
+            const std::string ownerType = inferExprType(calleeMember->getLeft());
+            symbol = resolveClassMember(ownerType, calleeMember->getName());
         } else {
             symbol = _currentScope->resolve(callNode->getFunctionName());
         }
