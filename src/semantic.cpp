@@ -126,11 +126,11 @@ void SemanticAnalyzer::visit(UnaryOpNode& node) {
 void SemanticAnalyzer::visit(FuncCallNode& node) {
     const SymbolEntry* symbol = nullptr;
 
-        auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(node.getLeft());
+    auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(node.getLeft());
     const bool isOwnerQualifiedMethodCall = calleeMember != nullptr && calleeMember->getLeft() != nullptr;
 
     if (isOwnerQualifiedMethodCall) {
-            // For calls like p.print(), the callee node is the member (print),
+        // For calls like p.print(), the callee node is the member (print),
         // so receiver type comes from the owner expression (p).
         std::string ownerType = inferExprType(calleeMember->getLeft());
         std::string methodName = calleeMember->getName();
@@ -232,17 +232,35 @@ void SemanticAnalyzer::visit(AssignStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(IfStmtNode& node) {
-    // TODO(semantics-gap-if-while): Enforce condition expression type rules
-    // (numeric/boolean-compatible only) and reject class/object conditions.
     visitNode(node.getLeft());
+
+    const std::string condType = inferExprType(node.getLeft());
+    const bool isConditionCompatible =
+        condType == "bool";
+    if (condType != "null" && !isConditionCompatible) {
+        reportError(
+            node.getLineNumber(),
+            "condition in 'if' must evaluate to numeric/boolean-compatible type, found '" + condType + "'"
+        );
+    }
+
     visitNode(node.getRight());
     visitNode(node.getElseBlock());
 }
 
 void SemanticAnalyzer::visit(WhileStmtNode& node) {
-    // TODO(semantics-gap-if-while): Enforce condition expression type rules
-    // (numeric/boolean-compatible only) and reject class/object conditions.
     visitNode(node.getLeft());
+
+    const std::string condType = inferExprType(node.getLeft());
+    const bool isConditionCompatible =
+        condType == "bool";
+    if (condType != "null" && !isConditionCompatible) {
+        reportError(
+            node.getLineNumber(),
+            "condition in 'while' must evaluate to numeric/boolean-compatible type, found '" + condType + "'"
+        );
+    }
+
     visitNode(node.getRight());
 }
 
@@ -542,7 +560,7 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
     }
     if (auto callNode = std::dynamic_pointer_cast<FuncCallNode>(node)) {
         const SymbolEntry* symbol = nullptr;
-            auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(callNode->getLeft());
+        auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(callNode->getLeft());
         const bool isOwnerQualifiedMethodCall = calleeMember != nullptr && calleeMember->getLeft() != nullptr;
         if (isOwnerQualifiedMethodCall) {
             const std::string ownerType = inferExprType(calleeMember->getLeft());
@@ -563,8 +581,20 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
     }
 
     if (auto binaryNode = std::dynamic_pointer_cast<BinaryOpNode>(node)) {
-        std::string leftType = inferExprType(binaryNode->getLeft());
-        std::string rightType = inferExprType(binaryNode->getRight());
+        const std::string leftType = inferExprType(binaryNode->getLeft());
+        const std::string rightType = inferExprType(binaryNode->getRight());
+        const std::string op = binaryNode->getOperator();
+
+        const bool isRelational =
+            op == "<" || op == ">" || op == "<=" || op == ">=" ||
+            op == "==" || op == "!=";
+        const bool isLogical =
+            op == "and" || op == "or" || op == "&&" || op == "||";
+
+        if (isRelational || isLogical) {
+            return "bool";
+        }
+
         if (leftType == "float" || rightType == "float") {
             return "float";
         }
