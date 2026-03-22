@@ -5,6 +5,50 @@
 #include <sstream>
 #include <unordered_set>
 
+namespace {
+bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
+    if (node == nullptr) {
+        return false;
+    }
+
+    if (std::dynamic_pointer_cast<ReturnStmtNode>(node) != nullptr) {
+        return true;
+    }
+
+    if (auto block = std::dynamic_pointer_cast<BlockNode>(node)) {
+        for (const auto& stmt : block->getStatements()) {
+            if (containsReturnStatement(stmt)) {
+                return true;
+            }
+        }
+    }
+
+    if (auto call = std::dynamic_pointer_cast<FuncCallNode>(node)) {
+        for (const auto& arg : call->getArgs()) {
+            if (containsReturnStatement(arg)) {
+                return true;
+            }
+        }
+    }
+
+    if (auto member = std::dynamic_pointer_cast<DataMemberNode>(node)) {
+        for (const auto& idx : member->getIndices()) {
+            if (containsReturnStatement(idx)) {
+                return true;
+            }
+        }
+    }
+
+    if (auto ifStmt = std::dynamic_pointer_cast<IfStmtNode>(node)) {
+        if (containsReturnStatement(ifStmt->getElseBlock())) {
+            return true;
+        }
+    }
+
+    return containsReturnStatement(node->getLeft()) || containsReturnStatement(node->getRight());
+}
+}
+
 SymbolTable::SymbolTable(const std::string& scopeName, std::shared_ptr<SymbolTable> parent)
     : _scopeName(scopeName), _parent(parent) {}
 
@@ -73,6 +117,7 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _errors.clear();
     _blockCounter = 0;
     _classScopes.clear();
+    _functionReturnTypeStack.clear();
     _globalScope = std::make_shared<SymbolTable>("global");
     _currentScope = _globalScope;
 
@@ -269,9 +314,50 @@ void SemanticAnalyzer::visit(IOStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(ReturnStmtNode& node) {
-    // TODO(semantics-gap-return): Compare returned expression type with the
-    // current function's declared return type.
     visitNode(node.getLeft());
+
+    if (_functionReturnTypeStack.empty()) {
+        reportError(node.getLineNumber(), "return statement used outside of function body");
+        return;
+    }
+
+    const std::string expectedType = _functionReturnTypeStack.back();
+    const std::string actualType = inferExprType(node.getLeft());
+
+    auto isAssignableTo = [](const std::string& expected, const std::string& actual) {
+        if (expected == actual) {
+            return true;
+        }
+        else if(expected == "null" && actual != "null") {
+            return false;
+        }
+        return expected == "float" && actual == "integer";
+    };
+
+    if (expectedType == "void") {
+        if (node.getLeft() != nullptr) {
+            reportError(
+                node.getLineNumber(),
+                "return type mismatch: function expects 'void' but return has expression of type '" + actualType + "'"
+            );
+        }
+        return;
+    }
+
+    if (node.getLeft() == nullptr) {
+        reportError(
+            node.getLineNumber(),
+            "return type mismatch: function expects '" + expectedType + "' but return has no expression"
+        );
+        return;
+    }
+
+    if (actualType != "null" && !isAssignableTo(expectedType, actualType)) {
+        reportError(
+            node.getLineNumber(),
+            "return type mismatch: expected '" + expectedType + "', got '" + actualType + "'"
+        );
+    }
 }
 
 void SemanticAnalyzer::visit(BlockNode& node) {
@@ -289,18 +375,16 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = node.getTypeName();
-    entry.returnType = "";
+    entry.returnType = "null";
     entry.paramTypes.clear();
     entry.kind = node.getVisibility() == "local" ? SymbolKind::Variable : SymbolKind::Field;
     entry.visibility = node.getVisibility();
-    entry.details = "";
+    entry.details = "null";
     entry.line = node.getLineNumber();
     defineSymbol(entry);
 }
 
 void SemanticAnalyzer::visit(FuncDefNode& node) {
-    // TODO(semantics-gap-return): Track current function return type while
-    // visiting function bodies (consider stack-based context for nesting safety).
     std::shared_ptr<SymbolTable> ownerScope = _currentScope;
     std::string ownerClass;
 
@@ -377,12 +461,22 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         paramEntry.type = param->getTypeName();
         paramEntry.kind = SymbolKind::Parameter;
         paramEntry.visibility = "param";
-        paramEntry.details = "";
+        paramEntry.details = "null";
         paramEntry.line = param->getLineNumber();
         defineSymbol(paramEntry);
     }
 
+    _functionReturnTypeStack.push_back(node.getReturnType());
     visitNode(node.getRight());
+    _functionReturnTypeStack.pop_back();
+
+    if (node.getReturnType() != "void" && !containsReturnStatement(node.getRight())) {
+        reportError(
+            node.getLineNumber(),
+            "non-void function '" + node.getName() + "' must contain a return statement"
+        );
+    }
+
     _currentScope = prev;
     _currentScope = prevScope;
 }
@@ -391,7 +485,7 @@ void SemanticAnalyzer::visit(ClassDeclNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = classTypeName(node);
-    entry.returnType = "";
+    entry.returnType = "null";
     entry.paramTypes.clear();
     entry.kind = SymbolKind::Class;
     entry.visibility = "n/a";

@@ -80,6 +80,7 @@ class SemanticAnalyzer : public ASTVisitor {
         std::shared_ptr<SymbolTable> _currentScope;
         std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
         std::vector<std::string> _errors;
+        std::vector<std::string> _functionReturnTypeStack;
         int _blockCounter = 0;
 
         static std::string baseTypeName(const std::string& typeName);
