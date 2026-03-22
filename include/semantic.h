@@ -20,6 +20,8 @@ struct SymbolEntry {
     std::string name;
     std::string type;
     SymbolKind kind;
+    std::string visibility;
+    std::string details;
     int line;
 };
 
@@ -30,6 +32,7 @@ class SymbolTable : public std::enable_shared_from_this<SymbolTable> {
         std::shared_ptr<SymbolTable> createChild(const std::string& scopeName);
         bool define(const SymbolEntry& entry);
         const SymbolEntry* lookupInCurrent(const std::string& name) const;
+        SymbolEntry* lookupMutableInCurrent(const std::string& name);
         const SymbolEntry* resolve(const std::string& name) const;
 
         const std::string& getScopeName() const;
@@ -73,8 +76,13 @@ class SemanticAnalyzer : public ASTVisitor {
     private:
         std::shared_ptr<SymbolTable> _globalScope;
         std::shared_ptr<SymbolTable> _currentScope;
+        std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
         std::vector<std::string> _errors;
         int _blockCounter = 0;
+
+        static std::string baseTypeName(const std::string& typeName);
+        const SymbolEntry* resolveClassMember(const std::string& classTypeName, const std::string& memberName) const;
+        std::string inferExprType(const std::shared_ptr<ASTNode>& node) const;
 
         void reportError(int line, const std::string& message);
         bool defineSymbol(const SymbolEntry& entry);
