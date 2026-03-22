@@ -1,0 +1,14 @@
+mix(float x) : void
+    do
+        write(x);
+    end
+
+main
+    local
+        integer i;
+        float f;
+    do
+        i = 7;
+        f = i;
+        mix(i);
+    end

@@ -1,0 +1,14 @@
+class Point {
+    public float x;
+};
+
+main
+    local
+        Point p;
+    do
+        if (0) then
+            write(1);
+        else
+            write(0);
+        ;
+    end

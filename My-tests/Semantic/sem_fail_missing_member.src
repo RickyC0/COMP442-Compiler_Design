@@ -1,0 +1,11 @@
+class Point {
+    public float x;
+};
+
+main
+    local
+        Point p;
+        float t;
+    do
+        t = p.y;
+    end

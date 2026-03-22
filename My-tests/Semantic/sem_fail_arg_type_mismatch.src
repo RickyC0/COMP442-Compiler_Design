@@ -1,0 +1,16 @@
+class Point {
+    public float x;
+};
+
+scale(float x) : float
+    do
+        return(x);
+    end
+
+main
+    local
+        Point p;
+        float f;
+    do
+        f = scale(p);
+    end

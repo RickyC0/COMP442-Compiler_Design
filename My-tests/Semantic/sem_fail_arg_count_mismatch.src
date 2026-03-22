@@ -1,0 +1,11 @@
+sum(integer a, integer b) : integer
+    do
+        return(a + b);
+    end
+
+main
+    local
+        integer r;
+    do
+        r = sum(1);
+    end
