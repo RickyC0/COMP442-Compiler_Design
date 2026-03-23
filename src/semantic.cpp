@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iomanip>
 #include <sstream>
 #include <unordered_set>
 
@@ -806,7 +807,6 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
     // Keep this conservative for now; richer synthesis will be added incrementally.
     return "null";
 }
-
 void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int depth, std::string& out) const {
     if (scope == nullptr) {
         return;
@@ -828,36 +828,87 @@ void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int 
         entries.push_back(&entry);
     }
 
-    out += indent + "Scope: " + scope->getScopeName() + "\n";
+    // Minimum column widths (ensures headers always fit)
+    size_t kindWidth = 8;       // "Function"
+    size_t nameWidth = 12;
+    size_t typeWidth = 18;
+    size_t visibilityWidth = 10;// "Visibility"
+    size_t lineWidth = 4;       // "Line"
+    size_t detailsWidth = 20;
 
     for (const auto* entry : entries) {
-        out += indent + "  - [" + kindToString(entry->kind) + "] " + entry->name + " : " + entry->type;
-        if (!entry->visibility.empty()) {
-            out += " [" + entry->visibility + "]";
-        }
-        if (!entry->details.empty()) {
-            out += " {" + entry->details + "}";
-        }
-        out += " (line " + std::to_string(entry->line) + ")\n";
+        kindWidth = std::max(kindWidth, kindToString(entry->kind).size());
+        nameWidth = std::max(nameWidth, entry->name.size());
+        typeWidth = std::max(typeWidth, entry->type.size());
+        visibilityWidth = std::max(visibilityWidth, entry->visibility.size());
+        lineWidth = std::max(lineWidth, std::to_string(entry->line).size());
+        detailsWidth = std::max(detailsWidth, entry->details.size());
     }
+
+    // Use a single string stream for the entire table to prevent memory thrashing
+    std::ostringstream tableStream;
+    tableStream << indent << "Scope: " << scope->getScopeName() << "\n";
+
+    // Lambda: Draws a separator line using zero-allocation setfill
+    auto makeSeparator = [&](char ch) {
+        tableStream << indent << '+' << std::setfill(ch)
+                    << std::setw(static_cast<int>(kindWidth + 2)) << "" << '+'
+                    << std::setw(static_cast<int>(nameWidth + 2)) << "" << '+'
+                    << std::setw(static_cast<int>(typeWidth + 2)) << "" << '+'
+                    << std::setw(static_cast<int>(visibilityWidth + 2)) << "" << '+'
+                    << std::setw(static_cast<int>(lineWidth + 2)) << "" << '+'
+                    << std::setw(static_cast<int>(detailsWidth + 2)) << "" << "+\n"
+                    << std::setfill(' '); // reset fill character to space
+    };
+
+    // Lambda: Formats and streams a row directly
+    auto formatRow = [&](const std::string& kind, const std::string& name, const std::string& type, 
+                         const std::string& visibility, const std::string& line, const std::string& details) {
+        tableStream << indent << "| " 
+                    << std::left << std::setw(static_cast<int>(kindWidth)) << kind << " | "
+                    << std::left << std::setw(static_cast<int>(nameWidth)) << name << " | "
+                    << std::left << std::setw(static_cast<int>(typeWidth)) << type << " | "
+                    << std::left << std::setw(static_cast<int>(visibilityWidth)) << visibility << " | "
+                    << std::right << std::setw(static_cast<int>(lineWidth)) << line << " | "
+                    << std::left << std::setw(static_cast<int>(detailsWidth)) << details << " |\n";
+    };
+
+    makeSeparator('-');
+    formatRow("Kind", "Name", "Type", "Visibility", "Line", "Details");
+    makeSeparator('=');
 
     if (entries.empty()) {
-        out += indent + "  - <empty>\n";
+        formatRow("<none>", "-", "-", "-", "-", "-");
+    } else {
+        for (const auto* entry : entries) {
+            formatRow(
+                kindToString(entry->kind),
+                entry->name,
+                entry->type,
+                entry->visibility,
+                std::to_string(entry->line),
+                entry->details
+            );
+        }
     }
 
-    out += "\n";
+    makeSeparator('-');
+    tableStream << "\n";
+    
+    // Append the fully constructed table to the output string once
+    out += tableStream.str();
 
     std::unordered_set<const SymbolTable*> visited;
 
+    // Cleaner standard library lookup
     auto findChildByName = [&](const std::string& expectedName) -> std::shared_ptr<SymbolTable> {
-        for (const auto& child : children) {
-            if (child != nullptr && child->getScopeName() == expectedName) {
-                return child;
-            }
-        }
-        return nullptr;
+        auto it = std::find_if(children.begin(), children.end(), [&](const auto& child) {
+            return child != nullptr && child->getScopeName() == expectedName;
+        });
+        return it != children.end() ? *it : nullptr;
     };
 
+    // Organized Child Scope Traversal
     if (isGlobal) {
         for (const auto* entry : entries) {
             if (entry->kind == SymbolKind::Class) {
@@ -895,6 +946,7 @@ void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int 
         }
     }
 
+    // Traverse any remaining unvisited children (e.g., nested blocks)
     for (const auto& child : children) {
         if (child != nullptr && !visited.count(child.get())) {
             dumpScope(child, depth + 1, out);
