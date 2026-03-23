@@ -1,0 +1,21 @@
+class Base {
+    public foo(integer a) : void;
+};
+
+class Child inherits Base {
+    public foo(integer a) : void;
+};
+
+Base::foo(integer a) : void
+    do
+        write(a);
+    end
+
+Child::foo(integer a) : void
+    do
+        write(a);
+    end
+
+main
+  do
+  end

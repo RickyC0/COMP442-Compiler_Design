@@ -1,0 +1,8 @@
+main
+  local
+    integer x;
+    integer y;
+  do
+    x = 10;
+    y = x.z;
+  end

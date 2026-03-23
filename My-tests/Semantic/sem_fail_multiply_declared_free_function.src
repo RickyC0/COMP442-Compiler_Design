@@ -1,0 +1,11 @@
+foo() : void
+  do
+  end
+
+foo() : void
+  do
+  end
+
+main
+  do
+  end

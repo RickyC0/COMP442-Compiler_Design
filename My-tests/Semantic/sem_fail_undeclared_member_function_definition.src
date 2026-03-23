@@ -1,0 +1,11 @@
+class A {
+    public integer x;
+};
+
+A::foo() : void
+  do
+  end
+
+main
+  do
+  end

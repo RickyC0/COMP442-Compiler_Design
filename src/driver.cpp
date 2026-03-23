@@ -163,22 +163,38 @@ int main(int argc, char* argv[]) {
         }
         symbolOut << semanticAnalyzer.dumpSymbolTables();
 
-        if (!writeLinesToFile(semantic_errors_file, semanticAnalyzer.getErrors())) {
+        const auto& errors = semanticAnalyzer.getErrors();
+        const auto& warnings = semanticAnalyzer.getWarnings();
+        const bool hasErrors = !errors.empty();
+        const bool hasWarnings = !warnings.empty();
+
+        std::vector<std::string> semanticDiagnostics = errors;
+        semanticDiagnostics.insert(semanticDiagnostics.end(), warnings.begin(), warnings.end());
+
+        if (!writeLinesToFile(semantic_errors_file, semanticDiagnostics)) {
             throw std::runtime_error("Failed to open semantic errors output file: " + semantic_errors_file);
         }
 
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        std::string details = semanticSuccess
-            ? "Symbol tables generated, no semantic errors"
-            : "Symbol tables generated, semantic errors reported";
-        phases.push_back({"Semantic", semanticSuccess, durationMs, details});
-
-        if (semanticSuccess) {
-            UI::printStatusLine(true, "Semantic analysis completed (no semantic errors)");
+        std::string details;
+        if (hasErrors) {
+            details = "Symbol tables generated, semantic errors reported";
+        } else if (hasWarnings) {
+            details = "Symbol tables generated, semantic warnings reported";
         } else {
-            UI::printWarning("Semantic analysis completed with errors");
+            details = "Symbol tables generated, no semantic diagnostics";
+        }
+
+        phases.push_back({"Semantic", !hasErrors, durationMs, details});
+
+        if (hasErrors) {
+            UI::printStatusLine(false, "Semantic analysis completed with errors");
+        } else if (hasWarnings) {
+            UI::printWarning("Semantic analysis completed with warnings");
+        } else {
+            UI::printStatusLine(true, "Semantic analysis completed (no semantic diagnostics)");
         }
 
     } catch (const std::exception& e) {
@@ -211,7 +227,7 @@ int main(int argc, char* argv[]) {
 
     UI::printArtifactList("Semantic Outputs", {
         {"Symbol Tables", symbol_tables_file},
-        {"Sem Errors", semantic_errors_file}
+        {"Sem Diagnostics ", semantic_errors_file},
     });
 
     UI::printDone();

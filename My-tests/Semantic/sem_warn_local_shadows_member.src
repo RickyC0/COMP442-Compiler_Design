@@ -1,0 +1,15 @@
+class A {
+    private integer x;
+    public foo() : void;
+};
+
+A::foo() : void
+  local
+    integer x;
+  do
+    x = 1;
+  end
+
+main
+  do
+  end

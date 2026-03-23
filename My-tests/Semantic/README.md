@@ -68,3 +68,52 @@ This folder contains focused semantic-analysis tests.
 15. `sem_fail_return_type_mismatch.src`
     - Purpose: return expression type mismatches declared return type.
     - Expected: `FAIL`.
+
+16. `sem_fail_undeclared_member_function_definition.src`
+   - Purpose: class method implemented without prior class declaration (`6.1`).
+   - Expected: `FAIL`.
+
+17. `sem_fail_undefined_member_function_declaration.src`
+   - Purpose: class method declared but never implemented (`6.2`).
+   - Expected: `FAIL`.
+
+18. `sem_warn_shadowed_inherited_member.src`
+   - Purpose: child class field shadows inherited parent field (`8.5`).
+   - Expected: `WARNING`.
+
+19. `sem_warn_local_shadows_member.src`
+   - Purpose: local variable in member function shadows class field (`8.6`).
+   - Expected: `WARNING`.
+
+20. `sem_warn_overloaded_free_function.src`
+   - Purpose: free function overload declarations/signatures (`9.1`).
+   - Expected: `WARNING`.
+
+21. `sem_warn_overloaded_member_function.src`
+   - Purpose: member function overload declarations/signatures (`9.2`).
+   - Expected: `WARNING`.
+
+22. `sem_warn_overridden_member_function.src`
+   - Purpose: derived class method overrides base method (`9.3`).
+   - Expected: `WARNING`.
+
+23. `sem_fail_array_index_not_integer.src`
+   - Purpose: array index expression has non-integer type (`13.2`).
+   - Expected: `FAIL`.
+
+24. `sem_fail_dot_on_non_class.src`
+   - Purpose: dot operator used on non-class value (`15.1`).
+   - Expected: `FAIL`.
+
+25. `sem_fail_undeclared_class_type.src`
+   - Purpose: variable declared with undeclared class type (`11.5`).
+   - Expected: `FAIL`.
+
+26. `sem_fail_circular_class_dependency.src`
+   - Purpose: circular class inheritance dependency (`14.1`).
+   - Expected: `FAIL`.
+
+27. `sem_fail_multiply_declared_free_function.src`
+   - Purpose: same free function signature defined more than once (`8.2`).
+   - Expected: `FAIL`.
+

@@ -2,11 +2,78 @@
 
 #include <algorithm>
 #include <cctype>
+#include <functional>
 #include <iomanip>
 #include <sstream>
 #include <unordered_set>
 
 namespace {
+bool isBuiltinType(const std::string& typeName) {
+    return typeName == "integer" || typeName == "float" || typeName == "void" || typeName == "bool";
+}
+
+std::string trimCopy(std::string s) {
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
+        s.erase(s.begin());
+    }
+    while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
+        s.pop_back();
+    }
+    return s;
+}
+
+std::vector<std::string> parseParentsFromClassType(const std::string& classType) {
+    std::vector<std::string> parents;
+    size_t colon = classType.find(':');
+    if (colon == std::string::npos) {
+        return parents;
+    }
+
+    std::string suffix = classType.substr(colon + 1);
+    size_t start = 0;
+    while (start <= suffix.size()) {
+        size_t comma = suffix.find(',', start);
+        if (comma == std::string::npos) {
+            std::string token = trimCopy(suffix.substr(start));
+            if (!token.empty()) {
+                parents.push_back(token);
+            }
+            break;
+        }
+
+        std::string token = trimCopy(suffix.substr(start, comma - start));
+        if (!token.empty()) {
+            parents.push_back(token);
+        }
+        start = comma + 1;
+    }
+
+    return parents;
+}
+
+std::string classNameFromScope(const std::string& scopeName) {
+    if (scopeName.rfind("class ", 0) == 0) {
+        return scopeName.substr(6);
+    }
+    return "";
+}
+
+std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& scope) {
+    std::shared_ptr<SymbolTable> cur = scope;
+    while (cur != nullptr) {
+        const std::string name = cur->getScopeName();
+        if (name.rfind("function ", 0) == 0) {
+            size_t sep = name.find("::");
+            if (sep != std::string::npos) {
+                return name.substr(5, sep - 5);
+            }
+            return "";
+        }
+        cur = cur->getParent();
+    }
+    return "";
+}
+
 bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
     if (node == nullptr) {
         return false;
@@ -116,6 +183,7 @@ const std::vector<SymbolEntry>& SymbolTable::getEntries() const {
 
 bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _errors.clear();
+    _warnings.clear();
     _blockCounter = 0;
     _classScopes.clear();
     _functionReturnTypeStack.clear();
@@ -130,6 +198,67 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
         setPassOne(false);
         _blockCounter = 0;
         _functionReturnTypeStack.clear();
+
+        // 6.2: member function declared but never implemented.
+        for (const auto& classPair : _classScopes) {
+            const auto& classScope = classPair.second;
+            if (classScope == nullptr) {
+                continue;
+            }
+
+            for (const auto& entry : classScope->getEntries()) {
+                if (entry.kind != SymbolKind::Function) {
+                    continue;
+                }
+
+                const bool hasDecl = entry.details.find("declaration") != std::string::npos;
+                const bool hasImpl = entry.details.find("implementation") != std::string::npos;
+                if (hasDecl && !hasImpl) {
+                    reportError(entry.line, "6.2 undefined member function declaration: '" + classPair.first + "::" + entry.name + "'");
+                }
+            }
+        }
+
+        // 14.1: circular class dependency in inheritance graph.
+        std::unordered_map<std::string, std::vector<std::string>> graph;
+        std::unordered_map<std::string, int> classLine;
+        for (const auto& entry : _globalScope->getEntries()) {
+            if (entry.kind != SymbolKind::Class) {
+                continue;
+            }
+            graph[entry.name] = parseParentsFromClassType(entry.type);
+            classLine[entry.name] = entry.line;
+        }
+
+        enum class Color { White, Gray, Black };
+        std::unordered_map<std::string, Color> color;
+        for (const auto& kv : graph) {
+            color[kv.first] = Color::White;
+        }
+
+        std::function<void(const std::string&)> dfs = [&](const std::string& nodeName) {
+            color[nodeName] = Color::Gray;
+            for (const auto& parent : graph[nodeName]) {
+                if (graph.find(parent) == graph.end()) {
+                    continue;
+                }
+                if (color[parent] == Color::Gray) {
+                    reportError(classLine[nodeName], "14.1 circular class dependency involving '" + nodeName + "' and '" + parent + "'");
+                    continue;
+                }
+                if (color[parent] == Color::White) {
+                    dfs(parent);
+                }
+            }
+            color[nodeName] = Color::Black;
+        };
+
+        for (const auto& kv : graph) {
+            if (color[kv.first] == Color::White) {
+                dfs(kv.first);
+            }
+        }
+
         _currentScope = _globalScope;
         root->accept(*this);
     }
@@ -139,6 +268,10 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
 
 const std::vector<std::string>& SemanticAnalyzer::getErrors() const {
     return _errors;
+}
+
+const std::vector<std::string>& SemanticAnalyzer::getWarnings() const {
+    return _warnings;
 }
 
 std::string SemanticAnalyzer::dumpSymbolTables() const {
@@ -153,7 +286,7 @@ void SemanticAnalyzer::visit(IdNode& node) {
     }
 
     if (_currentScope->resolve(node.getName()) == nullptr) {
-        reportError(node.getLineNumber(), "use of undeclared identifier '" + node.getName() + "'");
+        reportError(node.getLineNumber(), "11.1 undeclared local variable: '" + node.getName() + "'");
     }
 }
 
@@ -174,10 +307,10 @@ void SemanticAnalyzer::visit(BinaryOpNode& node) {
     
     // Make sure we are adding numbers!
     if (leftType != "integer" && leftType != "float") {
-        reportError(node.getLineNumber(), "Left side of math operation must be a number");
+        reportError(node.getLineNumber(), "10.1 type error in expression: left operand must be numeric");
     }
     if (rightType != "integer" && rightType != "float") {
-        reportError(node.getLineNumber(), "Right side of math operation must be a number");
+        reportError(node.getLineNumber(), "10.1 type error in expression: right operand must be numeric");
     }
 }
 
@@ -206,18 +339,21 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
         } else {
             symbol = resolveClassMember(ownerType, methodName);
             if (symbol == nullptr || symbol->kind != SymbolKind::Function) {
-                reportError(node.getLineNumber(), "call to undeclared method '" + baseTypeName(ownerType) + "::" + methodName + "'");
+                reportError(node.getLineNumber(), "11.3 undeclared member function: '" + baseTypeName(ownerType) + "::" + methodName + "'");
             }
         }
     } else {
         // Free function call. Some AST shapes keep the callee identifier in node.getLeft().
         symbol = _currentScope->resolve(node.getFunctionName());
         if (symbol == nullptr || symbol->kind != SymbolKind::Function) {
-            reportError(node.getLineNumber(), "call to undeclared function '" + node.getFunctionName() + "'");
+            reportError(node.getLineNumber(), "11.4 undeclared/undefined free function: '" + node.getFunctionName() + "'");
         }
     }
 
-    visitNode(node.getLeft());
+    // Avoid duplicate 11.4 diagnostics for free-function call callee identifiers.
+    if (isOwnerQualifiedMethodCall && calleeMember != nullptr) {
+        visitNode(calleeMember->getLeft());
+    }
     for (const auto& arg : node.getArgs()) {
         visitNode(arg);
     }
@@ -238,7 +374,7 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
         if (expectedParamTypes.size() != args.size()) {
             reportError(
                 node.getLineNumber(),
-                "argument count mismatch in call to '" + node.getFunctionName() +
+                "12.1 function call with wrong number of parameters: '" + node.getFunctionName() +
                 "': expected " + std::to_string(expectedParamTypes.size()) +
                 ", got " + std::to_string(args.size())
             );
@@ -251,7 +387,7 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
             if (!isAssignableTo(expectedType, actualType)) {
                 reportError(
                     node.getLineNumber(),
-                    "argument " + std::to_string(i + 1) + " type mismatch in call to '" + node.getFunctionName() +
+                    "12.2 function call with wrong type of parameters in call to '" + node.getFunctionName() +
                     "': expected '" + expectedType + "', got '" + actualType + "'"
                 );
             }
@@ -266,7 +402,7 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
 
     if (node.getLeft() == nullptr) {
         if (_currentScope->resolve(node.getName()) == nullptr) {
-            reportError(node.getLineNumber(), "use of undeclared member/variable '" + node.getName() + "'");
+            reportError(node.getLineNumber(), "11.2 undeclared member variable or unresolved identifier: '" + node.getName() + "'");
         }
     } else {
         const std::string ownerType = inferExprType(node.getLeft());
@@ -274,14 +410,21 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
             reportError(node.getLineNumber(), "cannot resolve owner type for member access '" + node.getName() + "'");
         } else {
             const SymbolEntry* member = resolveClassMember(ownerType, node.getName());
-            if (member == nullptr) {
-                reportError(node.getLineNumber(), "type '" + baseTypeName(ownerType) + "' has no member named '" + node.getName() + "'");
+            const std::string ownerBase = baseTypeName(ownerType);
+            if (ownerBase == "integer" || ownerBase == "float" || ownerBase == "void" || ownerBase == "bool") {
+                reportError(node.getLineNumber(), "15.1 '.' operator used on non-class type '" + ownerBase + "'");
+            } else if (member == nullptr) {
+                reportError(node.getLineNumber(), "11.2 undeclared member variable: type '" + ownerBase + "' has no member named '" + node.getName() + "'");
             }
         }
     }
 
     visitNode(node.getLeft());
     for (const auto& idx : node.getIndices()) {
+        const std::string indexType = inferExprType(idx);
+        if (indexType != "null" && indexType != "integer") {
+            reportError(node.getLineNumber(), "13.2 array index is not an integer");
+        }
         visitNode(idx);
     }
 }
@@ -300,7 +443,7 @@ void SemanticAnalyzer::visit(AssignStmtNode& node) {
     if (leftType != "null" && rightType != "null" && leftType != rightType) {
         // Allow int to float promotion, but block float to int, or int to Class.
         if (!(leftType == "float" && rightType == "integer")) {
-             reportError(node.getLineNumber(), "Type mismatch in assignment: cannot assign '" + rightType + "' to '" + leftType + "'");
+             reportError(node.getLineNumber(), "10.2 type error in assignment statement: cannot assign '" + rightType + "' to '" + leftType + "'");
         }
     }
 }
@@ -382,7 +525,7 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
         if (node.getLeft() != nullptr) {
             reportError(
                 node.getLineNumber(),
-                "return type mismatch: function expects 'void' but return has expression of type '" + actualType + "'"
+                "10.3 type error in return statement: function expects 'void' but return has expression of type '" + actualType + "'"
             );
         }
         return;
@@ -391,7 +534,7 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
     if (node.getLeft() == nullptr) {
         reportError(
             node.getLineNumber(),
-            "return type mismatch: function expects '" + expectedType + "' but return has no expression"
+            "10.3 type error in return statement: function expects '" + expectedType + "' but return has no expression"
         );
         return;
     }
@@ -399,7 +542,7 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
     if (actualType != "null" && !isAssignableTo(expectedType, actualType)) {
         reportError(
             node.getLineNumber(),
-            "return type mismatch: expected '" + expectedType + "', got '" + actualType + "'"
+            "10.3 type error in return statement: expected '" + expectedType + "', got '" + actualType + "'"
         );
     }
 }
@@ -416,6 +559,43 @@ void SemanticAnalyzer::visit(BlockNode& node) {
 }
 
 void SemanticAnalyzer::visit(VarDeclNode& node) {
+    const std::string declaredTypeBase = baseTypeName(node.getTypeName());
+    if (!isBuiltinType(declaredTypeBase) && _classScopes.find(declaredTypeBase) == _classScopes.end()) {
+        reportError(node.getLineNumber(), "11.5 undeclared class: '" + declaredTypeBase + "'");
+    }
+
+    if (node.getVisibility() == "local") {
+        const std::string enclosingClass = enclosingClassFromFunctionScope(_currentScope);
+        if (!enclosingClass.empty()) {
+            auto classIt = _classScopes.find(enclosingClass);
+            if (classIt != _classScopes.end() && classIt->second != nullptr) {
+                const SymbolEntry* classMember = classIt->second->lookupInCurrent(node.getName());
+                if (classMember != nullptr && classMember->kind == SymbolKind::Field) {
+                    reportWarning(node.getLineNumber(), "8.6 local variable shadows data member: '" + node.getName() + "'");
+                }
+            }
+        }
+    }
+
+    if (isPassOne() && node.getVisibility() != "local") {
+        // 8.5 shadowed inherited data member.
+        std::string currentClass = classNameFromScope(_currentScope != nullptr ? _currentScope->getScopeName() : "");
+        if (!currentClass.empty()) {
+            const SymbolEntry* classEntry = _globalScope->lookupInCurrent(currentClass);
+            if (classEntry != nullptr) {
+                for (const auto& parentName : parseParentsFromClassType(classEntry->type)) {
+                    auto parentIt = _classScopes.find(parentName);
+                    if (parentIt != _classScopes.end() && parentIt->second != nullptr) {
+                        const SymbolEntry* inherited = parentIt->second->lookupInCurrent(node.getName());
+                        if (inherited != nullptr && inherited->kind == SymbolKind::Field) {
+                            reportWarning(node.getLineNumber(), "8.5 shadowed inherited data member: '" + node.getName() + "'");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = node.getTypeName();
@@ -484,7 +664,13 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
             reportError(entry.line, "symbol '" + entry.name + "' already exists with non-function kind in scope '" + _currentScope->getScopeName() + "'");
         } else {
             if (existing->type != entry.type) {
-                reportError(entry.line, "signature mismatch for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+                if (ownerClass.empty()) {
+                    reportWarning(entry.line, "9.1 overloaded free function: '" + entry.name + "'");
+                } else {
+                    reportWarning(entry.line, "9.2 overloaded member function: '" + ownerClass + "::" + entry.name + "'");
+                }
+            } else if (!isImplementation && ownerClass.empty()) {
+                reportError(entry.line, "8.2 multiply declared free function: '" + entry.name + "'");
             }
 
             const bool existingHasDecl = existing->details.find("declaration") != std::string::npos;
@@ -492,7 +678,11 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
             if (isImplementation && existingHasDecl && !existingHasImpl) {
                 existing->details = ownerDescriptor + " (declaration + implementation)";
             } else if (isImplementation && existingHasImpl) {
-                reportError(entry.line, "multiple implementations for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+                if (ownerClass.empty()) {
+                    reportError(entry.line, "8.2 multiply declared free function: '" + entry.name + "'");
+                } else {
+                    reportError(entry.line, "multiple implementations for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+                }
             }
         }
     }
@@ -510,7 +700,7 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         if (!hasDeclaration) {
             reportError(
                 node.getLineNumber(),
-                "implementation for method '" + ownerClass + "::" + node.getName() + "' has no prior declaration in class '" + ownerClass + "'"
+                "6.1 undeclared member function definition: '" + ownerClass + "::" + node.getName() + "'"
             );
         }
     }
@@ -521,7 +711,7 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         return;
     }
 
-    std::string funcScopeName = ownerClass.empty() ? ("func " + node.getName()) : ("func " + ownerClass + "::" + node.getName());
+    std::string funcScopeName = ownerClass.empty() ? ("function " + node.getName()) : ("function " + ownerClass + "::" + node.getName());
     std::shared_ptr<SymbolTable> prev = _currentScope;
     _currentScope = getOrCreateChildScope(_currentScope, funcScopeName);
 
@@ -584,6 +774,25 @@ void SemanticAnalyzer::visit(ClassDeclNode& node) {
         if (std::dynamic_pointer_cast<VarDeclNode>(member) != nullptr) {
             continue;
         }
+
+        if (isPassOne()) {
+            auto method = std::dynamic_pointer_cast<FuncDefNode>(member);
+            if (method != nullptr) {
+                const SymbolEntry* classEntry = _globalScope->lookupInCurrent(node.getName());
+                if (classEntry != nullptr) {
+                    for (const auto& parentName : parseParentsFromClassType(classEntry->type)) {
+                        auto parentIt = _classScopes.find(parentName);
+                        if (parentIt != _classScopes.end() && parentIt->second != nullptr) {
+                            const SymbolEntry* inheritedFn = parentIt->second->lookupInCurrent(method->getName());
+                            if (inheritedFn != nullptr && inheritedFn->kind == SymbolKind::Function && inheritedFn->type == functionSignature(*method)) {
+                                reportWarning(method->getLineNumber(), "9.3 overridden member function: '" + node.getName() + "::" + method->getName() + "'");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         visitNode(member);
     }
 
@@ -595,17 +804,17 @@ void SemanticAnalyzer::visit(ProgNode& node) {
         visitNode(cls);
     }
 
-    for (const auto& func : node.getFunctions()) {
-        visitNode(func);
+    for (const auto& function : node.getFunctions()) {
+        visitNode(function);
     }
 }
 
 void SemanticAnalyzer::reportError(int line, const std::string& message) {
-    if (isPassOne()) {
-        return;
-    }
-
     _errors.push_back("[ERROR][SEMANTIC] line " + std::to_string(line) + ": " + message);
+}
+
+void SemanticAnalyzer::reportWarning(int line, const std::string& message) {
+    _warnings.push_back("[WARNING][SEMANTIC] line " + std::to_string(line) + ": " + message);
 }
 
 bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
@@ -626,7 +835,18 @@ bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
         }
     }
 
-    reportError(entry.line, "redefinition of symbol '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+    const std::string scopeName = _currentScope->getScopeName();
+    if (entry.kind == SymbolKind::Class) {
+        reportError(entry.line, "8.1 multiply declared class: '" + entry.name + "'");
+    } else if (entry.kind == SymbolKind::Function && scopeName == "global") {
+        reportError(entry.line, "8.2 multiply declared free function: '" + entry.name + "'");
+    } else if (entry.kind == SymbolKind::Field && scopeName.rfind("class ", 0) == 0) {
+        reportError(entry.line, "8.3 multiply declared data member in class: '" + entry.name + "'");
+    } else if (entry.kind == SymbolKind::Variable || entry.kind == SymbolKind::Parameter) {
+        reportError(entry.line, "8.4 multiply declared variable in function: '" + entry.name + "'");
+    } else {
+        reportError(entry.line, "redefinition of symbol '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+    }
     return false;
 }
 
@@ -922,7 +1142,7 @@ void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int 
 
         for (const auto* entry : entries) {
             if (entry->kind == SymbolKind::Function && entry->details.find("free function") != std::string::npos) {
-                std::shared_ptr<SymbolTable> fnChild = findChildByName("func " + entry->name);
+                std::shared_ptr<SymbolTable> fnChild = findChildByName("function " + entry->name);
                 if (fnChild != nullptr && !visited.count(fnChild.get())) {
                     visited.insert(fnChild.get());
                     dumpScope(fnChild, depth + 1, out);
@@ -935,9 +1155,9 @@ void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int 
             if (entry->kind != SymbolKind::Function) {
                 continue;
             }
-            std::shared_ptr<SymbolTable> fnChild = findChildByName("func " + className + "::" + entry->name);
+            std::shared_ptr<SymbolTable> fnChild = findChildByName("function " + className + "::" + entry->name);
             if (fnChild == nullptr) {
-                fnChild = findChildByName("func " + entry->name);
+                fnChild = findChildByName("function " + entry->name);
             }
             if (fnChild != nullptr && !visited.count(fnChild.get())) {
                 visited.insert(fnChild.get());

@@ -56,6 +56,7 @@ class SemanticAnalyzer : public ASTVisitor {
         void setPassOne(bool passOne) { _isPassOne = passOne; }
         bool analyze(const std::shared_ptr<ProgNode>& root);
         const std::vector<std::string>& getErrors() const;
+        const std::vector<std::string>& getWarnings() const;
         std::string dumpSymbolTables() const;
 
         void visit(IdNode& node) override;
@@ -83,6 +84,7 @@ class SemanticAnalyzer : public ASTVisitor {
         std::shared_ptr<SymbolTable> _currentScope;
         std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
         std::vector<std::string> _errors;
+        std::vector<std::string> _warnings;
         std::vector<std::string> _functionReturnTypeStack;
         int _blockCounter = 0;
 
@@ -91,6 +93,7 @@ class SemanticAnalyzer : public ASTVisitor {
         std::string inferExprType(const std::shared_ptr<ASTNode>& node) const;
 
         void reportError(int line, const std::string& message);
+        void reportWarning(int line, const std::string& message);
         bool defineSymbol(const SymbolEntry& entry);
         void visitNode(const std::shared_ptr<ASTNode>& node);
         std::shared_ptr<SymbolTable> getOrCreateChildScope(const std::shared_ptr<SymbolTable>& parent, const std::string& scopeName);
