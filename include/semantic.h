@@ -52,6 +52,8 @@ class SymbolTable : public std::enable_shared_from_this<SymbolTable> {
 
 class SemanticAnalyzer : public ASTVisitor {
     public:
+        bool isPassOne() const { return _isPassOne; }
+        void setPassOne(bool passOne) { _isPassOne = passOne; }
         bool analyze(const std::shared_ptr<ProgNode>& root);
         const std::vector<std::string>& getErrors() const;
         std::string dumpSymbolTables() const;
@@ -76,6 +78,7 @@ class SemanticAnalyzer : public ASTVisitor {
         void visit(ProgNode& node) override;
 
     private:
+        bool _isPassOne = false;
         std::shared_ptr<SymbolTable> _globalScope;
         std::shared_ptr<SymbolTable> _currentScope;
         std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
@@ -90,6 +93,7 @@ class SemanticAnalyzer : public ASTVisitor {
         void reportError(int line, const std::string& message);
         bool defineSymbol(const SymbolEntry& entry);
         void visitNode(const std::shared_ptr<ASTNode>& node);
+        std::shared_ptr<SymbolTable> getOrCreateChildScope(const std::shared_ptr<SymbolTable>& parent, const std::string& scopeName);
 
         static std::string kindToString(SymbolKind kind);
         static std::string functionSignature(const FuncDefNode& node);

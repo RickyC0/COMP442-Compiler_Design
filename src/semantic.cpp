@@ -119,9 +119,17 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _classScopes.clear();
     _functionReturnTypeStack.clear();
     _globalScope = std::make_shared<SymbolTable>("global");
-    _currentScope = _globalScope;
 
     if (root != nullptr) {
+        setPassOne(true);
+        _blockCounter = 0;
+        _currentScope = _globalScope;
+        root->accept(*this);
+
+        setPassOne(false);
+        _blockCounter = 0;
+        _functionReturnTypeStack.clear();
+        _currentScope = _globalScope;
         root->accept(*this);
     }
 
@@ -139,6 +147,10 @@ std::string SemanticAnalyzer::dumpSymbolTables() const {
 }
 
 void SemanticAnalyzer::visit(IdNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     if (_currentScope->resolve(node.getName()) == nullptr) {
         reportError(node.getLineNumber(), "use of undeclared identifier '" + node.getName() + "'");
     }
@@ -149,6 +161,10 @@ void SemanticAnalyzer::visit(FloatLitNode&) {}
 void SemanticAnalyzer::visit(TypeNode&) {}
 
 void SemanticAnalyzer::visit(BinaryOpNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     visitNode(node.getLeft());
     visitNode(node.getRight());
     
@@ -169,6 +185,10 @@ void SemanticAnalyzer::visit(UnaryOpNode& node) {
 }
 
 void SemanticAnalyzer::visit(FuncCallNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     const SymbolEntry* symbol = nullptr;
 
     auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(node.getLeft());
@@ -239,6 +259,10 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
 }
 
 void SemanticAnalyzer::visit(DataMemberNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     if (node.getLeft() == nullptr) {
         if (_currentScope->resolve(node.getName()) == nullptr) {
             reportError(node.getLineNumber(), "use of undeclared member/variable '" + node.getName() + "'");
@@ -262,6 +286,10 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
 }
 
 void SemanticAnalyzer::visit(AssignStmtNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     visitNode(node.getLeft());
     visitNode(node.getRight());
     
@@ -277,6 +305,12 @@ void SemanticAnalyzer::visit(AssignStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(IfStmtNode& node) {
+    if (isPassOne()) {
+        visitNode(node.getRight());
+        visitNode(node.getElseBlock());
+        return;
+    }
+
     visitNode(node.getLeft());
 
     const std::string condType = inferExprType(node.getLeft());
@@ -294,6 +328,11 @@ void SemanticAnalyzer::visit(IfStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(WhileStmtNode& node) {
+    if (isPassOne()) {
+        visitNode(node.getRight());
+        return;
+    }
+
     visitNode(node.getLeft());
 
     const std::string condType = inferExprType(node.getLeft());
@@ -314,6 +353,10 @@ void SemanticAnalyzer::visit(IOStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(ReturnStmtNode& node) {
+    if (isPassOne()) {
+        return;
+    }
+
     visitNode(node.getLeft());
 
     if (_functionReturnTypeStack.empty()) {
@@ -362,7 +405,7 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
 
 void SemanticAnalyzer::visit(BlockNode& node) {
     std::shared_ptr<SymbolTable> prev = _currentScope;
-    _currentScope = _currentScope->createChild("block#" + std::to_string(++_blockCounter));
+    _currentScope = getOrCreateChildScope(_currentScope, "block#" + std::to_string(++_blockCounter));
 
     for (const auto& stmt : node.getStatements()) {
         visitNode(stmt);
@@ -411,38 +454,45 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     std::shared_ptr<SymbolTable> prevScope = _currentScope;
     _currentScope = ownerScope;
 
-    SymbolEntry entry;
-    entry.name = node.getName();
-    entry.type = functionSignature(node);
-    entry.returnType = node.getReturnType();
-    entry.paramTypes.clear();
-    for (const auto& param : node.getParams()) {
-        entry.paramTypes.push_back(param->getTypeName());
-    }
-    entry.kind = SymbolKind::Function;
-    entry.visibility = "n/a";
     const bool isImplementation = node.getRight() != nullptr;
-    const std::string ownerDescriptor = ownerClass.empty() ? "free function" : ("method of " + ownerClass);
-    const std::string role = isImplementation ? "implementation" : "declaration";
-    entry.details = ownerDescriptor + " (" + role + ")";
-    entry.line = node.getLineNumber();
-
-    SymbolEntry* existing = _currentScope->lookupMutableInCurrent(entry.name);
-    if (existing == nullptr) {
-        defineSymbol(entry);
-    } else if (existing->kind != SymbolKind::Function) {
-        reportError(entry.line, "symbol '" + entry.name + "' already exists with non-function kind in scope '" + _currentScope->getScopeName() + "'");
-    } else {
-        if (existing->type != entry.type) {
-            reportError(entry.line, "signature mismatch for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+    if (isPassOne()) {
+        SymbolEntry entry;
+        entry.name = node.getName();
+        entry.type = functionSignature(node);
+        entry.returnType = node.getReturnType();
+        entry.paramTypes.clear();
+        for (const auto& param : node.getParams()) {
+            entry.paramTypes.push_back(param->getTypeName());
         }
+        entry.kind = SymbolKind::Function;
+        entry.visibility = "n/a";
+        const std::string ownerDescriptor = ownerClass.empty() ? "free function" : ("method of " + ownerClass);
+        const std::string role = isImplementation ? "implementation" : "declaration";
+        entry.details = ownerDescriptor + " (" + role + ")";
+        entry.line = node.getLineNumber();
 
-        const bool existingHasDecl = existing->details.find("declaration") != std::string::npos;
-        const bool existingHasImpl = existing->details.find("implementation") != std::string::npos;
-        if (isImplementation && existingHasDecl && !existingHasImpl) {
-            existing->details = ownerDescriptor + " (declaration + implementation)";
-        } else if (isImplementation && existingHasImpl) {
-            reportError(entry.line, "multiple implementations for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+        SymbolEntry* existing = _currentScope->lookupMutableInCurrent(entry.name);
+        if (existing == nullptr) {
+            // Class-qualified implementations must match a declaration in class scope.
+            // Free functions are allowed to be implemented without prior declaration.
+            const bool isClassMethodImplementation = !ownerClass.empty() && isImplementation;
+            if (!isClassMethodImplementation) {
+                defineSymbol(entry);
+            }
+        } else if (existing->kind != SymbolKind::Function) {
+            reportError(entry.line, "symbol '" + entry.name + "' already exists with non-function kind in scope '" + _currentScope->getScopeName() + "'");
+        } else {
+            if (existing->type != entry.type) {
+                reportError(entry.line, "signature mismatch for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+            }
+
+            const bool existingHasDecl = existing->details.find("declaration") != std::string::npos;
+            const bool existingHasImpl = existing->details.find("implementation") != std::string::npos;
+            if (isImplementation && existingHasDecl && !existingHasImpl) {
+                existing->details = ownerDescriptor + " (declaration + implementation)";
+            } else if (isImplementation && existingHasImpl) {
+                reportError(entry.line, "multiple implementations for function '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+            }
         }
     }
 
@@ -451,9 +501,28 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         return;
     }
 
+    if (!isPassOne() && !ownerClass.empty()) {
+        const SymbolEntry* declaredMethod = _currentScope->lookupInCurrent(node.getName());
+        const bool hasDeclaration = declaredMethod != nullptr &&
+            declaredMethod->kind == SymbolKind::Function &&
+            declaredMethod->details.find("declaration") != std::string::npos;
+        if (!hasDeclaration) {
+            reportError(
+                node.getLineNumber(),
+                "implementation for method '" + ownerClass + "::" + node.getName() + "' has no prior declaration in class '" + ownerClass + "'"
+            );
+        }
+    }
+
+    if (isPassOne()) {
+        // Pass 1 only declares signatures; body analysis is deferred to pass 2.
+        _currentScope = prevScope;
+        return;
+    }
+
     std::string funcScopeName = ownerClass.empty() ? ("func " + node.getName()) : ("func " + ownerClass + "::" + node.getName());
     std::shared_ptr<SymbolTable> prev = _currentScope;
-    _currentScope = _currentScope->createChild(funcScopeName);
+    _currentScope = getOrCreateChildScope(_currentScope, funcScopeName);
 
     for (const auto& param : node.getParams()) {
         SymbolEntry paramEntry;
@@ -482,20 +551,24 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
 }
 
 void SemanticAnalyzer::visit(ClassDeclNode& node) {
-    SymbolEntry entry;
-    entry.name = node.getName();
-    entry.type = classTypeName(node);
-    entry.returnType = "null";
-    entry.paramTypes.clear();
-    entry.kind = SymbolKind::Class;
-    entry.visibility = "n/a";
-    entry.details = node.getParents().empty() ? "no inheritance" : "inherits " + std::to_string(node.getParents().size()) + " class(es)";
-    entry.line = node.getLineNumber();
-    defineSymbol(entry);
+    if (isPassOne()) {
+        SymbolEntry entry;
+        entry.name = node.getName();
+        entry.type = classTypeName(node);
+        entry.returnType = "null";
+        entry.paramTypes.clear();
+        entry.kind = SymbolKind::Class;
+        entry.visibility = "n/a";
+        entry.details = node.getParents().empty() ? "no inheritance" : "inherits " + std::to_string(node.getParents().size()) + " class(es)";
+        entry.line = node.getLineNumber();
+        defineSymbol(entry);
+    }
 
     std::shared_ptr<SymbolTable> prev = _currentScope;
-    _currentScope = _currentScope->createChild("class " + node.getName());
-    _classScopes[node.getName()] = _currentScope;
+    _currentScope = getOrCreateChildScope(_currentScope, "class " + node.getName());
+    if (isPassOne()) {
+        _classScopes[node.getName()] = _currentScope;
+    }
 
     // Pass 1: register all fields first, so methods can reference them regardless of source order.
     for (const auto& member : node.getMembers()) {
@@ -527,12 +600,29 @@ void SemanticAnalyzer::visit(ProgNode& node) {
 }
 
 void SemanticAnalyzer::reportError(int line, const std::string& message) {
+    if (isPassOne()) {
+        return;
+    }
+
     _errors.push_back("[ERROR][SEMANTIC] line " + std::to_string(line) + ": " + message);
 }
 
 bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
+    if (_currentScope == nullptr) {
+        return false;
+    }
+
     if (_currentScope->define(entry)) {
         return true;
+    }
+
+    // Pass 2 reuses pass-1 symbol tables; repeated declarations in the same
+    // scope should not emit duplicate redefinition diagnostics.
+    if (!isPassOne()) {
+        const SymbolEntry* existing = _currentScope->lookupInCurrent(entry.name);
+        if (existing != nullptr) {
+            return true;
+        }
     }
 
     reportError(entry.line, "redefinition of symbol '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
@@ -543,6 +633,22 @@ void SemanticAnalyzer::visitNode(const std::shared_ptr<ASTNode>& node) {
     if (node != nullptr) {
         node->accept(*this);
     }
+}
+
+std::shared_ptr<SymbolTable> SemanticAnalyzer::getOrCreateChildScope(const std::shared_ptr<SymbolTable>& parent, const std::string& scopeName) {
+    if (parent == nullptr) {
+        return nullptr;
+    }
+
+    if (!isPassOne()) {
+        for (const auto& child : parent->getChildren()) {
+            if (child != nullptr && child->getScopeName() == scopeName) {
+                return child;
+            }
+        }
+    }
+
+    return parent->createChild(scopeName);
 }
 
 std::string SemanticAnalyzer::kindToString(SymbolKind kind) {

@@ -1,0 +1,50 @@
+// ==========================================
+// 1. CLASS DECLARATIONS
+// ==========================================
+
+// Forward Reference Test 1: 'Engine' uses 'Car' before 'Car' exists
+class Engine {
+    public Car myCar; 
+    public start() : void;
+};
+
+class Car {
+    public float fuel;
+};
+
+
+// ==========================================
+// 2. FUNCTION DEFINITIONS
+// ==========================================
+
+// Forward Reference Test 2: 'start' calls 'beep', which isn't defined until later!
+Engine::start() : void
+    local
+    do
+        myCar.fuel = 100.0;
+        beep(); 
+    end
+
+// Forward Reference Test 3: 'beep' calls 'honk', which is defined below it!
+beep() : void
+    local
+    do
+        honk();
+    end
+
+honk() : void
+    local
+    do
+        write(1); // 1 for success
+    end
+
+
+// ==========================================
+// 3. MAIN PROGRAM
+// ==========================================
+main
+    local
+        Engine v8;
+    do
+        v8.start();
+    end
