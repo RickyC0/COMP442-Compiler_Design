@@ -1,0 +1,14 @@
+class Point {
+    public float x;
+};
+
+main
+    local
+        Point p;
+        integer i;
+    do
+        i = 0;
+        while (1==1) do
+            i = i + 1;
+        end;
+    end

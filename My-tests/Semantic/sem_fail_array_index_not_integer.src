@@ -1,0 +1,9 @@
+main
+  local
+    integer arr[3];
+    float idx;
+  do
+    idx = 1.5;
+    arr[idx] = 7;
+    arr[2][2] = 7;
+  end

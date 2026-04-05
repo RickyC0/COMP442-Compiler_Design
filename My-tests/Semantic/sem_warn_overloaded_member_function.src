@@ -1,0 +1,8 @@
+class A {
+    public foo(integer a) : void;
+    public foo(float a) : void;
+};
+
+main
+  do
+  end

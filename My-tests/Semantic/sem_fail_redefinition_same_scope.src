@@ -1,0 +1,11 @@
+class Point{
+    public integer a;
+};
+
+main
+    local
+        float a;
+        integer a;
+    do
+        write(a);
+    end

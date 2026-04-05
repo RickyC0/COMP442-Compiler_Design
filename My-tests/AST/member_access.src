@@ -19,7 +19,6 @@ class Circle {
 // Function definition
 Point::print() : void 
     do
-        write(x);
         write(y);
     end
 

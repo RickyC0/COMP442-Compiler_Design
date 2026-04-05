@@ -1,0 +1,11 @@
+foo(integer a) : void
+  do
+  end
+
+foo(float a) : void
+  do
+  end
+
+main
+  do
+  end

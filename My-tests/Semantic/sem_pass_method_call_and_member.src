@@ -1,0 +1,19 @@
+class Point {
+    public float x;
+    public print() : void;
+};
+
+Point::print() : void
+    do
+        write(x);
+    end
+
+main
+    local
+        Point p;
+        float t;
+    do
+        p.x = 10.0;
+        t = p.x;
+        p.print();
+    end

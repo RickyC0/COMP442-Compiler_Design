@@ -1,0 +1,6 @@
+main
+  local
+    UnknownType x;
+  do
+    write(1);
+  end

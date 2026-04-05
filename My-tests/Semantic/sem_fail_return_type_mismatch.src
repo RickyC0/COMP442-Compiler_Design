@@ -1,0 +1,14 @@
+bad() : integer
+    local
+        float x;
+    do
+        x = 2.5; //Error here
+        return (x);
+    end
+
+main
+    local
+        integer a;
+    do
+        a = bad();
+    end

@@ -1,0 +1,20 @@
+main
+    local
+        integer a;
+        integer b;
+        float c;
+    do
+        a = 2;
+        b = 3;
+        c = a + b * 1.5;
+
+        if (a < b) then
+            write(c);
+        else
+            write(a);
+        ;
+
+        while (a < 5) do
+            a = a + 1;
+        end;
+    end

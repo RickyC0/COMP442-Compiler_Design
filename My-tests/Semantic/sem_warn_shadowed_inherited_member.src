@@ -1,0 +1,11 @@
+class Base {
+    public integer x;
+};
+
+class Child inherits Base {
+    private integer x;
+};
+
+main
+  do
+  end

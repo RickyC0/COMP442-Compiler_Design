@@ -1,0 +1,6 @@
+main
+    local
+        integer a;
+    do
+        a = mystery(1);
+    end

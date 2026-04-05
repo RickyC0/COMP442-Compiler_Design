@@ -1,0 +1,7 @@
+main
+    local
+        integer a;
+    do
+        a = 1;
+        b = a + 1;
+    end
