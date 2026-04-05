@@ -5,4 +5,5 @@ main
   do
     idx = 1.5;
     arr[idx] = 7;
+    arr[2][2] = 7;
   end

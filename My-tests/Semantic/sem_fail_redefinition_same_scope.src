@@ -1,7 +1,11 @@
+class Point{
+    public integer a;
+};
+
 main
     local
-        integer a;
         float a;
+        integer a;
     do
         write(a);
     end

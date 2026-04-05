@@ -426,8 +426,20 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
     }
 
     if (node.getLeft() == nullptr) {
-        if (_currentScope->resolve(node.getName()) == nullptr) {
+        const SymbolEntry* symbol = _currentScope->resolve(node.getName());
+        if (symbol == nullptr) {
             reportError(node.getLineNumber(), "11.2 undeclared member variable or unresolved identifier: '" + node.getName() + "'");
+        } else {
+            // Check array dimensions match
+            const size_t declaredDimensions = symbol->dimensions.size();
+            const size_t accessedDimensions = node.getIndices().size();
+            if (declaredDimensions != accessedDimensions) {
+                reportError(
+                    node.getLineNumber(),
+                    "13.1 array '" + node.getName() + "' has " + std::to_string(declaredDimensions) +
+                    " dimension(s) but is accessed with " + std::to_string(accessedDimensions) + " index/indices"
+                );
+            }
         }
     } else {
         const std::string ownerType = inferExprType(node.getLeft());
@@ -624,6 +636,7 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
     SymbolEntry entry;
     entry.name = node.getName();
     entry.type = node.getTypeName();
+    entry.dimensions = node.getDimensions();
     entry.returnType = "null";
     entry.paramTypes.clear();
     entry.kind = node.getVisibility() == "local" ? SymbolKind::Variable : SymbolKind::Field;
@@ -744,6 +757,7 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         SymbolEntry paramEntry;
         paramEntry.name = param->getName();
         paramEntry.type = param->getTypeName();
+        paramEntry.dimensions = param->getDimensions();
         paramEntry.kind = SymbolKind::Parameter;
         paramEntry.visibility = "param";
         paramEntry.details = "null";
