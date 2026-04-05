@@ -59,9 +59,9 @@ std::string classNameFromScope(const std::string& scopeName) {
 }
 
 std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& scope) {
-    std::shared_ptr<SymbolTable> cur = scope;
-    while (cur != nullptr) {
-        const std::string name = cur->getScopeName();
+    std::shared_ptr<SymbolTable> currentScope = scope;
+    while (currentScope != nullptr) {
+        const std::string name = currentScope->getScopeName();
         if (name.rfind("function ", 0) == 0) {
             size_t sep = name.find("::");
             if (sep != std::string::npos) {
@@ -69,9 +69,34 @@ std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& 
             }
             return "";
         }
-        cur = cur->getParent();
+        currentScope = currentScope->getParent();
     }
     return "";
+}
+
+std::string getUserFriendlyScopeName(const std::shared_ptr<SymbolTable>& scope) {
+    if (scope == nullptr) {
+        return "";
+    }
+
+    const std::string scopeName = scope->getScopeName();
+
+    // If it's a block, find the enclosing function or class
+    if (scopeName.rfind("block#", 0) == 0) {
+        std::shared_ptr<SymbolTable> currentScope = scope->getParent();
+        while (currentScope != nullptr) {
+            const std::string name = currentScope->getScopeName();
+            if (name.rfind("function ", 0) == 0) {
+                return name;
+            }
+            if (name.rfind("class ", 0) == 0) {
+                return name;
+            }
+            currentScope = currentScope->getParent();
+        }
+    }
+
+    return scopeName;
 }
 
 bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
@@ -827,8 +852,10 @@ bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
     }
 
     // Pass 2 reuses pass-1 symbol tables; repeated declarations in the same
-    // scope should not emit duplicate redefinition diagnostics.
-    if (!isPassOne()) {
+    // scope should not emit duplicate redefinition diagnostics for symbols
+    // already registered in pass 1 (e.g., class fields or function declarations).
+    // However, local variables and parameters are always errors in pass 2.
+    if (!isPassOne() && entry.kind != SymbolKind::Variable && entry.kind != SymbolKind::Parameter) {
         const SymbolEntry* existing = _currentScope->lookupInCurrent(entry.name);
         if (existing != nullptr) {
             return true;
@@ -836,6 +863,7 @@ bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
     }
 
     const std::string scopeName = _currentScope->getScopeName();
+    const std::string userFriendlyScope = getUserFriendlyScopeName(_currentScope);
     if (entry.kind == SymbolKind::Class) {
         reportError(entry.line, "8.1 multiply declared class: '" + entry.name + "'");
     } else if (entry.kind == SymbolKind::Function && scopeName == "global") {
@@ -843,9 +871,9 @@ bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
     } else if (entry.kind == SymbolKind::Field && scopeName.rfind("class ", 0) == 0) {
         reportError(entry.line, "8.3 multiply declared data member in class: '" + entry.name + "'");
     } else if (entry.kind == SymbolKind::Variable || entry.kind == SymbolKind::Parameter) {
-        reportError(entry.line, "8.4 multiply declared variable in function: '" + entry.name + "'");
+        reportError(entry.line, "8.4 multiply declared variable '" + entry.name + "' in scope '" + userFriendlyScope + "'");
     } else {
-        reportError(entry.line, "redefinition of symbol '" + entry.name + "' in scope '" + _currentScope->getScopeName() + "'");
+        reportError(entry.line, "redefinition of symbol '" + entry.name + "' in scope '" + userFriendlyScope + "'");
     }
     return false;
 }
