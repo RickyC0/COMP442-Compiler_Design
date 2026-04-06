@@ -125,6 +125,7 @@ std::string CodeGenVisitor::makeLabel(const std::string& prefix) {
 
 void CodeGenVisitor::resetFunctionState() {
     _stackOffsets.clear();
+    _stackVarInfo.clear();
     _nextOffset = 0;
     _regs.reset();
     _lastExprReg = -1;
@@ -145,38 +146,48 @@ long CodeGenVisitor::sizeOfType(const std::string& typeName, int line) {
     return sizeOfClass(cleanType, visiting, line);
 }
 
-long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
-    auto knownSize = _classSizes.find(className);
-    if (knownSize != _classSizes.end()) {
-        return knownSize->second;
+bool CodeGenVisitor::buildClassLayout(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
+    const std::string cleanClassName = trimCopy(className);
+
+    if (_classLayouts.find(cleanClassName) != _classLayouts.end()) {
+        return true;
     }
 
-    if (visiting.find(className) != visiting.end()) {
-        reportError(line, "circular class storage dependency while sizing '" + className + "'");
-        return -1;
+    if (visiting.find(cleanClassName) != visiting.end()) {
+        reportError(line, "circular class storage dependency while building layout for '" + cleanClassName + "'");
+        return false;
     }
 
-    auto it = _classDecls.find(className);
-    if (it == _classDecls.end() || it->second == nullptr) {
-        reportError(line, "unknown class type in storage allocation: '" + className + "'");
-        return -1;
+    auto declIt = _classDecls.find(cleanClassName);
+    if (declIt == _classDecls.end() || declIt->second == nullptr) {
+        reportError(line, "unknown class type in storage allocation: '" + cleanClassName + "'");
+        return false;
     }
 
-    visiting.insert(className);
+    visiting.insert(cleanClassName);
 
-    long totalSize = 0;
-    const auto& classDecl = it->second;
+    ClassLayoutInfo layout;
+    long runningOffset = 0;
 
-    for (const auto& parent : classDecl->getParents()) {
-        const long parentSize = sizeOfClass(parent, visiting, line);
-        if (parentSize <= 0) {
-            visiting.erase(className);
-            return -1;
+    for (const auto& parentName : declIt->second->getParents()) {
+        if (!buildClassLayout(parentName, visiting, line)) {
+            visiting.erase(cleanClassName);
+            return false;
         }
-        totalSize += parentSize;
+
+        const ClassLayoutInfo& parentLayout = _classLayouts[parentName];
+        for (const auto& kv : parentLayout.fields) {
+            FieldLayoutInfo inherited = kv.second;
+            inherited.offset += runningOffset;
+            if (layout.fields.find(kv.first) == layout.fields.end()) {
+                layout.fields[kv.first] = inherited;
+            }
+        }
+
+        runningOffset += parentLayout.size;
     }
 
-    for (const auto& member : classDecl->getMembers()) {
+    for (const auto& member : declIt->second->getMembers()) {
         auto fieldDecl = std::dynamic_pointer_cast<VarDeclNode>(member);
         if (fieldDecl == nullptr) {
             continue;
@@ -184,21 +195,74 @@ long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_se
 
         const long fieldSize = sizeOfVar(fieldDecl);
         if (fieldSize <= 0) {
-            visiting.erase(className);
-            return -1;
+            visiting.erase(cleanClassName);
+            return false;
         }
 
-        totalSize += fieldSize;
+        FieldLayoutInfo field;
+        field.typeName = trimCopy(fieldDecl->getTypeName());
+        field.dimensions = fieldDecl->getDimensions();
+        field.offset = runningOffset;
+        field.size = fieldSize;
+
+        layout.fields[fieldDecl->getName()] = field;
+        runningOffset += fieldSize;
     }
 
-    visiting.erase(className);
-
-    if (totalSize <= 0) {
-        totalSize = 4;
+    if (runningOffset <= 0) {
+        runningOffset = 4;
     }
 
-    _classSizes[className] = totalSize;
-    return totalSize;
+    layout.size = runningOffset;
+    _classLayouts[cleanClassName] = layout;
+    _classSizes[cleanClassName] = layout.size;
+
+    visiting.erase(cleanClassName);
+    return true;
+}
+
+long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
+    const std::string cleanClassName = trimCopy(className);
+
+    auto knownSize = _classSizes.find(cleanClassName);
+    if (knownSize != _classSizes.end()) {
+        return knownSize->second;
+    }
+
+    if (!buildClassLayout(cleanClassName, visiting, line)) {
+        return -1;
+    }
+
+    knownSize = _classSizes.find(cleanClassName);
+    if (knownSize != _classSizes.end()) {
+        return knownSize->second;
+    }
+
+    reportError(line, "failed to compute class size for '" + cleanClassName + "'");
+    return -1;
+}
+
+bool CodeGenVisitor::lookupFieldLayout(const std::string& className, const std::string& fieldName, FieldLayoutInfo& out, int line) {
+    const std::string cleanClassName = trimCopy(className);
+    std::unordered_set<std::string> visiting;
+    if (!buildClassLayout(cleanClassName, visiting, line)) {
+        return false;
+    }
+
+    auto classIt = _classLayouts.find(cleanClassName);
+    if (classIt == _classLayouts.end()) {
+        reportError(line, "class layout missing for '" + cleanClassName + "'");
+        return false;
+    }
+
+    auto fieldIt = classIt->second.fields.find(fieldName);
+    if (fieldIt == classIt->second.fields.end()) {
+        reportError(line, "class '" + cleanClassName + "' has no field '" + fieldName + "' in code generation");
+        return false;
+    }
+
+    out = fieldIt->second;
+    return true;
 }
 
 long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
@@ -249,6 +313,20 @@ void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode
         _nextOffset -= varSize;
         _stackOffsets[name] = _nextOffset;
 
+        long elements = 1;
+        for (int dim : var->getDimensions()) {
+            if (dim > 0) {
+                elements *= dim;
+            }
+        }
+
+        long elementSize = (elements > 0) ? (varSize / elements) : 4;
+        if (elementSize <= 0) {
+            elementSize = 4;
+        }
+
+        _stackVarInfo[name] = {trimCopy(var->getTypeName()), var->getDimensions(), elementSize};
+
         emitComment("alloc " + name + " @ " + std::to_string(_nextOffset) + "(r14), size=" + std::to_string(varSize));
     }
 }
@@ -278,54 +356,280 @@ int CodeGenVisitor::evalExpr(const std::shared_ptr<ASTNode>& node) {
     return _lastExprReg;
 }
 
+bool CodeGenVisitor::resolveDataMemberType(const std::shared_ptr<DataMemberNode>& node, std::string& typeName, std::vector<int>& dimensions) {
+    if (node == nullptr) {
+        return false;
+    }
+
+    if (node->getLeft() == nullptr) {
+        auto infoIt = _stackVarInfo.find(node->getName());
+        if (infoIt == _stackVarInfo.end()) {
+            reportError(node->getLineNumber(), "unknown variable '" + node->getName() + "' in type resolution");
+            return false;
+        }
+
+        typeName = infoIt->second.typeName;
+        dimensions = infoIt->second.dimensions;
+    } else {
+        std::string ownerType;
+        std::vector<int> ownerDimensions;
+        if (!resolveNodeType(node->getLeft(), ownerType, ownerDimensions)) {
+            return false;
+        }
+
+        if (!ownerDimensions.empty()) {
+            reportError(node->getLineNumber(), "member access requires scalar object owner for '" + node->getName() + "'");
+            return false;
+        }
+
+        FieldLayoutInfo fieldLayout;
+        if (!lookupFieldLayout(ownerType, node->getName(), fieldLayout, node->getLineNumber())) {
+            return false;
+        }
+
+        typeName = fieldLayout.typeName;
+        dimensions = fieldLayout.dimensions;
+    }
+
+    if (node->getIndices().size() > dimensions.size()) {
+        reportError(node->getLineNumber(), "too many indices for member '" + node->getName() + "' in type resolution");
+        return false;
+    }
+
+    dimensions.erase(dimensions.begin(), dimensions.begin() + static_cast<long long>(node->getIndices().size()));
+    return true;
+}
+
+bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::string& typeName, std::vector<int>& dimensions) {
+    if (node == nullptr) {
+        return false;
+    }
+
+    if (auto idNode = std::dynamic_pointer_cast<IdNode>(node)) {
+        auto infoIt = _stackVarInfo.find(idNode->getName());
+        if (infoIt == _stackVarInfo.end()) {
+            reportError(idNode->getLineNumber(), "unknown identifier '" + idNode->getName() + "' in type resolution");
+            return false;
+        }
+
+        typeName = infoIt->second.typeName;
+        dimensions = infoIt->second.dimensions;
+        return true;
+    }
+
+    if (auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(node)) {
+        return resolveDataMemberType(dataMember, typeName, dimensions);
+    }
+
+    if (std::dynamic_pointer_cast<IntLitNode>(node) != nullptr) {
+        typeName = "integer";
+        dimensions.clear();
+        return true;
+    }
+
+    if (std::dynamic_pointer_cast<FloatLitNode>(node) != nullptr) {
+        typeName = "float";
+        dimensions.clear();
+        return true;
+    }
+
+    if (auto unaryNode = std::dynamic_pointer_cast<UnaryOpNode>(node)) {
+        return resolveNodeType(unaryNode->getLeft(), typeName, dimensions);
+    }
+
+    if (auto binaryNode = std::dynamic_pointer_cast<BinaryOpNode>(node)) {
+        std::string leftType;
+        std::vector<int> leftDims;
+        std::string rightType;
+        std::vector<int> rightDims;
+        if (!resolveNodeType(binaryNode->getLeft(), leftType, leftDims) || !resolveNodeType(binaryNode->getRight(), rightType, rightDims)) {
+            return false;
+        }
+
+        const std::string op = binaryNode->getOperator();
+        if (op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">=" || op == "and" || op == "or" || op == "&&" || op == "||") {
+            typeName = "bool";
+        } else if (leftType == "float" || rightType == "float") {
+            typeName = "float";
+        } else {
+            typeName = "integer";
+        }
+
+        dimensions.clear();
+        return true;
+    }
+
+    return false;
+}
+
+bool CodeGenVisitor::emitIndexOffsetIntoAddress(int addrReg,
+                                                const std::vector<std::shared_ptr<ASTNode>>& indices,
+                                                const std::vector<int>& declaredDimensions,
+                                                long elementSize,
+                                                int line) {
+    if (indices.empty()) {
+        return true;
+    }
+
+    if (indices.size() > declaredDimensions.size()) {
+        reportError(line, "too many array indices in code generation");
+        return false;
+    }
+
+    const int linearReg = _regs.acquire();
+    if (linearReg < 0) {
+        reportError(line, "register exhaustion while generating indexed address");
+        return false;
+    }
+
+    emit("addi " + regName(linearReg) + ", r0, 0");
+
+    for (size_t i = 0; i < indices.size(); ++i) {
+        const int idxReg = evalExpr(indices[i]);
+        if (idxReg < 0) {
+            _regs.release(linearReg);
+            return false;
+        }
+
+        long stride = 1;
+        for (size_t j = i + 1; j < declaredDimensions.size(); ++j) {
+            const int dim = declaredDimensions[j];
+            if (dim <= 0) {
+                _regs.release(idxReg);
+                _regs.release(linearReg);
+                reportError(line, "invalid declared array dimension in indexed addressing");
+                return false;
+            }
+            stride *= dim;
+        }
+
+        if (stride != 1) {
+            emit("muli " + regName(idxReg) + ", " + regName(idxReg) + ", " + std::to_string(stride));
+        }
+
+        emit("add " + regName(linearReg) + ", " + regName(linearReg) + ", " + regName(idxReg));
+        _regs.release(idxReg);
+    }
+
+    if (elementSize != 1) {
+        emit("muli " + regName(linearReg) + ", " + regName(linearReg) + ", " + std::to_string(elementSize));
+    }
+
+    emit("add " + regName(addrReg) + ", " + regName(addrReg) + ", " + regName(linearReg));
+    _regs.release(linearReg);
+    return true;
+}
+
+int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, int line) {
+    if (node == nullptr) {
+        reportError(line, "null l-value in address generation");
+        return -1;
+    }
+
+    if (auto idNode = std::dynamic_pointer_cast<IdNode>(node)) {
+        if (!hasOffset(idNode->getName())) {
+            reportError(idNode->getLineNumber(), "unknown variable '" + idNode->getName() + "' in code generation");
+            return -1;
+        }
+
+        const int addrReg = _regs.acquire();
+        if (addrReg < 0) {
+            reportError(idNode->getLineNumber(), "register exhaustion while generating l-value address");
+            return -1;
+        }
+
+        emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(idNode->getName())));
+        return addrReg;
+    }
+
+    if (auto memberNode = std::dynamic_pointer_cast<DataMemberNode>(node)) {
+        return emitAddressForDataMember(*memberNode);
+    }
+
+    reportError(line, "unsupported l-value expression in address generation");
+    return -1;
+}
+
 int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
-    if (node.getLeft() != nullptr) {
-        reportError(node.getLineNumber(), "object member address generation is not implemented");
-        return -1;
-    }
+    if (node.getLeft() == nullptr) {
+        if (!hasOffset(node.getName())) {
+            reportError(node.getLineNumber(), "unknown variable '" + node.getName() + "' in code generation");
+            return -1;
+        }
 
-    if (!hasOffset(node.getName())) {
-        reportError(node.getLineNumber(), "unknown variable '" + node.getName() + "' in code generation");
-        return -1;
-    }
-
-    const long baseOffset = lookupOffset(node.getName());
-
-    if (node.getIndices().empty()) {
-        const int baseReg = _regs.acquire();
-        if (baseReg < 0) {
+        const int addrReg = _regs.acquire();
+        if (addrReg < 0) {
             reportError(node.getLineNumber(), "register exhaustion while generating l-value address");
             return -1;
         }
 
-        emit("addi " + regName(baseReg) + ", r14, " + std::to_string(baseOffset));
-        return baseReg;
+        emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(node.getName())));
+
+        std::vector<int> declaredDimensions;
+        long elementSize = 4;
+        auto infoIt = _stackVarInfo.find(node.getName());
+        if (infoIt != _stackVarInfo.end()) {
+            declaredDimensions = infoIt->second.dimensions;
+            elementSize = infoIt->second.elementSize;
+        }
+
+        if (!emitIndexOffsetIntoAddress(addrReg, node.getIndices(), declaredDimensions, elementSize, node.getLineNumber())) {
+            _regs.release(addrReg);
+            return -1;
+        }
+
+        return addrReg;
     }
 
-    if (node.getIndices().size() != 1) {
-        reportError(node.getLineNumber(), "only one-dimensional array addressing is currently supported");
+    const int ownerAddrReg = emitAddressForLValue(node.getLeft(), node.getLineNumber());
+    if (ownerAddrReg < 0) {
         return -1;
     }
 
-    int idxReg = evalExpr(node.getIndices()[0]);
-    if (idxReg < 0) {
+    std::string ownerType;
+    std::vector<int> ownerDimensions;
+    if (!resolveNodeType(node.getLeft(), ownerType, ownerDimensions)) {
+        _regs.release(ownerAddrReg);
         return -1;
     }
 
-    emit("muli " + regName(idxReg) + ", " + regName(idxReg) + ", 4");
-
-    const int addrReg = _regs.acquire();
-    if (addrReg < 0) {
-        _regs.release(idxReg);
-        reportError(node.getLineNumber(), "register exhaustion while generating array address");
+    if (!ownerDimensions.empty()) {
+        reportError(node.getLineNumber(), "member access requires scalar object owner for '" + node.getName() + "'");
+        _regs.release(ownerAddrReg);
         return -1;
     }
 
-    emit("addi " + regName(addrReg) + ", r14, " + std::to_string(baseOffset));
-    emit("add " + regName(addrReg) + ", " + regName(addrReg) + ", " + regName(idxReg));
+    FieldLayoutInfo fieldLayout;
+    if (!lookupFieldLayout(ownerType, node.getName(), fieldLayout, node.getLineNumber())) {
+        _regs.release(ownerAddrReg);
+        return -1;
+    }
 
-    _regs.release(idxReg);
-    return addrReg;
+    if (fieldLayout.offset != 0) {
+        emit("addi " + regName(ownerAddrReg) + ", " + regName(ownerAddrReg) + ", " + std::to_string(fieldLayout.offset));
+    }
+
+    long elementCount = 1;
+    for (int dim : fieldLayout.dimensions) {
+        if (dim <= 0) {
+            _regs.release(ownerAddrReg);
+            reportError(node.getLineNumber(), "invalid declared field array dimension");
+            return -1;
+        }
+        elementCount *= dim;
+    }
+
+    long fieldElementSize = fieldLayout.size / elementCount;
+    if (fieldElementSize <= 0) {
+        fieldElementSize = 4;
+    }
+
+    if (!emitIndexOffsetIntoAddress(ownerAddrReg, node.getIndices(), fieldLayout.dimensions, fieldElementSize, node.getLineNumber())) {
+        _regs.release(ownerAddrReg);
+        return -1;
+    }
+
+    return ownerAddrReg;
 }
 
 bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg) {
@@ -514,12 +818,6 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
 }
 
 void CodeGenVisitor::visit(DataMemberNode& node) {
-    if (node.getLeft() != nullptr) {
-        reportError(node.getLineNumber(), "object member load is not implemented");
-        _lastExprReg = -1;
-        return;
-    }
-
     const int addrReg = emitAddressForDataMember(node);
     if (addrReg < 0) {
         _lastExprReg = -1;
@@ -673,6 +971,7 @@ void CodeGenVisitor::visit(ClassDeclNode& node) {
 
 void CodeGenVisitor::visit(ProgNode& node) {
     _classDecls.clear();
+    _classLayouts.clear();
     _classSizes.clear();
 
     for (const auto& cls : node.getClasses()) {

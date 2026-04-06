@@ -48,12 +48,32 @@ class CodeGenVisitor : public ASTVisitor {
                 std::vector<int> _freeRegs;
         };
 
+        struct StackVarInfo {
+            std::string typeName;
+            std::vector<int> dimensions;
+            long elementSize = 4;
+        };
+
+        struct FieldLayoutInfo {
+            std::string typeName;
+            std::vector<int> dimensions;
+            long offset = 0;
+            long size = 0;
+        };
+
+        struct ClassLayoutInfo {
+            long size = 0;
+            std::unordered_map<std::string, FieldLayoutInfo> fields;
+        };
+
         std::ostream& _out;
         RegisterAllocator _regs;
         std::vector<std::string> _errors;
 
         std::unordered_map<std::string, std::shared_ptr<ClassDeclNode>> _classDecls;
+        std::unordered_map<std::string, ClassLayoutInfo> _classLayouts;
         std::unordered_map<std::string, long> _classSizes;
+        std::unordered_map<std::string, StackVarInfo> _stackVarInfo;
         std::unordered_map<std::string, long> _stackOffsets;
         long _nextOffset = 0;
         int _labelCounter = 0;
@@ -70,13 +90,23 @@ class CodeGenVisitor : public ASTVisitor {
         void resetFunctionState();
         long sizeOfType(const std::string& typeName, int line);
         long sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line);
+        bool buildClassLayout(const std::string& className, std::unordered_set<std::string>& visiting, int line);
+        bool lookupFieldLayout(const std::string& className, const std::string& fieldName, FieldLayoutInfo& out, int line);
         void assignOffsets(const std::vector<std::shared_ptr<VarDeclNode>>& vars);
         long sizeOfVar(const std::shared_ptr<VarDeclNode>& decl);
+        bool resolveNodeType(const std::shared_ptr<ASTNode>& node, std::string& typeName, std::vector<int>& dimensions);
+        bool resolveDataMemberType(const std::shared_ptr<DataMemberNode>& node, std::string& typeName, std::vector<int>& dimensions);
+        bool emitIndexOffsetIntoAddress(int addrReg,
+                        const std::vector<std::shared_ptr<ASTNode>>& indices,
+                        const std::vector<int>& declaredDimensions,
+                        long elementSize,
+                        int line);
 
         bool hasOffset(const std::string& name) const;
         long lookupOffset(const std::string& name) const;
 
         int evalExpr(const std::shared_ptr<ASTNode>& node);
+        int emitAddressForLValue(const std::shared_ptr<ASTNode>& node, int line);
         int emitAddressForDataMember(DataMemberNode& node);
         bool emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg);
         void emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode);

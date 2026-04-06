@@ -44,7 +44,7 @@
 // 5.2: |  X  |     |
 // 5.3: |  X  |     |
 //      -------------
-// Expected current backend status: semantic should pass, codegen reports unsupported object member lowering.
+// Expected current backend status: semantic and codegen should both pass with object-member lowering enabled.
 
 class Point {
     public integer x;
