@@ -7,6 +7,7 @@
 #include <ostream>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class CodeGenVisitor : public ASTVisitor {
@@ -51,6 +52,8 @@ class CodeGenVisitor : public ASTVisitor {
         RegisterAllocator _regs;
         std::vector<std::string> _errors;
 
+        std::unordered_map<std::string, std::shared_ptr<ClassDeclNode>> _classDecls;
+        std::unordered_map<std::string, long> _classSizes;
         std::unordered_map<std::string, long> _stackOffsets;
         long _nextOffset = 0;
         int _labelCounter = 0;
@@ -65,8 +68,10 @@ class CodeGenVisitor : public ASTVisitor {
         std::string makeLabel(const std::string& prefix);
 
         void resetFunctionState();
+        long sizeOfType(const std::string& typeName, int line);
+        long sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line);
         void assignOffsets(const std::vector<std::shared_ptr<VarDeclNode>>& vars);
-        long sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) const;
+        long sizeOfVar(const std::shared_ptr<VarDeclNode>& decl);
 
         bool hasOffset(const std::string& name) const;
         long lookupOffset(const std::string& name) const;

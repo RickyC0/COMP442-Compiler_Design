@@ -4,10 +4,29 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <cctype>
 
 namespace {
 std::string regName(int reg) {
     return "r" + std::to_string(reg);
+}
+
+std::string trimCopy(const std::string& raw) {
+    size_t start = 0;
+    while (start < raw.size() && std::isspace(static_cast<unsigned char>(raw[start]))) {
+        ++start;
+    }
+
+    size_t end = raw.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(raw[end - 1]))) {
+        --end;
+    }
+
+    return raw.substr(start, end - start);
+}
+
+bool isBasicScalarType(const std::string& typeName) {
+    return typeName == "integer" || typeName == "float" || typeName == "bool";
 }
 }
 
@@ -111,19 +130,98 @@ void CodeGenVisitor::resetFunctionState() {
     _lastExprReg = -1;
 }
 
-long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) const {
+long CodeGenVisitor::sizeOfType(const std::string& typeName, int line) {
+    const std::string cleanType = trimCopy(typeName);
+    if (cleanType.empty()) {
+        reportError(line, "cannot compute storage size for empty type name");
+        return -1;
+    }
+
+    if (isBasicScalarType(cleanType)) {
+        return 4;
+    }
+
+    std::unordered_set<std::string> visiting;
+    return sizeOfClass(cleanType, visiting, line);
+}
+
+long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
+    auto knownSize = _classSizes.find(className);
+    if (knownSize != _classSizes.end()) {
+        return knownSize->second;
+    }
+
+    if (visiting.find(className) != visiting.end()) {
+        reportError(line, "circular class storage dependency while sizing '" + className + "'");
+        return -1;
+    }
+
+    auto it = _classDecls.find(className);
+    if (it == _classDecls.end() || it->second == nullptr) {
+        reportError(line, "unknown class type in storage allocation: '" + className + "'");
+        return -1;
+    }
+
+    visiting.insert(className);
+
+    long totalSize = 0;
+    const auto& classDecl = it->second;
+
+    for (const auto& parent : classDecl->getParents()) {
+        const long parentSize = sizeOfClass(parent, visiting, line);
+        if (parentSize <= 0) {
+            visiting.erase(className);
+            return -1;
+        }
+        totalSize += parentSize;
+    }
+
+    for (const auto& member : classDecl->getMembers()) {
+        auto fieldDecl = std::dynamic_pointer_cast<VarDeclNode>(member);
+        if (fieldDecl == nullptr) {
+            continue;
+        }
+
+        const long fieldSize = sizeOfVar(fieldDecl);
+        if (fieldSize <= 0) {
+            visiting.erase(className);
+            return -1;
+        }
+
+        totalSize += fieldSize;
+    }
+
+    visiting.erase(className);
+
+    if (totalSize <= 0) {
+        totalSize = 4;
+    }
+
+    _classSizes[className] = totalSize;
+    return totalSize;
+}
+
+long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
     if (decl == nullptr) {
         return 0;
     }
 
     long elements = 1;
     for (int dim : decl->getDimensions()) {
-        if (dim > 0) {
-            elements *= dim;
+        if (dim <= 0) {
+            reportError(decl->getLineNumber(), "invalid array dimension for variable '" + decl->getName() + "'");
+            return -1;
         }
+
+        elements *= dim;
     }
 
-    return elements * 4;
+    const long elementSize = sizeOfType(decl->getTypeName(), decl->getLineNumber());
+    if (elementSize <= 0) {
+        return -1;
+    }
+
+    return elements * elementSize;
 }
 
 void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode>>& vars) {
@@ -574,6 +672,15 @@ void CodeGenVisitor::visit(ClassDeclNode& node) {
 }
 
 void CodeGenVisitor::visit(ProgNode& node) {
+    _classDecls.clear();
+    _classSizes.clear();
+
+    for (const auto& cls : node.getClasses()) {
+        if (cls != nullptr) {
+            _classDecls[cls->getName()] = cls;
+        }
+    }
+
     for (const auto& cls : node.getClasses()) {
         if (cls != nullptr) {
             cls->accept(*this);
