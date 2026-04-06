@@ -162,7 +162,7 @@ The semantic analyzer reports structured errors and warnings with line numbers. 
 
 ```bash
 cd ./src/
-g++ -std=c++17 -static -I../include -o driver *.cpp
+g++ -std=c++17 -static -I../include -o ../exe/driver *.cpp 
 ```
 
 ## Generated Outputs
