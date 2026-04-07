@@ -29,6 +29,15 @@ bool isBasicScalarType(const std::string& typeName) {
     return typeName == "integer" || typeName == "float" || typeName == "bool";
 }
 
+bool hasUnspecifiedDimension(const std::vector<int>& dimensions) {
+    for (int dim : dimensions) {
+        if (dim <= 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 constexpr int kFloatScale = 100;
 }
 
@@ -195,14 +204,21 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
         cursor -= localSize;
         layout.varOffsets[local->getName()] = cursor;
 
-        long localElements = 1;
-        for (int dim : local->getDimensions()) {
-            if (dim > 0) {
-                localElements *= dim;
+        const bool localHasUnspecifiedDim = hasUnspecifiedDimension(local->getDimensions());
+
+        long localElementSize = 4;
+        if (localHasUnspecifiedDim) {
+            localElementSize = sizeOfType(local->getTypeName(), local->getLineNumber());
+        } else {
+            long localElements = 1;
+            for (int dim : local->getDimensions()) {
+                if (dim > 0) {
+                    localElements *= dim;
+                }
             }
+            localElementSize = (localElements > 0) ? (localSize / localElements) : 4;
         }
 
-        long localElementSize = (localElements > 0) ? (localSize / localElements) : 4;
         if (localElementSize <= 0) {
             localElementSize = 4;
         }
@@ -211,7 +227,7 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
             trimCopy(local->getTypeName()),
             local->getDimensions(),
             localElementSize,
-            false
+            localHasUnspecifiedDim
         };
     }
 
@@ -376,13 +392,12 @@ long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
         return 4;
     }
 
+    if (hasUnspecifiedDimension(decl->getDimensions())) {
+        return 4;
+    }
+
     long elements = 1;
     for (int dim : decl->getDimensions()) {
-        if (dim <= 0) {
-            reportError(decl->getLineNumber(), "invalid array dimension for variable '" + decl->getName() + "'");
-            return -1;
-        }
-
         elements *= dim;
     }
 
@@ -419,14 +434,19 @@ void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode
         _nextOffset -= varSize;
         _stackOffsets[name] = _nextOffset;
 
-        long elements = 1;
-        for (int dim : var->getDimensions()) {
-            if (dim > 0) {
-                elements *= dim;
+        long elementSize = 4;
+        if (hasUnspecifiedDimension(var->getDimensions())) {
+            elementSize = sizeOfType(var->getTypeName(), var->getLineNumber());
+        } else {
+            long elements = 1;
+            for (int dim : var->getDimensions()) {
+                if (dim > 0) {
+                    elements *= dim;
+                }
             }
+            elementSize = (elements > 0) ? (varSize / elements) : 4;
         }
 
-        long elementSize = (elements > 0) ? (varSize / elements) : 4;
         if (elementSize <= 0) {
             elementSize = 4;
         }
@@ -435,7 +455,7 @@ void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode
             trimCopy(var->getTypeName()),
             var->getDimensions(),
             elementSize,
-            var->getVisibility() == "param" && !var->getDimensions().empty()
+            (var->getVisibility() == "param" && !var->getDimensions().empty()) || hasUnspecifiedDimension(var->getDimensions())
         };
 
         emitComment("alloc " + name + " @ " + std::to_string(_nextOffset) + "(r14), size=" + std::to_string(varSize));
@@ -629,10 +649,7 @@ bool CodeGenVisitor::emitIndexOffsetIntoAddress(int addrReg,
         for (size_t j = i + 1; j < declaredDimensions.size(); ++j) {
             const int dim = declaredDimensions[j];
             if (dim <= 0) {
-                _regs.release(idxReg);
-                _regs.release(linearReg);
-                reportError(line, "invalid declared array dimension in indexed addressing");
-                return false;
+                continue;
             }
             stride *= dim;
         }
@@ -778,19 +795,22 @@ int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
         emit("addi " + regName(ownerAddrReg) + ", " + regName(ownerAddrReg) + ", " + std::to_string(fieldLayout.offset));
     }
 
-    long elementCount = 1;
-    for (int dim : fieldLayout.dimensions) {
-        if (dim <= 0) {
-            _regs.release(ownerAddrReg);
-            reportError(node.getLineNumber(), "invalid declared field array dimension");
-            return -1;
-        }
-        elementCount *= dim;
-    }
-
-    long fieldElementSize = fieldLayout.size / elementCount;
+    long fieldElementSize = sizeOfType(fieldLayout.typeName, node.getLineNumber());
     if (fieldElementSize <= 0) {
         fieldElementSize = 4;
+    }
+
+    if (!hasUnspecifiedDimension(fieldLayout.dimensions)) {
+        long elementCount = 1;
+        for (int dim : fieldLayout.dimensions) {
+            elementCount *= dim;
+        }
+        if (elementCount > 0) {
+            long computed = fieldLayout.size / elementCount;
+            if (computed > 0) {
+                fieldElementSize = computed;
+            }
+        }
     }
 
     if (!emitIndexOffsetIntoAddress(ownerAddrReg, node.getIndices(), fieldLayout.dimensions, fieldElementSize, node.getLineNumber())) {

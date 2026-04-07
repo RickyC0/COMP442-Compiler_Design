@@ -117,3 +117,18 @@ This folder contains focused semantic-analysis tests.
    - Purpose: same free function signature defined more than once (`8.2`).
    - Expected: `FAIL`.
 
+28. `sem_pass_array_decl_access_update.src`
+   - Purpose: valid array declaration with explicit size plus array access/update through an unsized array parameter.
+   - Expected: `PASS`.
+
+29. `sem_fail_array_decl_access_update_bounds.src`
+   - Purpose: declared-size array triggers semantic bounds filters (negative constant index, oversize/negative size literals passed to unsized array parameter + size pair).
+   - Expected: `FAIL`.
+
+## Additional Semantic Filters (Declared-size Arrays)
+
+- When an array has an explicit declared size (for example `integer data[4]`), semantic analysis applies additional constant checks:
+- constant negative index usage is rejected.
+- constant out-of-range index usage is rejected.
+- for calls shaped like `fn(arr[], size)`, constant size arguments are validated against the declared first dimension of the actual array argument.
+
