@@ -530,7 +530,43 @@ void SemanticAnalyzer::visit(WhileStmtNode& node) {
 }
 
 void SemanticAnalyzer::visit(IOStmtNode& node) {
+    if (isPassOne()) {
+        visitNode(node.getLeft());
+        return;
+    }
+
     visitNode(node.getLeft());
+
+    const std::string ioType = node.getValue();
+    const std::string exprType = inferExprType(node.getLeft());
+    const std::string baseType = baseTypeName(exprType);
+
+    if (exprType == "null") {
+        return;
+    }
+
+    if (ioType == "read") {
+        if (std::dynamic_pointer_cast<IdNode>(node.getLeft()) == nullptr &&
+            std::dynamic_pointer_cast<DataMemberNode>(node.getLeft()) == nullptr) {
+            reportError(node.getLineNumber(), "read statement requires an assignable variable/member target");
+            return;
+        }
+
+        if (baseType != "integer" && baseType != "float" && baseType != "bool") {
+            reportError(
+                node.getLineNumber(),
+                "read statement target must be scalar integer/float/bool, found '" + baseType + "'"
+            );
+        }
+
+        return;
+    }
+
+    if (ioType == "write") {
+        if (baseType == "void") {
+            reportError(node.getLineNumber(), "write statement cannot output expression of type 'void'");
+        }
+    }
 }
 
 void SemanticAnalyzer::visit(ReturnStmtNode& node) {

@@ -17,7 +17,7 @@ Each `.src` file includes:
 - `cg_ctrl_if_while_expr.src`
   - covers assignment/if/while/io/complex expression (`3.1`, `3.2`, `3.3`, `3.4`, `5.1`)
 - `cg_io_terminal_read.src`
-  - covers terminal input lowering (`read`) and output (`write`) without blocking CI (`3.4`)
+  - covers terminal input/output lowering for float values (`read`/`write`) without blocking CI (`3.4`)
 - `cg_array_expr_index.src`
   - covers expression-based array indices (`4.1`, `5.2`)
 - `cg_object_inheritance_alloc.src`

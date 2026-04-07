@@ -49,18 +49,18 @@
 main
     local
         integer doRead;
-        integer inputChar;
-        integer outputChar;
+        float inputValue;
+        float outputValue;
     do
         doRead = 1;
-        inputChar = 65;
-        outputChar = 90;
+        inputValue = 88.5;
+        outputValue = 9.2;
 
         if (doRead == 1) then
-            read(outputChar);
+            read(outputValue);
         else
-            outputChar = inputChar;
+            outputValue = inputValue;
         ;
 
-        write(outputChar);
+        write(outputValue);
     end

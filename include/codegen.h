@@ -97,6 +97,7 @@ class CodeGenVisitor : public ASTVisitor {
         std::string _currentFunction;
         std::string _currentClassName;
         std::string _currentReturnLabel;
+        std::string _currentReturnType;
         long _currentFrameSize = 0;
         long _currentThisOffset = 0;
 

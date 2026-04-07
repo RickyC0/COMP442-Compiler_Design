@@ -28,6 +28,8 @@ std::string trimCopy(const std::string& raw) {
 bool isBasicScalarType(const std::string& typeName) {
     return typeName == "integer" || typeName == "float" || typeName == "bool";
 }
+
+constexpr int kFloatScale = 100;
 }
 
 CodeGenVisitor::RegisterAllocator::RegisterAllocator() {
@@ -807,6 +809,7 @@ void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functi
     _currentFrameSize = layout.frameSize;
     _currentThisOffset = layout.thisOffset;
     _currentReturnLabel = layout.label + "_ret";
+    _currentReturnType = trimCopy(functionNode->getReturnType());
 
     _stackOffsets = layout.varOffsets;
     _stackVarInfo = layout.varInfo;
@@ -836,6 +839,7 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("addi r2, r0, 1");
     emit("rt_readInt_skip_ws");
     emit("getc r3");
+    emit("andi r3, r3, 255");
     emit("ceqi r4, r3, 32");
     emit("bz r4, rt_readInt_check_tab");
     emit("j rt_readInt_skip_ws");
@@ -856,11 +860,13 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("bz r4, rt_readInt_check_plus");
     emit("addi r2, r0, -1");
     emit("getc r3");
+    emit("andi r3, r3, 255");
     emit("j rt_readInt_digit_loop");
     emit("rt_readInt_check_plus");
     emit("ceqi r4, r3, 43");
     emit("bz r4, rt_readInt_digit_loop");
     emit("getc r3");
+    emit("andi r3, r3, 255");
     emit("rt_readInt_digit_loop");
     emit("addi r6, r0, 48");
     emit("addi r7, r0, 57");
@@ -876,12 +882,110 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("sub r8, r3, r6");
     emit("add r1, r1, r8");
     emit("getc r3");
+    emit("andi r3, r3, 255");
     emit("j rt_readInt_digit_loop");
     emit("rt_readInt_apply_sign");
     emit("clt r4, r2, r0");
     emit("bz r4, rt_readInt_ret");
     emit("sub r1, r0, r1");
     emit("rt_readInt_ret");
+    emit("jr r15");
+
+    emitComment("runtime helper: rt_readFloat (returns fixed-point float in r1, scale=1000)");
+    emit("rt_readFloat");
+    emit("addi r1, r0, 0");
+    emit("addi r2, r0, 1");
+    emit("rt_readFloat_skip_ws");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("ceqi r4, r3, 32");
+    emit("bz r4, rt_readFloat_check_tab");
+    emit("j rt_readFloat_skip_ws");
+    emit("rt_readFloat_check_tab");
+    emit("ceqi r4, r3, 9");
+    emit("bz r4, rt_readFloat_check_lf");
+    emit("j rt_readFloat_skip_ws");
+    emit("rt_readFloat_check_lf");
+    emit("ceqi r4, r3, 10");
+    emit("bz r4, rt_readFloat_check_cr");
+    emit("j rt_readFloat_skip_ws");
+    emit("rt_readFloat_check_cr");
+    emit("ceqi r4, r3, 13");
+    emit("bz r4, rt_readFloat_check_sign");
+    emit("j rt_readFloat_skip_ws");
+    emit("rt_readFloat_check_sign");
+    emit("ceqi r4, r3, 45");
+    emit("bz r4, rt_readFloat_check_plus");
+    emit("addi r2, r0, -1");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("j rt_readFloat_int_loop");
+    emit("rt_readFloat_check_plus");
+    emit("ceqi r4, r3, 43");
+    emit("bz r4, rt_readFloat_int_loop");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("rt_readFloat_int_loop");
+    emit("addi r6, r0, 48");
+    emit("addi r7, r0, 57");
+    emit("clt r4, r3, r6");
+    emit("bz r4, rt_readFloat_int_check_upper");
+    emit("j rt_readFloat_maybe_frac");
+    emit("rt_readFloat_int_check_upper");
+    emit("cgt r4, r3, r7");
+    emit("bz r4, rt_readFloat_int_consume");
+    emit("j rt_readFloat_maybe_frac");
+    emit("rt_readFloat_int_consume");
+    emit("muli r1, r1, 10");
+    emit("sub r8, r3, r6");
+    emit("add r1, r1, r8");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("j rt_readFloat_int_loop");
+    emit("rt_readFloat_maybe_frac");
+    emit("addi r11, r0, 0");
+    emit("addi r10, r0, 0");
+    emit("muli r1, r1, 1000");
+    emit("ceqi r4, r3, 46");
+    emit("bz r4, rt_readFloat_apply_sign");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("addi r11, r0, 100");
+    emit("addi r10, r0, 0");
+    emit("rt_readFloat_frac_loop");
+    emit("clt r4, r3, r6");
+    emit("bz r4, rt_readFloat_frac_check_upper");
+    emit("j rt_readFloat_apply_sign");
+    emit("rt_readFloat_frac_check_upper");
+    emit("cgt r4, r3, r7");
+    emit("bz r4, rt_readFloat_frac_consume");
+    emit("j rt_readFloat_apply_sign");
+    emit("rt_readFloat_frac_consume");
+    emit("ceqi r4, r11, 0");
+    emit("bz r4, rt_readFloat_frac_store");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("j rt_readFloat_frac_loop");
+    emit("rt_readFloat_frac_store");
+    emit("sub r8, r3, r6");
+    emit("mul r8, r8, r11");
+    emit("add r10, r10, r8");
+    emit("ceqi r4, r11, 1");
+    emit("bz r4, rt_readFloat_frac_scale_down");
+    emit("addi r11, r0, 0");
+    emit("j rt_readFloat_frac_next");
+    emit("rt_readFloat_frac_scale_down");
+    emit("divi r11, r11, 10");
+    emit("rt_readFloat_frac_next");
+    emit("getc r3");
+    emit("andi r3, r3, 255");
+    emit("j rt_readFloat_frac_loop");
+    emit("rt_readFloat_apply_sign");
+    emit("add r1, r1, r10");
+    emit("clt r4, r2, r0");
+    emit("bz r4, rt_readFloat_ret");
+    emit("sub r1, r0, r1");
+    emit("rt_readFloat_ret");
     emit("jr r15");
 
     emitComment("runtime helper: rt_writeInt (prints integer from r1)");
@@ -925,6 +1029,37 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("j rt_writeInt_print_loop");
     emit("rt_writeInt_done");
     emit("addi r14, r14, 64");
+    emit("jr r15");
+
+    emitComment("runtime helper: rt_writeFloat (prints fixed-point float from r1, scale=1000)");
+    emit("rt_writeFloat");
+    emit("add r2, r1, r0");
+    emit("clt r3, r2, r0");
+    emit("bz r3, rt_writeFloat_abs_ready");
+    emit("addi r4, r0, 45");
+    emit("putc r4");
+    emit("sub r2, r0, r2");
+    emit("rt_writeFloat_abs_ready");
+    emit("divi r5, r2, 1000");
+    emit("modi r6, r2, 1000");
+    emit("add r11, r6, r0");
+    emit("add r10, r15, r0");
+    emit("add r1, r5, r0");
+    emit("jl r15, rt_writeInt");
+    emit("add r15, r10, r0");
+    emit("add r6, r11, r0");
+    emit("addi r4, r0, 46");
+    emit("putc r4");
+    emit("divi r7, r6, 100");
+    emit("addi r7, r7, 48");
+    emit("putc r7");
+    emit("modi r6, r6, 100");
+    emit("divi r7, r6, 10");
+    emit("addi r7, r7, 48");
+    emit("putc r7");
+    emit("modi r7, r6, 10");
+    emit("addi r7, r7, 48");
+    emit("putc r7");
     emit("jr r15");
 }
 
@@ -1001,8 +1136,8 @@ void CodeGenVisitor::visit(FloatLitNode& node) {
         return;
     }
 
-    const long lowered = static_cast<long>(std::llround(node.getFloatValue()));
-    emitComment("float literal lowered to integer immediate");
+    const long lowered = static_cast<long>(std::llround(node.getFloatValue() * static_cast<float>(kFloatScale)));
+    emitComment("float literal lowered to fixed-point immediate (scale=" + std::to_string(kFloatScale) + ")");
     emit("addi " + regName(reg) + ", r0, " + std::to_string(lowered));
     _lastExprReg = reg;
 }
@@ -1028,13 +1163,41 @@ void CodeGenVisitor::visit(BinaryOpNode& node) {
 
     const std::string op = node.getOperator();
 
+    std::string leftType;
+    std::vector<int> leftDims;
+    std::string rightType;
+    std::vector<int> rightDims;
+    const bool leftResolved = resolveNodeType(node.getLeft(), leftType, leftDims);
+    const bool rightResolved = resolveNodeType(node.getRight(), rightType, rightDims);
+    const bool leftIsFloat = leftResolved && leftDims.empty() && trimCopy(leftType) == "float";
+    const bool rightIsFloat = rightResolved && rightDims.empty() && trimCopy(rightType) == "float";
+
+    const bool isArithmetic = op == "+" || op == "-" || op == "*" || op == "/" || op == "mod";
+    const bool isComparison = op == "==" || op == "!=" || op == "<" || op == "<=" || op == ">" || op == ">=";
+    const bool useFloatFixedPoint = (isArithmetic || isComparison) && (leftIsFloat || rightIsFloat);
+
+    if (useFloatFixedPoint) {
+        if (!leftIsFloat) {
+            emit("muli " + regName(leftReg) + ", " + regName(leftReg) + ", " + std::to_string(kFloatScale));
+        }
+        if (!rightIsFloat) {
+            emit("muli " + regName(rightReg) + ", " + regName(rightReg) + ", " + std::to_string(kFloatScale));
+        }
+    }
+
     if (op == "+") {
         emit("add " + regName(leftReg) + ", " + regName(leftReg) + ", " + regName(rightReg));
     } else if (op == "-") {
         emit("sub " + regName(leftReg) + ", " + regName(leftReg) + ", " + regName(rightReg));
     } else if (op == "*") {
         emit("mul " + regName(leftReg) + ", " + regName(leftReg) + ", " + regName(rightReg));
+        if (useFloatFixedPoint) {
+            emit("divi " + regName(leftReg) + ", " + regName(leftReg) + ", " + std::to_string(kFloatScale));
+        }
     } else if (op == "/") {
+        if (useFloatFixedPoint) {
+            emit("muli " + regName(leftReg) + ", " + regName(leftReg) + ", " + std::to_string(kFloatScale));
+        }
         emit("div " + regName(leftReg) + ", " + regName(leftReg) + ", " + regName(rightReg));
     } else if (op == "mod") {
         emit("mod " + regName(leftReg) + ", " + regName(leftReg) + ", " + regName(rightReg));
@@ -1136,6 +1299,24 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
             return;
         }
 
+        std::string expectedType;
+        if (i < targetLayout->paramNames.size()) {
+            auto paramInfoIt = targetLayout->varInfo.find(targetLayout->paramNames[i]);
+            if (paramInfoIt != targetLayout->varInfo.end() && paramInfoIt->second.dimensions.empty()) {
+                expectedType = trimCopy(paramInfoIt->second.typeName);
+            }
+        }
+
+        std::string actualType;
+        std::vector<int> actualDims;
+        const bool actualResolved = resolveNodeType(node.getArgs()[i], actualType, actualDims);
+        const bool actualIsFloat = actualResolved && actualDims.empty() && trimCopy(actualType) == "float";
+        const bool expectedIsFloat = expectedType == "float";
+
+        if (expectedIsFloat && !actualIsFloat) {
+            emit("muli " + regName(argReg) + ", " + regName(argReg) + ", " + std::to_string(kFloatScale));
+        }
+
         const long storeOffset = targetLayout->paramOffsets[i] - callerFrameSize;
         emit("sw " + std::to_string(storeOffset) + "(r14), " + regName(argReg));
         _regs.release(argReg);
@@ -1222,6 +1403,19 @@ void CodeGenVisitor::visit(AssignStmtNode& node) {
         return;
     }
 
+    std::string leftType;
+    std::vector<int> leftDims;
+    std::string rightType;
+    std::vector<int> rightDims;
+    const bool leftResolved = resolveNodeType(node.getLeft(), leftType, leftDims);
+    const bool rightResolved = resolveNodeType(node.getRight(), rightType, rightDims);
+    const bool leftIsFloat = leftResolved && leftDims.empty() && trimCopy(leftType) == "float";
+    const bool rightIsFloat = rightResolved && rightDims.empty() && trimCopy(rightType) == "float";
+
+    if (leftIsFloat && !rightIsFloat) {
+        emit("muli " + regName(valueReg) + ", " + regName(valueReg) + ", " + std::to_string(kFloatScale));
+    }
+
     if (!emitStoreTarget(node.getLeft(), valueReg)) {
         _regs.release(valueReg);
         return;
@@ -1298,8 +1492,13 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
             return;
         }
 
-        emitComment("read lowered to decimal integer parser (rt_readInt)");
-        emit("jl r15, rt_readInt");
+        if (targetType == "float") {
+            emitComment("read lowered to decimal float parser (rt_readFloat)");
+            emit("jl r15, rt_readFloat");
+        } else {
+            emitComment("read lowered to decimal integer parser (rt_readInt)");
+            emit("jl r15, rt_readInt");
+        }
 
         int inputReg = _regs.acquire();
         if (inputReg < 0) {
@@ -1319,9 +1518,19 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
             return;
         }
 
-        emitComment("write lowered to decimal integer printer (rt_writeInt)");
+        std::string valueType;
+        std::vector<int> valueDims;
+        const bool valueResolved = resolveNodeType(node.getLeft(), valueType, valueDims);
+        const bool valueIsFloat = valueResolved && valueDims.empty() && trimCopy(valueType) == "float";
+
         emit("add r1, " + regName(valueReg) + ", r0");
-        emit("jl r15, rt_writeInt");
+        if (valueIsFloat) {
+            emitComment("write lowered to fixed-point float printer (rt_writeFloat)");
+            emit("jl r15, rt_writeFloat");
+        } else {
+            emitComment("write lowered to decimal integer printer (rt_writeInt)");
+            emit("jl r15, rt_writeInt");
+        }
         _regs.release(valueReg);
         return;
     }
@@ -1333,6 +1542,14 @@ void CodeGenVisitor::visit(ReturnStmtNode& node) {
     if (node.getLeft() != nullptr) {
         int retReg = evalExpr(node.getLeft());
         if (retReg >= 0) {
+            std::string actualType;
+            std::vector<int> actualDims;
+            const bool actualResolved = resolveNodeType(node.getLeft(), actualType, actualDims);
+            const bool actualIsFloat = actualResolved && actualDims.empty() && trimCopy(actualType) == "float";
+            if (_currentReturnType == "float" && !actualIsFloat) {
+                emit("muli " + regName(retReg) + ", " + regName(retReg) + ", " + std::to_string(kFloatScale));
+            }
+
             emitComment("return value currently lowered into r1");
             emit("add r1, " + regName(retReg) + ", r0");
             _regs.release(retReg);
