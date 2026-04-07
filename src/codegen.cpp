@@ -7,38 +7,52 @@
 #include <cctype>
 
 namespace {
-std::string regName(int reg) {
-    return "r" + std::to_string(reg);
-}
-
-std::string trimCopy(const std::string& raw) {
-    size_t start = 0;
-    while (start < raw.size() && std::isspace(static_cast<unsigned char>(raw[start]))) {
-        ++start;
+    std::string regName(int reg) {
+        return "r" + std::to_string(reg);
     }
 
-    size_t end = raw.size();
-    while (end > start && std::isspace(static_cast<unsigned char>(raw[end - 1]))) {
-        --end;
-    }
-
-    return raw.substr(start, end - start);
-}
-
-bool isBasicScalarType(const std::string& typeName) {
-    return typeName == "integer" || typeName == "float" || typeName == "bool";
-}
-
-bool hasUnspecifiedDimension(const std::vector<int>& dimensions) {
-    for (int dim : dimensions) {
-        if (dim <= 0) {
-            return true;
+    std::string trimCopy(const std::string& raw) {
+        size_t start = 0;
+        while (start < raw.size() && std::isspace(static_cast<unsigned char>(raw[start]))) {
+            ++start;
         }
-    }
-    return false;
-}
 
-constexpr int kFloatScale = 100;
+        size_t end = raw.size();
+        while (end > start && std::isspace(static_cast<unsigned char>(raw[end - 1]))) {
+            --end;
+        }
+
+        return raw.substr(start, end - start);
+    }
+
+    bool isBasicScalarType(const std::string& typeName) {
+        return typeName == "integer" || typeName == "float" || typeName == "bool";
+    }
+
+    bool hasUnspecifiedDimension(const std::vector<int>& dimensions) {
+        for (int dim : dimensions) {
+            if (dim <= 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    constexpr bool isPowerOfTen(int value) { // USED LATER IN CODEGEN FOR VALIDATING FLOAT SCALE CONSTANT
+        if (value < 1) {
+            return false;
+        }
+
+        while ((value % 10) == 0) {
+            value /= 10;
+        }
+
+        return value == 1;
+    }
+
+    constexpr int kFloatScale = 100; //must be a power of 10 to avoid precision issues in scaled integer representation. USE THIS CONSTANT ACCROSS ALL CODEGEN LOGIC FOR CONSISTENCY
+    constexpr int kFloatFirstFractionPlace = kFloatScale / 10;
+    static_assert(kFloatScale >= 10 && isPowerOfTen(kFloatScale), "kFloatScale must be a power of ten >= 10");
 }
 
 CodeGenVisitor::RegisterAllocator::RegisterAllocator() {
@@ -158,6 +172,7 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
     FunctionLayoutInfo layout;
     layout.className = trimCopy(functionNode->getClassName());
     layout.name = functionNode->getName();
+    layout.returnType = trimCopy(functionNode->getReturnType());
     layout.isMethod = !layout.className.empty();
     layout.key = functionKey(layout.className, layout.name);
     layout.label = "fn_" + sanitizeName(layout.key);
@@ -613,6 +628,40 @@ bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::
         return true;
     }
 
+    if (auto callNode = std::dynamic_pointer_cast<FuncCallNode>(node)) {
+        const FunctionLayoutInfo* targetLayout = nullptr;
+
+        auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(callNode->getLeft());
+        if (calleeMember != nullptr && calleeMember->getLeft() != nullptr) {
+            std::string ownerType;
+            std::vector<int> ownerDimensions;
+            if (!resolveNodeType(calleeMember->getLeft(), ownerType, ownerDimensions)) {
+                return false;
+            }
+
+            if (!ownerDimensions.empty()) {
+                reportError(callNode->getLineNumber(), "method receiver must be a scalar object");
+                return false;
+            }
+
+            targetLayout = findFunctionLayout(ownerType, callNode->getFunctionName());
+        } else {
+            targetLayout = findFunctionLayout("", callNode->getFunctionName());
+            if (targetLayout == nullptr && !_currentClassName.empty()) {
+                targetLayout = findFunctionLayout(_currentClassName, callNode->getFunctionName());
+            }
+        }
+
+        if (targetLayout == nullptr) {
+            reportError(callNode->getLineNumber(), "function call code generation target not found in type resolution: '" + callNode->getFunctionName() + "'");
+            return false;
+        }
+
+        typeName = trimCopy(targetLayout->returnType);
+        dimensions.clear();
+        return true;
+    }
+
     return false;
 }
 
@@ -821,6 +870,55 @@ int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
     return ownerAddrReg;
 }
 
+int CodeGenVisitor::emitAddressForObjectExpression(const std::shared_ptr<ASTNode>& node, int line) {
+    if (node == nullptr) {
+        reportError(line, "null object expression in code generation");
+        return -1;
+    }
+
+    if (std::dynamic_pointer_cast<IdNode>(node) != nullptr ||
+        std::dynamic_pointer_cast<DataMemberNode>(node) != nullptr) {
+        return emitAddressForLValue(node, line);
+    }
+
+    if (std::dynamic_pointer_cast<FuncCallNode>(node) != nullptr) {
+        return evalExpr(node);
+    }
+
+    reportError(line, "unsupported object expression in code generation; expected object variable/member or object-returning call");
+    return -1;
+}
+
+bool CodeGenVisitor::emitCopyWords(int dstAddrReg, int srcAddrReg, long byteCount, int line) {
+    if (dstAddrReg < 0 || srcAddrReg < 0) {
+        return false;
+    }
+
+    if (byteCount <= 0) {
+        reportError(line, "invalid aggregate copy size in code generation");
+        return false;
+    }
+
+    if ((byteCount % 4) != 0) {
+        reportError(line, "aggregate copy size is not word-aligned in code generation");
+        return false;
+    }
+
+    const int tmpReg = _regs.acquire();
+    if (tmpReg < 0) {
+        reportError(line, "register exhaustion while copying aggregate value");
+        return false;
+    }
+
+    for (long offset = 0; offset < byteCount; offset += 4) {
+        emit("lw " + regName(tmpReg) + ", " + std::to_string(offset) + "(" + regName(srcAddrReg) + ")");
+        emit("sw " + std::to_string(offset) + "(" + regName(dstAddrReg) + "), " + regName(tmpReg));
+    }
+
+    _regs.release(tmpReg);
+    return true;
+}
+
 bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg) {
     if (target == nullptr || valueReg < 0) {
         return false;
@@ -938,7 +1036,7 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("rt_readInt_ret");
     emit("jr r15");
 
-    emitComment("runtime helper: rt_readFloat (returns fixed-point float in r1, scale=1000)");
+    emitComment("runtime helper: rt_readFloat (returns fixed-point float in r1, scale=" + std::to_string(kFloatScale) + ")");
     emit("rt_readFloat");
     emit("addi r1, r0, 0");
     emit("addi r2, r0, 1");
@@ -992,12 +1090,12 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("rt_readFloat_maybe_frac");
     emit("addi r11, r0, 0");
     emit("addi r10, r0, 0");
-    emit("muli r1, r1, 1000");
+    emit("muli r1, r1, " + std::to_string(kFloatScale));
     emit("ceqi r4, r3, 46");
     emit("bz r4, rt_readFloat_apply_sign");
     emit("getc r3");
     emit("andi r3, r3, 255");
-    emit("addi r11, r0, 100");
+    emit("addi r11, r0, " + std::to_string(kFloatFirstFractionPlace));
     emit("addi r10, r0, 0");
     emit("rt_readFloat_frac_loop");
     emit("clt r4, r3, r6");
@@ -1078,7 +1176,7 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("addi r14, r14, 64");
     emit("jr r15");
 
-    emitComment("runtime helper: rt_writeFloat (prints fixed-point float from r1, scale=1000)");
+    emitComment("runtime helper: rt_writeFloat (prints fixed-point float from r1, scale=" + std::to_string(kFloatScale) + ")");
     emit("rt_writeFloat");
     emit("add r2, r1, r0");
     emit("clt r3, r2, r0");
@@ -1087,8 +1185,8 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("putc r4");
     emit("sub r2, r0, r2");
     emit("rt_writeFloat_abs_ready");
-    emit("divi r5, r2, 1000");
-    emit("modi r6, r2, 1000");
+    emit("divi r5, r2, " + std::to_string(kFloatScale));
+    emit("modi r6, r2, " + std::to_string(kFloatScale));
     emit("add r11, r6, r0");
     emit("add r10, r15, r0");
     emit("add r1, r5, r0");
@@ -1097,16 +1195,14 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("add r6, r11, r0");
     emit("addi r4, r0, 46");
     emit("putc r4");
-    emit("divi r7, r6, 100");
-    emit("addi r7, r7, 48");
-    emit("putc r7");
-    emit("modi r6, r6, 100");
-    emit("divi r7, r6, 10");
-    emit("addi r7, r7, 48");
-    emit("putc r7");
-    emit("modi r7, r6, 10");
-    emit("addi r7, r7, 48");
-    emit("putc r7");
+    for (int divisor = kFloatFirstFractionPlace; divisor > 0; divisor /= 10) {
+        emit("divi r7, r6, " + std::to_string(divisor));
+        emit("addi r7, r7, 48");
+        emit("putc r7");
+        if (divisor > 1) {
+            emit("modi r6, r6, " + std::to_string(divisor));
+        }
+    }
     emit("jr r15");
 }
 
@@ -1331,6 +1427,9 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
         return;
     }
 
+    const std::string callReturnType = trimCopy(targetLayout->returnType);
+    const bool callReturnsObject = !callReturnType.empty() && !isBasicScalarType(callReturnType);
+
     if (targetLayout->paramOffsets.size() != node.getArgs().size()) {
         reportError(node.getLineNumber(), "argument count mismatch in call to '" + node.getFunctionName() + "'");
         _lastExprReg = -1;
@@ -1351,6 +1450,44 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
         }
 
         const bool expectedIsArray = !expectedDims.empty();
+        const bool expectedIsObject = !expectedIsArray && !expectedType.empty() && !isBasicScalarType(expectedType);
+        const long storeOffset = targetLayout->paramOffsets[i] - callerFrameSize;
+
+        if (expectedIsObject) {
+            const int srcAddrReg = emitAddressForObjectExpression(node.getArgs()[i], node.getLineNumber());
+            if (srcAddrReg < 0) {
+                _lastExprReg = -1;
+                return;
+            }
+
+            const int dstAddrReg = _regs.acquire();
+            if (dstAddrReg < 0) {
+                _regs.release(srcAddrReg);
+                reportError(node.getLineNumber(), "register exhaustion while preparing aggregate argument slot");
+                _lastExprReg = -1;
+                return;
+            }
+
+            const long objectSize = sizeOfType(expectedType, node.getLineNumber());
+            if (objectSize <= 0) {
+                _regs.release(dstAddrReg);
+                _regs.release(srcAddrReg);
+                _lastExprReg = -1;
+                return;
+            }
+
+            emit("addi " + regName(dstAddrReg) + ", r14, " + std::to_string(storeOffset));
+            if (!emitCopyWords(dstAddrReg, srcAddrReg, objectSize, node.getLineNumber())) {
+                _regs.release(dstAddrReg);
+                _regs.release(srcAddrReg);
+                _lastExprReg = -1;
+                return;
+            }
+
+            _regs.release(dstAddrReg);
+            _regs.release(srcAddrReg);
+            continue;
+        }
 
         int argReg = -1;
         if (expectedIsArray) {
@@ -1374,7 +1511,6 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
             emit("muli " + regName(argReg) + ", " + regName(argReg) + ", " + std::to_string(kFloatScale));
         }
 
-        const long storeOffset = targetLayout->paramOffsets[i] - callerFrameSize;
         emit("sw " + std::to_string(storeOffset) + "(r14), " + regName(argReg));
         _regs.release(argReg);
     }
@@ -1431,6 +1567,9 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
     }
 
     emit("add " + regName(resultReg) + ", r1, r0");
+    if (callReturnsObject) {
+        emitComment("object-returning call result propagated as object-address handle in register");
+    }
     _lastExprReg = resultReg;
 }
 
@@ -1455,17 +1594,56 @@ void CodeGenVisitor::visit(DataMemberNode& node) {
 }
 
 void CodeGenVisitor::visit(AssignStmtNode& node) {
-    int valueReg = evalExpr(node.getRight());
-    if (valueReg < 0) {
-        return;
-    }
-
     std::string leftType;
     std::vector<int> leftDims;
     std::string rightType;
     std::vector<int> rightDims;
     const bool leftResolved = resolveNodeType(node.getLeft(), leftType, leftDims);
     const bool rightResolved = resolveNodeType(node.getRight(), rightType, rightDims);
+
+    const std::string cleanLeftType = trimCopy(leftType);
+    const std::string cleanRightType = trimCopy(rightType);
+    const bool isObjectCopy =
+        leftResolved && rightResolved &&
+        leftDims.empty() && rightDims.empty() &&
+        !cleanLeftType.empty() &&
+        !isBasicScalarType(cleanLeftType) &&
+        cleanLeftType == cleanRightType;
+
+    if (isObjectCopy) {
+        const long objectSize = sizeOfType(cleanLeftType, node.getLineNumber());
+        if (objectSize <= 0) {
+            return;
+        }
+
+        // Evaluate RHS first because it may be an object-returning call that clobbers call/return registers.
+        const int srcAddrReg = emitAddressForObjectExpression(node.getRight(), node.getLineNumber());
+        if (srcAddrReg < 0) {
+            return;
+        }
+
+        const int dstAddrReg = emitAddressForLValue(node.getLeft(), node.getLineNumber());
+        if (dstAddrReg < 0) {
+            _regs.release(srcAddrReg);
+            return;
+        }
+
+        if (!emitCopyWords(dstAddrReg, srcAddrReg, objectSize, node.getLineNumber())) {
+            _regs.release(srcAddrReg);
+            _regs.release(dstAddrReg);
+            return;
+        }
+
+        _regs.release(srcAddrReg);
+        _regs.release(dstAddrReg);
+        return;
+    }
+
+    int valueReg = evalExpr(node.getRight());
+    if (valueReg < 0) {
+        return;
+    }
+
     const bool leftIsFloat = leftResolved && leftDims.empty() && trimCopy(leftType) == "float";
     const bool rightIsFloat = rightResolved && rightDims.empty() && trimCopy(rightType) == "float";
 
@@ -1597,19 +1775,31 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
 
 void CodeGenVisitor::visit(ReturnStmtNode& node) {
     if (node.getLeft() != nullptr) {
-        int retReg = evalExpr(node.getLeft());
-        if (retReg >= 0) {
-            std::string actualType;
-            std::vector<int> actualDims;
-            const bool actualResolved = resolveNodeType(node.getLeft(), actualType, actualDims);
-            const bool actualIsFloat = actualResolved && actualDims.empty() && trimCopy(actualType) == "float";
-            if (_currentReturnType == "float" && !actualIsFloat) {
-                emit("muli " + regName(retReg) + ", " + regName(retReg) + ", " + std::to_string(kFloatScale));
-            }
+        const std::string cleanReturnType = trimCopy(_currentReturnType);
+        const bool returnIsObject = !cleanReturnType.empty() && !isBasicScalarType(cleanReturnType);
 
-            emitComment("return value currently lowered into r1");
-            emit("add r1, " + regName(retReg) + ", r0");
-            _regs.release(retReg);
+        if (returnIsObject) {
+            int retAddrReg = emitAddressForObjectExpression(node.getLeft(), node.getLineNumber());
+            if (retAddrReg >= 0) {
+                emitComment("object return lowered as object-address handle in r1");
+                emit("add r1, " + regName(retAddrReg) + ", r0");
+                _regs.release(retAddrReg);
+            }
+        } else {
+            int retReg = evalExpr(node.getLeft());
+            if (retReg >= 0) {
+                std::string actualType;
+                std::vector<int> actualDims;
+                const bool actualResolved = resolveNodeType(node.getLeft(), actualType, actualDims);
+                const bool actualIsFloat = actualResolved && actualDims.empty() && trimCopy(actualType) == "float";
+                if (cleanReturnType == "float" && !actualIsFloat) {
+                    emit("muli " + regName(retReg) + ", " + regName(retReg) + ", " + std::to_string(kFloatScale));
+                }
+
+                emitComment("return value currently lowered into r1");
+                emit("add r1, " + regName(retReg) + ", r0");
+                _regs.release(retReg);
+            }
         }
     }
 

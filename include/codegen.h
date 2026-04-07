@@ -72,6 +72,7 @@ class CodeGenVisitor : public ASTVisitor {
             std::string label;
             std::string name;
             std::string className;
+            std::string returnType;
             bool isMethod = false;
             long frameSize = 0;
             long returnLinkOffset = -4;
@@ -134,6 +135,8 @@ class CodeGenVisitor : public ASTVisitor {
         bool loadThisPointerInto(int targetReg, int line);
         int emitAddressForLValue(const std::shared_ptr<ASTNode>& node, int line);
         int emitAddressForDataMember(DataMemberNode& node);
+        int emitAddressForObjectExpression(const std::shared_ptr<ASTNode>& node, int line);
+        bool emitCopyWords(int dstAddrReg, int srcAddrReg, long byteCount, int line);
         bool emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg);
         void emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode, const FunctionLayoutInfo& layout, bool isMainBody);
         void emitRuntimeIntegerIO();
