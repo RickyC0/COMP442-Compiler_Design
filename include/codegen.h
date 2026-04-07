@@ -66,6 +66,21 @@ class CodeGenVisitor : public ASTVisitor {
             std::unordered_map<std::string, FieldLayoutInfo> fields;
         };
 
+        struct FunctionLayoutInfo {
+            std::string key;
+            std::string label;
+            std::string name;
+            std::string className;
+            bool isMethod = false;
+            long frameSize = 0;
+            long returnLinkOffset = -4;
+            long thisOffset = 0;
+            std::vector<std::string> paramNames;
+            std::vector<long> paramOffsets;
+            std::unordered_map<std::string, long> varOffsets;
+            std::unordered_map<std::string, StackVarInfo> varInfo;
+        };
+
         std::ostream& _out;
         RegisterAllocator _regs;
         std::vector<std::string> _errors;
@@ -73,12 +88,17 @@ class CodeGenVisitor : public ASTVisitor {
         std::unordered_map<std::string, std::shared_ptr<ClassDeclNode>> _classDecls;
         std::unordered_map<std::string, ClassLayoutInfo> _classLayouts;
         std::unordered_map<std::string, long> _classSizes;
+        std::unordered_map<std::string, FunctionLayoutInfo> _functionLayouts;
         std::unordered_map<std::string, StackVarInfo> _stackVarInfo;
         std::unordered_map<std::string, long> _stackOffsets;
         long _nextOffset = 0;
         int _labelCounter = 0;
         int _lastExprReg = -1;
         std::string _currentFunction;
+        std::string _currentClassName;
+        std::string _currentReturnLabel;
+        long _currentFrameSize = 0;
+        long _currentThisOffset = 0;
 
         void emit(const std::string& line);
         void emitComment(const std::string& message);
@@ -86,12 +106,15 @@ class CodeGenVisitor : public ASTVisitor {
 
         static std::string sanitizeName(const std::string& raw);
         std::string makeLabel(const std::string& prefix);
+        static std::string functionKey(const std::string& className, const std::string& functionName);
 
         void resetFunctionState();
         long sizeOfType(const std::string& typeName, int line);
         long sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line);
         bool buildClassLayout(const std::string& className, std::unordered_set<std::string>& visiting, int line);
         bool lookupFieldLayout(const std::string& className, const std::string& fieldName, FieldLayoutInfo& out, int line);
+        bool buildFunctionLayout(const std::shared_ptr<FuncDefNode>& functionNode);
+        const FunctionLayoutInfo* findFunctionLayout(const std::string& className, const std::string& functionName) const;
         void assignOffsets(const std::vector<std::shared_ptr<VarDeclNode>>& vars);
         long sizeOfVar(const std::shared_ptr<VarDeclNode>& decl);
         bool resolveNodeType(const std::shared_ptr<ASTNode>& node, std::string& typeName, std::vector<int>& dimensions);
@@ -106,10 +129,11 @@ class CodeGenVisitor : public ASTVisitor {
         long lookupOffset(const std::string& name) const;
 
         int evalExpr(const std::shared_ptr<ASTNode>& node);
+        bool loadThisPointerInto(int targetReg, int line);
         int emitAddressForLValue(const std::shared_ptr<ASTNode>& node, int line);
         int emitAddressForDataMember(DataMemberNode& node);
         bool emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg);
-        void emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode);
+        void emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode, const FunctionLayoutInfo& layout, bool isMainBody);
 };
 
 bool generateMoonAssembly(const std::shared_ptr<ProgNode>& root, const std::string& outputPath, std::vector<std::string>* errors = nullptr);

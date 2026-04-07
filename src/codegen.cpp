@@ -123,12 +123,107 @@ std::string CodeGenVisitor::makeLabel(const std::string& prefix) {
     return sanitizeName(prefix) + "_" + std::to_string(++_labelCounter);
 }
 
+std::string CodeGenVisitor::functionKey(const std::string& className, const std::string& functionName) {
+    if (className.empty()) {
+        return functionName;
+    }
+    return className + "::" + functionName;
+}
+
 void CodeGenVisitor::resetFunctionState() {
     _stackOffsets.clear();
     _stackVarInfo.clear();
     _nextOffset = 0;
     _regs.reset();
     _lastExprReg = -1;
+}
+
+bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& functionNode) {
+    if (functionNode == nullptr || functionNode->getRight() == nullptr) {
+        return false;
+    }
+
+    FunctionLayoutInfo layout;
+    layout.className = trimCopy(functionNode->getClassName());
+    layout.name = functionNode->getName();
+    layout.isMethod = !layout.className.empty();
+    layout.key = functionKey(layout.className, layout.name);
+    layout.label = "fn_" + sanitizeName(layout.key);
+
+    long cursor = -4; // saved return link
+    layout.returnLinkOffset = -4;
+
+    if (layout.isMethod) {
+        cursor -= 4;
+        layout.thisOffset = cursor;
+    }
+
+    for (const auto& param : functionNode->getParams()) {
+        const long paramSize = sizeOfVar(param);
+        if (paramSize <= 0) {
+            return false;
+        }
+
+        cursor -= paramSize;
+        layout.paramNames.push_back(param->getName());
+        layout.paramOffsets.push_back(cursor);
+        layout.varOffsets[param->getName()] = cursor;
+
+        long paramElements = 1;
+        for (int dim : param->getDimensions()) {
+            if (dim > 0) {
+                paramElements *= dim;
+            }
+        }
+
+        long paramElementSize = (paramElements > 0) ? (paramSize / paramElements) : 4;
+        if (paramElementSize <= 0) {
+            paramElementSize = 4;
+        }
+
+        layout.varInfo[param->getName()] = {trimCopy(param->getTypeName()), param->getDimensions(), paramElementSize};
+    }
+
+    for (const auto& local : functionNode->getLocalVars()) {
+        const long localSize = sizeOfVar(local);
+        if (localSize <= 0) {
+            return false;
+        }
+
+        cursor -= localSize;
+        layout.varOffsets[local->getName()] = cursor;
+
+        long localElements = 1;
+        for (int dim : local->getDimensions()) {
+            if (dim > 0) {
+                localElements *= dim;
+            }
+        }
+
+        long localElementSize = (localElements > 0) ? (localSize / localElements) : 4;
+        if (localElementSize <= 0) {
+            localElementSize = 4;
+        }
+
+        layout.varInfo[local->getName()] = {trimCopy(local->getTypeName()), local->getDimensions(), localElementSize};
+    }
+
+    layout.frameSize = -cursor;
+    if (layout.frameSize < 4) {
+        layout.frameSize = 4;
+    }
+
+    _functionLayouts[layout.key] = layout;
+    return true;
+}
+
+const CodeGenVisitor::FunctionLayoutInfo* CodeGenVisitor::findFunctionLayout(const std::string& className, const std::string& functionName) const {
+    const std::string key = functionKey(trimCopy(className), functionName);
+    auto it = _functionLayouts.find(key);
+    if (it == _functionLayouts.end()) {
+        return nullptr;
+    }
+    return &it->second;
 }
 
 long CodeGenVisitor::sizeOfType(const std::string& typeName, int line) {
@@ -356,6 +451,20 @@ int CodeGenVisitor::evalExpr(const std::shared_ptr<ASTNode>& node) {
     return _lastExprReg;
 }
 
+bool CodeGenVisitor::loadThisPointerInto(int targetReg, int line) {
+    if (targetReg < 0) {
+        return false;
+    }
+
+    if (_currentClassName.empty() || _currentThisOffset == 0) {
+        reportError(line, "implicit receiver is unavailable outside member function context");
+        return false;
+    }
+
+    emit("lw " + regName(targetReg) + ", " + std::to_string(_currentThisOffset) + "(r14)");
+    return true;
+}
+
 bool CodeGenVisitor::resolveDataMemberType(const std::shared_ptr<DataMemberNode>& node, std::string& typeName, std::vector<int>& dimensions) {
     if (node == nullptr) {
         return false;
@@ -407,14 +516,23 @@ bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::
 
     if (auto idNode = std::dynamic_pointer_cast<IdNode>(node)) {
         auto infoIt = _stackVarInfo.find(idNode->getName());
-        if (infoIt == _stackVarInfo.end()) {
-            reportError(idNode->getLineNumber(), "unknown identifier '" + idNode->getName() + "' in type resolution");
-            return false;
+        if (infoIt != _stackVarInfo.end()) {
+            typeName = infoIt->second.typeName;
+            dimensions = infoIt->second.dimensions;
+            return true;
         }
 
-        typeName = infoIt->second.typeName;
-        dimensions = infoIt->second.dimensions;
-        return true;
+        if (!_currentClassName.empty()) {
+            FieldLayoutInfo fieldLayout;
+            if (lookupFieldLayout(_currentClassName, idNode->getName(), fieldLayout, idNode->getLineNumber())) {
+                typeName = fieldLayout.typeName;
+                dimensions = fieldLayout.dimensions;
+                return true;
+            }
+        }
+
+        reportError(idNode->getLineNumber(), "unknown identifier '" + idNode->getName() + "' in type resolution");
+        return false;
     }
 
     if (auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(node)) {
@@ -527,19 +645,40 @@ int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, i
     }
 
     if (auto idNode = std::dynamic_pointer_cast<IdNode>(node)) {
-        if (!hasOffset(idNode->getName())) {
-            reportError(idNode->getLineNumber(), "unknown variable '" + idNode->getName() + "' in code generation");
-            return -1;
+        if (hasOffset(idNode->getName())) {
+            const int addrReg = _regs.acquire();
+            if (addrReg < 0) {
+                reportError(idNode->getLineNumber(), "register exhaustion while generating l-value address");
+                return -1;
+            }
+
+            emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(idNode->getName())));
+            return addrReg;
         }
 
-        const int addrReg = _regs.acquire();
-        if (addrReg < 0) {
-            reportError(idNode->getLineNumber(), "register exhaustion while generating l-value address");
-            return -1;
+        if (!_currentClassName.empty()) {
+            FieldLayoutInfo fieldLayout;
+            if (lookupFieldLayout(_currentClassName, idNode->getName(), fieldLayout, idNode->getLineNumber())) {
+                const int addrReg = _regs.acquire();
+                if (addrReg < 0) {
+                    reportError(idNode->getLineNumber(), "register exhaustion while generating field address");
+                    return -1;
+                }
+
+                if (!loadThisPointerInto(addrReg, idNode->getLineNumber())) {
+                    _regs.release(addrReg);
+                    return -1;
+                }
+
+                if (fieldLayout.offset != 0) {
+                    emit("addi " + regName(addrReg) + ", " + regName(addrReg) + ", " + std::to_string(fieldLayout.offset));
+                }
+                return addrReg;
+            }
         }
 
-        emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(idNode->getName())));
-        return addrReg;
+        reportError(idNode->getLineNumber(), "unknown variable '" + idNode->getName() + "' in code generation");
+        return -1;
     }
 
     if (auto memberNode = std::dynamic_pointer_cast<DataMemberNode>(node)) {
@@ -637,23 +776,13 @@ bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int
         return false;
     }
 
-    if (auto id = std::dynamic_pointer_cast<IdNode>(target)) {
-        if (!hasOffset(id->getName())) {
-            reportError(id->getLineNumber(), "assignment target not allocated: '" + id->getName() + "'");
-            return false;
-        }
-
-        emit("sw " + std::to_string(lookupOffset(id->getName())) + "(r14), " + regName(valueReg));
-        return true;
-    }
-
-    auto dataMember = std::dynamic_pointer_cast<DataMemberNode>(target);
-    if (dataMember == nullptr) {
+    if (std::dynamic_pointer_cast<IdNode>(target) == nullptr &&
+        std::dynamic_pointer_cast<DataMemberNode>(target) == nullptr) {
         reportError(target->getLineNumber(), "unsupported assignment target in code generation");
         return false;
     }
 
-    const int addrReg = emitAddressForDataMember(*dataMember);
+    const int addrReg = emitAddressForLValue(target, target->getLineNumber());
     if (addrReg < 0) {
         return false;
     }
@@ -663,48 +792,93 @@ bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int
     return true;
 }
 
-void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode) {
+void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode,
+                                      const FunctionLayoutInfo& layout,
+                                      bool isMainBody) {
     if (functionNode == nullptr) {
         return;
     }
 
     resetFunctionState();
+
     _currentFunction = functionNode->getName();
+    _currentClassName = layout.className;
+    _currentFrameSize = layout.frameSize;
+    _currentThisOffset = layout.thisOffset;
+    _currentReturnLabel = layout.label + "_ret";
 
-    emitComment("function " + _currentFunction);
+    _stackOffsets = layout.varOffsets;
+    _stackVarInfo = layout.varInfo;
 
-    if (!functionNode->getParams().empty()) {
-        assignOffsets(functionNode->getParams());
+    if (!isMainBody) {
+        emit(layout.label);
+        emit("sw " + std::to_string(layout.returnLinkOffset) + "(r14), r15");
     }
-    if (!functionNode->getLocalVars().empty()) {
-        assignOffsets(functionNode->getLocalVars());
-    }
+
+    emitComment("function " + layout.key + ", frame=" + std::to_string(layout.frameSize));
 
     if (functionNode->getRight() != nullptr) {
         functionNode->getRight()->accept(*this);
     }
 
-    if (_currentFunction != "main") {
+    if (!isMainBody) {
+        emit(_currentReturnLabel);
+        emit("lw r15, " + std::to_string(layout.returnLinkOffset) + "(r14)");
         emit("jr r15");
     }
 }
 
 void CodeGenVisitor::visit(IdNode& node) {
-    if (!hasOffset(node.getName())) {
-        reportError(node.getLineNumber(), "unknown identifier in code generation: '" + node.getName() + "'");
-        _lastExprReg = -1;
+    if (hasOffset(node.getName())) {
+        int reg = _regs.acquire();
+        if (reg < 0) {
+            reportError(node.getLineNumber(), "register exhaustion while loading identifier");
+            _lastExprReg = -1;
+            return;
+        }
+
+        emit("lw " + regName(reg) + ", " + std::to_string(lookupOffset(node.getName())) + "(r14)");
+        _lastExprReg = reg;
         return;
     }
 
-    int reg = _regs.acquire();
-    if (reg < 0) {
-        reportError(node.getLineNumber(), "register exhaustion while loading identifier");
-        _lastExprReg = -1;
-        return;
+    if (!_currentClassName.empty()) {
+        FieldLayoutInfo fieldLayout;
+        if (lookupFieldLayout(_currentClassName, node.getName(), fieldLayout, node.getLineNumber())) {
+            const int addrReg = _regs.acquire();
+            const int valueReg = _regs.acquire();
+            if (addrReg < 0 || valueReg < 0) {
+                if (addrReg > 0) {
+                    _regs.release(addrReg);
+                }
+                if (valueReg > 0) {
+                    _regs.release(valueReg);
+                }
+                reportError(node.getLineNumber(), "register exhaustion while loading member field");
+                _lastExprReg = -1;
+                return;
+            }
+
+            if (!loadThisPointerInto(addrReg, node.getLineNumber())) {
+                _regs.release(addrReg);
+                _regs.release(valueReg);
+                _lastExprReg = -1;
+                return;
+            }
+
+            if (fieldLayout.offset != 0) {
+                emit("addi " + regName(addrReg) + ", " + regName(addrReg) + ", " + std::to_string(fieldLayout.offset));
+            }
+
+            emit("lw " + regName(valueReg) + ", 0(" + regName(addrReg) + ")");
+            _regs.release(addrReg);
+            _lastExprReg = valueReg;
+            return;
+        }
     }
 
-    emit("lw " + regName(reg) + ", " + std::to_string(lookupOffset(node.getName())) + "(r14)");
-    _lastExprReg = reg;
+    reportError(node.getLineNumber(), "unknown identifier in code generation: '" + node.getName() + "'");
+    _lastExprReg = -1;
 }
 
 void CodeGenVisitor::visit(IntLitNode& node) {
@@ -808,13 +982,118 @@ void CodeGenVisitor::visit(UnaryOpNode& node) {
 }
 
 void CodeGenVisitor::visit(FuncCallNode& node) {
-    reportError(node.getLineNumber(), "function call code generation is not implemented yet");
+    const FunctionLayoutInfo* targetLayout = nullptr;
+    std::shared_ptr<ASTNode> ownerExpr = nullptr;
+    bool explicitMethodCall = false;
+    bool implicitMethodCall = false;
 
-    int reg = _regs.acquire();
-    if (reg >= 0) {
-        emit("addi " + regName(reg) + ", r0, 0");
+    auto calleeMember = std::dynamic_pointer_cast<DataMemberNode>(node.getLeft());
+    if (calleeMember != nullptr && calleeMember->getLeft() != nullptr) {
+        explicitMethodCall = true;
+        ownerExpr = calleeMember->getLeft();
+
+        std::string ownerType;
+        std::vector<int> ownerDimensions;
+        if (!resolveNodeType(ownerExpr, ownerType, ownerDimensions)) {
+            _lastExprReg = -1;
+            return;
+        }
+        if (!ownerDimensions.empty()) {
+            reportError(node.getLineNumber(), "method receiver must be a scalar object");
+            _lastExprReg = -1;
+            return;
+        }
+
+        targetLayout = findFunctionLayout(ownerType, node.getFunctionName());
+    } else {
+        targetLayout = findFunctionLayout("", node.getFunctionName());
+        if (targetLayout == nullptr && !_currentClassName.empty()) {
+            targetLayout = findFunctionLayout(_currentClassName, node.getFunctionName());
+            if (targetLayout != nullptr && targetLayout->isMethod) {
+                implicitMethodCall = true;
+            }
+        }
     }
-    _lastExprReg = reg;
+
+    if (targetLayout == nullptr) {
+        reportError(node.getLineNumber(), "function call code generation target not found: '" + node.getFunctionName() + "'");
+        _lastExprReg = -1;
+        return;
+    }
+
+    if (targetLayout->paramOffsets.size() != node.getArgs().size()) {
+        reportError(node.getLineNumber(), "argument count mismatch in call to '" + node.getFunctionName() + "'");
+        _lastExprReg = -1;
+        return;
+    }
+
+    const long callerFrameSize = _currentFrameSize;
+
+    for (size_t i = 0; i < node.getArgs().size(); ++i) {
+        const int argReg = evalExpr(node.getArgs()[i]);
+        if (argReg < 0) {
+            _lastExprReg = -1;
+            return;
+        }
+
+        const long storeOffset = targetLayout->paramOffsets[i] - callerFrameSize;
+        emit("sw " + std::to_string(storeOffset) + "(r14), " + regName(argReg));
+        _regs.release(argReg);
+    }
+
+    if (targetLayout->isMethod) {
+        const int thisReg = _regs.acquire();
+        if (thisReg < 0) {
+            reportError(node.getLineNumber(), "register exhaustion while preparing method receiver");
+            _lastExprReg = -1;
+            return;
+        }
+
+        if (explicitMethodCall) {
+            const int ownerAddrReg = emitAddressForLValue(ownerExpr, node.getLineNumber());
+            if (ownerAddrReg < 0) {
+                _regs.release(thisReg);
+                _lastExprReg = -1;
+                return;
+            }
+
+            emit("add " + regName(thisReg) + ", " + regName(ownerAddrReg) + ", r0");
+            _regs.release(ownerAddrReg);
+        } else if (implicitMethodCall) {
+            if (!loadThisPointerInto(thisReg, node.getLineNumber())) {
+                _regs.release(thisReg);
+                _lastExprReg = -1;
+                return;
+            }
+        } else {
+            reportError(node.getLineNumber(), "method call requires an object receiver");
+            _regs.release(thisReg);
+            _lastExprReg = -1;
+            return;
+        }
+
+        const long thisStoreOffset = targetLayout->thisOffset - callerFrameSize;
+        emit("sw " + std::to_string(thisStoreOffset) + "(r14), " + regName(thisReg));
+        _regs.release(thisReg);
+    }
+
+    if (callerFrameSize > 0) {
+        emit("subi r14, r14, " + std::to_string(callerFrameSize));
+    }
+    emit("jl r15, " + targetLayout->label);
+    if (callerFrameSize > 0) {
+        emit("addi r14, r14, " + std::to_string(callerFrameSize));
+    }
+
+    const int resultReg = _regs.acquire();
+    if (resultReg < 0) {
+        reportError(node.getLineNumber(), "register exhaustion while retrieving function result");
+        _lastExprReg = -1;
+        return;
+    }
+
+    emit("add " + regName(resultReg) + ", r1, r0");
+    _lastExprReg = resultReg;
 }
 
 void CodeGenVisitor::visit(DataMemberNode& node) {
@@ -940,7 +1219,7 @@ void CodeGenVisitor::visit(ReturnStmtNode& node) {
     }
 
     if (_currentFunction != "main") {
-        emit("jr r15");
+        emit("j " + _currentReturnLabel);
     }
 }
 
@@ -948,6 +1227,10 @@ void CodeGenVisitor::visit(BlockNode& node) {
     for (const auto& stmt : node.getStatements()) {
         if (stmt != nullptr) {
             stmt->accept(*this);
+            if (std::dynamic_pointer_cast<FuncCallNode>(stmt) != nullptr && _lastExprReg > 0) {
+                _regs.release(_lastExprReg);
+                _lastExprReg = -1;
+            }
         }
     }
 }
@@ -957,12 +1240,8 @@ void CodeGenVisitor::visit(VarDeclNode&) {
 }
 
 void CodeGenVisitor::visit(FuncDefNode& node) {
-    if (node.getClassName().empty() && node.getName() == "main") {
-        emitFunctionBody(std::make_shared<FuncDefNode>(node));
-        return;
-    }
-
-    emitComment("skipping non-main function in current code generator: " + node.getName());
+    (void)node;
+    // Function bodies are emitted in visit(ProgNode) with layout-aware call metadata.
 }
 
 void CodeGenVisitor::visit(ClassDeclNode& node) {
@@ -973,6 +1252,7 @@ void CodeGenVisitor::visit(ProgNode& node) {
     _classDecls.clear();
     _classLayouts.clear();
     _classSizes.clear();
+    _functionLayouts.clear();
 
     for (const auto& cls : node.getClasses()) {
         if (cls != nullptr) {
@@ -980,17 +1260,22 @@ void CodeGenVisitor::visit(ProgNode& node) {
         }
     }
 
-    for (const auto& cls : node.getClasses()) {
-        if (cls != nullptr) {
-            cls->accept(*this);
-        }
-    }
-
     std::shared_ptr<FuncDefNode> mainFunction = nullptr;
+    std::vector<std::shared_ptr<FuncDefNode>> nonMainFunctions;
+
     for (const auto& fn : node.getFunctions()) {
-        if (fn != nullptr && fn->getClassName().empty() && fn->getName() == "main") {
+        if (fn == nullptr || fn->getRight() == nullptr) {
+            continue;
+        }
+
+        if (!buildFunctionLayout(fn)) {
+            continue;
+        }
+
+        if (fn->getClassName().empty() && fn->getName() == "main") {
             mainFunction = fn;
-            break;
+        } else {
+            nonMainFunctions.push_back(fn);
         }
     }
 
@@ -999,7 +1284,28 @@ void CodeGenVisitor::visit(ProgNode& node) {
         return;
     }
 
-    emitFunctionBody(mainFunction);
+    const FunctionLayoutInfo* mainLayout = findFunctionLayout("", "main");
+    if (mainLayout == nullptr) {
+        reportError(mainFunction->getLineNumber(), "failed to build frame layout for main");
+        return;
+    }
+
+    const std::string programEndLabel = makeLabel("program_end");
+
+    emitFunctionBody(mainFunction, *mainLayout, true);
+    emit("j " + programEndLabel);
+
+    for (const auto& fn : nonMainFunctions) {
+        const FunctionLayoutInfo* layout = findFunctionLayout(fn->getClassName(), fn->getName());
+        if (layout == nullptr) {
+            reportError(fn->getLineNumber(), "missing function layout for '" + functionKey(fn->getClassName(), fn->getName()) + "'");
+            continue;
+        }
+
+        emitFunctionBody(fn, *layout, false);
+    }
+
+    emit(programEndLabel);
 }
 
 bool generateMoonAssembly(const std::shared_ptr<ProgNode>& root, const std::string& outputPath, std::vector<std::string>* errors) {
