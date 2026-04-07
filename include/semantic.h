@@ -22,6 +22,7 @@ struct SymbolEntry {
     std::vector<int> dimensions;
     std::string returnType;
     std::vector<std::string> paramTypes;
+    std::vector<std::vector<int>> paramDimensions;
     SymbolKind kind;
     std::string visibility;
     std::string details;

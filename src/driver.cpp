@@ -218,13 +218,24 @@ int main(int argc, char* argv[]) {
 
     const bool canAttemptBackEnd = parseSuccess && !semanticHasErrors && Parser::getASTRoot() != nullptr;
 
+    std::string backEndSkipReason;
+    if (!parseSuccess) {
+        backEndSkipReason = "parser errors";
+    } else if (semanticHasErrors) {
+        backEndSkipReason = "semantic errors";
+    } else if (Parser::getASTRoot() == nullptr) {
+        backEndSkipReason = "missing AST";
+    } else {
+        backEndSkipReason = "prerequisites not satisfied";
+    }
+
     // CODEGEN PHASE
     UI::printSection("[5/6] CODE GENERATION");
     if (!canAttemptBackEnd) {
-        UI::printWarning("Code generation not attempted because semantic prerequisites were not satisfied");
-        phases.push_back({"CodeGen", false, 0, "Not attempted due to parser/semantic errors"});
+        UI::printWarning("Code generation not attempted because " + backEndSkipReason);
+        phases.push_back({"CodeGen", false, 0, "Not attempted due to " + backEndSkipReason});
         if (!writeLinesToFile(codegen_diagnostics_file, {
-            "[ERROR][CODEGEN] Not attempted due to parser/semantic errors"
+            "[ERROR][CODEGEN] Not attempted due to " + backEndSkipReason
         })) {
             UI::printWarning("Failed to write codegen diagnostics file for skipped phase");
         }
@@ -270,10 +281,10 @@ int main(int argc, char* argv[]) {
     // MOON EXECUTION PHASE
     UI::printSection("[6/6] MOON SIMULATION");
     if (!canAttemptBackEnd) {
-        UI::printWarning("Moon simulation not attempted because semantic prerequisites were not satisfied");
-        phases.push_back({"Moon", false, 0, "Not attempted due to parser/semantic errors"});
+        UI::printWarning("Moon simulation not attempted because " + backEndSkipReason);
+        phases.push_back({"Moon", false, 0, "Not attempted due to " + backEndSkipReason});
         if (!writeLinesToFile(moon_run_log_file, {
-            "[ERROR][MOON] Not attempted due to parser/semantic errors"
+            "[ERROR][MOON] Not attempted due to " + backEndSkipReason
         })) {
             UI::printWarning("Failed to write Moon run log for skipped phase");
         }

@@ -140,6 +140,74 @@ bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
 
     return containsReturnStatement(node->getLeft()) || containsReturnStatement(node->getRight());
 }
+
+bool tryEvalIntConst(const std::shared_ptr<ASTNode>& node, int& outValue) {
+    if (node == nullptr) {
+        return false;
+    }
+
+    if (auto intNode = std::dynamic_pointer_cast<IntLitNode>(node)) {
+        outValue = intNode->getIntValue();
+        return true;
+    }
+
+    if (auto unaryNode = std::dynamic_pointer_cast<UnaryOpNode>(node)) {
+        int operand = 0;
+        if (!tryEvalIntConst(unaryNode->getLeft(), operand)) {
+            return false;
+        }
+
+        const std::string op = unaryNode->getOperator();
+        if (op == "-") {
+            outValue = -operand;
+            return true;
+        }
+        if (op == "+") {
+            outValue = operand;
+            return true;
+        }
+
+        return false;
+    }
+
+    if (auto binaryNode = std::dynamic_pointer_cast<BinaryOpNode>(node)) {
+        int leftValue = 0;
+        int rightValue = 0;
+        if (!tryEvalIntConst(binaryNode->getLeft(), leftValue) || !tryEvalIntConst(binaryNode->getRight(), rightValue)) {
+            return false;
+        }
+
+        const std::string op = binaryNode->getOperator();
+        if (op == "+") {
+            outValue = leftValue + rightValue;
+            return true;
+        }
+        if (op == "-") {
+            outValue = leftValue - rightValue;
+            return true;
+        }
+        if (op == "*") {
+            outValue = leftValue * rightValue;
+            return true;
+        }
+        if (op == "/") {
+            if (rightValue == 0) {
+                return false;
+            }
+            outValue = leftValue / rightValue;
+            return true;
+        }
+        if (op == "mod") {
+            if (rightValue == 0) {
+                return false;
+            }
+            outValue = leftValue % rightValue;
+            return true;
+        }
+    }
+
+    return false;
+}
 }
 
 SymbolTable::SymbolTable(const std::string& scopeName, std::shared_ptr<SymbolTable> parent)
@@ -417,6 +485,88 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
                 );
             }
         }
+
+        auto resolveArrayFirstDimension = [&](const std::shared_ptr<ASTNode>& arg, int& firstDimension, std::string& displayName) -> bool {
+            firstDimension = -1;
+            displayName.clear();
+
+            if (auto idNode = std::dynamic_pointer_cast<IdNode>(arg)) {
+                const SymbolEntry* argSymbol = _currentScope->resolve(idNode->getName());
+                if (argSymbol != nullptr && !argSymbol->dimensions.empty() && argSymbol->dimensions[0] > 0) {
+                    firstDimension = argSymbol->dimensions[0];
+                    displayName = idNode->getName();
+                    return true;
+                }
+                return false;
+            }
+
+            auto memberNode = std::dynamic_pointer_cast<DataMemberNode>(arg);
+            if (memberNode == nullptr || !memberNode->getIndices().empty()) {
+                return false;
+            }
+
+            if (memberNode->getLeft() == nullptr) {
+                const SymbolEntry* argSymbol = _currentScope->resolve(memberNode->getName());
+                if (argSymbol != nullptr && !argSymbol->dimensions.empty() && argSymbol->dimensions[0] > 0) {
+                    firstDimension = argSymbol->dimensions[0];
+                    displayName = memberNode->getName();
+                    return true;
+                }
+                return false;
+            }
+
+            const std::string ownerType = inferExprType(memberNode->getLeft());
+            const SymbolEntry* memberSymbol = resolveClassMember(ownerType, memberNode->getName());
+            if (memberSymbol != nullptr && !memberSymbol->dimensions.empty() && memberSymbol->dimensions[0] > 0) {
+                firstDimension = memberSymbol->dimensions[0];
+                displayName = memberNode->getName();
+                return true;
+            }
+
+            return false;
+        };
+
+        const std::vector<std::vector<int>>& expectedParamDimensions = symbol->paramDimensions;
+        if (expectedParamDimensions.size() == args.size()) {
+            for (size_t i = 0; i + 1 < args.size(); ++i) {
+                const std::vector<int>& dims = expectedParamDimensions[i];
+                if (dims.empty() || dims[0] >= 0) {
+                    continue;
+                }
+
+                if (expectedParamTypes[i + 1] != "integer") {
+                    continue;
+                }
+
+                int requestedExtent = 0;
+                if (!tryEvalIntConst(args[i + 1], requestedExtent)) {
+                    continue;
+                }
+
+                int actualExtent = -1;
+                std::string arrayName;
+                if (!resolveArrayFirstDimension(args[i], actualExtent, arrayName)) {
+                    continue;
+                }
+
+                if (requestedExtent < 0) {
+                    reportError(
+                        node.getLineNumber(),
+                        "13.3 potential out-of-bounds access in call to '" + node.getFunctionName() +
+                        "': size argument " + std::to_string(requestedExtent) +
+                        " is negative for array '" + arrayName + "'"
+                    );
+                } else if (requestedExtent > actualExtent) {
+                    reportError(
+                        node.getLineNumber(),
+                        "13.3 potential out-of-bounds access in call to '" + node.getFunctionName() +
+                        "': size argument " + std::to_string(requestedExtent) +
+                        " exceeds declared size " + std::to_string(actualExtent) +
+                        " for array '" + arrayName + "'"
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -425,11 +575,14 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
         return;
     }
 
+    std::vector<int> declaredDimensions;
+
     if (node.getLeft() == nullptr) {
         const SymbolEntry* symbol = _currentScope->resolve(node.getName());
         if (symbol == nullptr) {
             reportError(node.getLineNumber(), "11.2 undeclared member variable or unresolved identifier: '" + node.getName() + "'");
         } else {
+            declaredDimensions = symbol->dimensions;
             // Check array dimensions match
             const size_t declaredDimensions = symbol->dimensions.size();
             const size_t accessedDimensions = node.getIndices().size();
@@ -452,16 +605,40 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
                 reportError(node.getLineNumber(), "15.1 '.' operator used on non-class type '" + ownerBase + "'");
             } else if (member == nullptr) {
                 reportError(node.getLineNumber(), "11.2 undeclared member variable: type '" + ownerBase + "' has no member named '" + node.getName() + "'");
+            } else {
+                declaredDimensions = member->dimensions;
             }
         }
     }
 
+    size_t dimIdx = 0;
     visitNode(node.getLeft());
     for (const auto& idx : node.getIndices()) {
         const std::string indexType = inferExprType(idx);
         if (indexType != "null" && indexType != "integer") {
             reportError(node.getLineNumber(), "13.2 array index is not an integer");
         }
+
+        int constantIndex = 0;
+        if (tryEvalIntConst(idx, constantIndex)) {
+            if (constantIndex < 0) {
+                reportError(
+                    node.getLineNumber(),
+                    "13.3 array index out of bounds: index " + std::to_string(constantIndex) +
+                    " for array '" + node.getName() + "'"
+                );
+            } else if (dimIdx < declaredDimensions.size() && declaredDimensions[dimIdx] > 0 &&
+                       constantIndex >= declaredDimensions[dimIdx]) {
+                reportError(
+                    node.getLineNumber(),
+                    "13.3 array index out of bounds: index " + std::to_string(constantIndex) +
+                    " exceeds upper bound " + std::to_string(declaredDimensions[dimIdx] - 1) +
+                    " for array '" + node.getName() + "'"
+                );
+            }
+        }
+
+        ++dimIdx;
         visitNode(idx);
     }
 }
@@ -716,8 +893,10 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         entry.type = functionSignature(node);
         entry.returnType = node.getReturnType();
         entry.paramTypes.clear();
+        entry.paramDimensions.clear();
         for (const auto& param : node.getParams()) {
             entry.paramTypes.push_back(param->getTypeName());
+            entry.paramDimensions.push_back(param->getDimensions());
         }
         entry.kind = SymbolKind::Function;
         entry.visibility = "n/a";

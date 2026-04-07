@@ -172,19 +172,18 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
         layout.paramOffsets.push_back(cursor);
         layout.varOffsets[param->getName()] = cursor;
 
-        long paramElements = 1;
-        for (int dim : param->getDimensions()) {
-            if (dim > 0) {
-                paramElements *= dim;
-            }
-        }
-
-        long paramElementSize = (paramElements > 0) ? (paramSize / paramElements) : 4;
+        const bool isArrayParam = !param->getDimensions().empty();
+        long paramElementSize = sizeOfType(param->getTypeName(), param->getLineNumber());
         if (paramElementSize <= 0) {
-            paramElementSize = 4;
+            return false;
         }
 
-        layout.varInfo[param->getName()] = {trimCopy(param->getTypeName()), param->getDimensions(), paramElementSize};
+        layout.varInfo[param->getName()] = {
+            trimCopy(param->getTypeName()),
+            param->getDimensions(),
+            paramElementSize,
+            isArrayParam
+        };
     }
 
     for (const auto& local : functionNode->getLocalVars()) {
@@ -208,7 +207,12 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
             localElementSize = 4;
         }
 
-        layout.varInfo[local->getName()] = {trimCopy(local->getTypeName()), local->getDimensions(), localElementSize};
+        layout.varInfo[local->getName()] = {
+            trimCopy(local->getTypeName()),
+            local->getDimensions(),
+            localElementSize,
+            false
+        };
     }
 
     layout.frameSize = -cursor;
@@ -368,6 +372,10 @@ long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
         return 0;
     }
 
+    if (decl->getVisibility() == "param" && !decl->getDimensions().empty()) {
+        return 4;
+    }
+
     long elements = 1;
     for (int dim : decl->getDimensions()) {
         if (dim <= 0) {
@@ -423,7 +431,12 @@ void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode
             elementSize = 4;
         }
 
-        _stackVarInfo[name] = {trimCopy(var->getTypeName()), var->getDimensions(), elementSize};
+        _stackVarInfo[name] = {
+            trimCopy(var->getTypeName()),
+            var->getDimensions(),
+            elementSize,
+            var->getVisibility() == "param" && !var->getDimensions().empty()
+        };
 
         emitComment("alloc " + name + " @ " + std::to_string(_nextOffset) + "(r14), size=" + std::to_string(varSize));
     }
@@ -655,7 +668,15 @@ int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, i
                 return -1;
             }
 
-            emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(idNode->getName())));
+            const auto infoIt = _stackVarInfo.find(idNode->getName());
+            const bool isReferenceParam =
+                infoIt != _stackVarInfo.end() && infoIt->second.isReferenceParam;
+
+            if (isReferenceParam) {
+                emit("lw " + regName(addrReg) + ", " + std::to_string(lookupOffset(idNode->getName())) + "(r14)");
+            } else {
+                emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(idNode->getName())));
+            }
             return addrReg;
         }
 
@@ -705,14 +726,20 @@ int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
             return -1;
         }
 
-        emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(node.getName())));
-
         std::vector<int> declaredDimensions;
         long elementSize = 4;
+        bool isReferenceParam = false;
         auto infoIt = _stackVarInfo.find(node.getName());
         if (infoIt != _stackVarInfo.end()) {
             declaredDimensions = infoIt->second.dimensions;
             elementSize = infoIt->second.elementSize;
+            isReferenceParam = infoIt->second.isReferenceParam;
+        }
+
+        if (isReferenceParam) {
+            emit("lw " + regName(addrReg) + ", " + std::to_string(lookupOffset(node.getName())) + "(r14)");
+        } else {
+            emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(node.getName())));
         }
 
         if (!emitIndexOffsetIntoAddress(addrReg, node.getIndices(), declaredDimensions, elementSize, node.getLineNumber())) {
@@ -1293,25 +1320,35 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
     const long callerFrameSize = _currentFrameSize;
 
     for (size_t i = 0; i < node.getArgs().size(); ++i) {
-        const int argReg = evalExpr(node.getArgs()[i]);
+        std::string expectedType;
+        std::vector<int> expectedDims;
+        if (i < targetLayout->paramNames.size()) {
+            auto paramInfoIt = targetLayout->varInfo.find(targetLayout->paramNames[i]);
+            if (paramInfoIt != targetLayout->varInfo.end()) {
+                expectedType = trimCopy(paramInfoIt->second.typeName);
+                expectedDims = paramInfoIt->second.dimensions;
+            }
+        }
+
+        const bool expectedIsArray = !expectedDims.empty();
+
+        int argReg = -1;
+        if (expectedIsArray) {
+            argReg = emitAddressForLValue(node.getArgs()[i], node.getLineNumber());
+        } else {
+            argReg = evalExpr(node.getArgs()[i]);
+        }
+
         if (argReg < 0) {
             _lastExprReg = -1;
             return;
-        }
-
-        std::string expectedType;
-        if (i < targetLayout->paramNames.size()) {
-            auto paramInfoIt = targetLayout->varInfo.find(targetLayout->paramNames[i]);
-            if (paramInfoIt != targetLayout->varInfo.end() && paramInfoIt->second.dimensions.empty()) {
-                expectedType = trimCopy(paramInfoIt->second.typeName);
-            }
         }
 
         std::string actualType;
         std::vector<int> actualDims;
         const bool actualResolved = resolveNodeType(node.getArgs()[i], actualType, actualDims);
         const bool actualIsFloat = actualResolved && actualDims.empty() && trimCopy(actualType) == "float";
-        const bool expectedIsFloat = expectedType == "float";
+        const bool expectedIsFloat = !expectedIsArray && expectedType == "float";
 
         if (expectedIsFloat && !actualIsFloat) {
             emit("muli " + regName(argReg) + ", " + regName(argReg) + ", " + std::to_string(kFloatScale));

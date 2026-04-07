@@ -52,6 +52,7 @@ class CodeGenVisitor : public ASTVisitor {
             std::string typeName;
             std::vector<int> dimensions;
             long elementSize = 4;
+            bool isReferenceParam = false;
         };
 
         struct FieldLayoutInfo {
