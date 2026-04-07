@@ -134,6 +134,7 @@ class CodeGenVisitor : public ASTVisitor {
         int emitAddressForDataMember(DataMemberNode& node);
         bool emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg);
         void emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode, const FunctionLayoutInfo& layout, bool isMainBody);
+        void emitRuntimeIntegerIO();
 };
 
 bool generateMoonAssembly(const std::shared_ptr<ProgNode>& root, const std::string& outputPath, std::vector<std::string>* errors = nullptr);

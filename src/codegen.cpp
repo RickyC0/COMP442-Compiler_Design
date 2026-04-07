@@ -80,6 +80,7 @@ bool CodeGenVisitor::generate(const std::shared_ptr<ProgNode>& root) {
     root->accept(*this);
 
     emit("hlt");
+    emitRuntimeIntegerIO();
 
     return _errors.empty();
 }
@@ -828,6 +829,105 @@ void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functi
     }
 }
 
+void CodeGenVisitor::emitRuntimeIntegerIO() {
+    emitComment("runtime helper: rt_readInt (returns parsed integer in r1)");
+    emit("rt_readInt");
+    emit("addi r1, r0, 0");
+    emit("addi r2, r0, 1");
+    emit("rt_readInt_skip_ws");
+    emit("getc r3");
+    emit("ceqi r4, r3, 32");
+    emit("bz r4, rt_readInt_check_tab");
+    emit("j rt_readInt_skip_ws");
+    emit("rt_readInt_check_tab");
+    emit("ceqi r4, r3, 9");
+    emit("bz r4, rt_readInt_check_lf");
+    emit("j rt_readInt_skip_ws");
+    emit("rt_readInt_check_lf");
+    emit("ceqi r4, r3, 10");
+    emit("bz r4, rt_readInt_check_cr");
+    emit("j rt_readInt_skip_ws");
+    emit("rt_readInt_check_cr");
+    emit("ceqi r4, r3, 13");
+    emit("bz r4, rt_readInt_check_sign");
+    emit("j rt_readInt_skip_ws");
+    emit("rt_readInt_check_sign");
+    emit("ceqi r4, r3, 45");
+    emit("bz r4, rt_readInt_check_plus");
+    emit("addi r2, r0, -1");
+    emit("getc r3");
+    emit("j rt_readInt_digit_loop");
+    emit("rt_readInt_check_plus");
+    emit("ceqi r4, r3, 43");
+    emit("bz r4, rt_readInt_digit_loop");
+    emit("getc r3");
+    emit("rt_readInt_digit_loop");
+    emit("addi r6, r0, 48");
+    emit("addi r7, r0, 57");
+    emit("clt r4, r3, r6");
+    emit("bz r4, rt_readInt_check_upper");
+    emit("j rt_readInt_apply_sign");
+    emit("rt_readInt_check_upper");
+    emit("cgt r4, r3, r7");
+    emit("bz r4, rt_readInt_consume_digit");
+    emit("j rt_readInt_apply_sign");
+    emit("rt_readInt_consume_digit");
+    emit("muli r1, r1, 10");
+    emit("sub r8, r3, r6");
+    emit("add r1, r1, r8");
+    emit("getc r3");
+    emit("j rt_readInt_digit_loop");
+    emit("rt_readInt_apply_sign");
+    emit("clt r4, r2, r0");
+    emit("bz r4, rt_readInt_ret");
+    emit("sub r1, r0, r1");
+    emit("rt_readInt_ret");
+    emit("jr r15");
+
+    emitComment("runtime helper: rt_writeInt (prints integer from r1)");
+    emit("rt_writeInt");
+    emit("add r2, r1, r0");
+    emit("ceqi r3, r2, 0");
+    emit("bz r3, rt_writeInt_non_zero");
+    emit("addi r4, r0, 48");
+    emit("putc r4");
+    emit("jr r15");
+    emit("rt_writeInt_non_zero");
+    emit("clt r3, r2, r0");
+    emit("bz r3, rt_writeInt_reserve");
+    emit("addi r4, r0, 45");
+    emit("putc r4");
+    emit("sub r2, r0, r2");
+    emit("rt_writeInt_reserve");
+    emit("subi r14, r14, 64");
+    emit("add r5, r14, r0");
+    emit("addi r6, r0, 0");
+    emit("addi r7, r0, 10");
+    emit("rt_writeInt_push_digits");
+    emit("mod r8, r2, r7");
+    emit("addi r8, r8, 48");
+    emit("sw 0(r5), r8");
+    emit("addi r5, r5, 4");
+    emit("addi r6, r6, 1");
+    emit("div r2, r2, r7");
+    emit("cgt r9, r2, r0");
+    emit("bz r9, rt_writeInt_print_setup");
+    emit("j rt_writeInt_push_digits");
+    emit("rt_writeInt_print_setup");
+    emit("subi r5, r5, 4");
+    emit("rt_writeInt_print_loop");
+    emit("lw r8, 0(r5)");
+    emit("putc r8");
+    emit("subi r5, r5, 4");
+    emit("subi r6, r6, 1");
+    emit("cgt r9, r6, r0");
+    emit("bz r9, rt_writeInt_done");
+    emit("j rt_writeInt_print_loop");
+    emit("rt_writeInt_done");
+    emit("addi r14, r14, 64");
+    emit("jr r15");
+}
+
 void CodeGenVisitor::visit(IdNode& node) {
     if (hasOffset(node.getName())) {
         int reg = _regs.acquire();
@@ -1182,13 +1282,32 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
     const std::string ioType = node.getValue();
 
     if (ioType == "read") {
-        int inputReg = _regs.acquire();
-        if (inputReg < 0) {
-            reportError(node.getLineNumber(), "register exhaustion while generating read statement");
+        std::string targetType;
+        std::vector<int> targetDims;
+        if (!resolveNodeType(node.getLeft(), targetType, targetDims)) {
             return;
         }
 
-        emit("getc " + regName(inputReg));
+        if (!targetDims.empty()) {
+            reportError(node.getLineNumber(), "read statement requires scalar target");
+            return;
+        }
+
+        if (!targetType.empty() && targetType != "integer" && targetType != "float" && targetType != "bool") {
+            reportError(node.getLineNumber(), "read statement is only supported for scalar integer/float/bool targets");
+            return;
+        }
+
+        emitComment("read lowered to decimal integer parser (rt_readInt)");
+        emit("jl r15, rt_readInt");
+
+        int inputReg = _regs.acquire();
+        if (inputReg < 0) {
+            reportError(node.getLineNumber(), "register exhaustion while storing readInt result");
+            return;
+        }
+
+        emit("add " + regName(inputReg) + ", r1, r0");
         emitStoreTarget(node.getLeft(), inputReg);
         _regs.release(inputReg);
         return;
@@ -1200,7 +1319,9 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
             return;
         }
 
-        emit("putc " + regName(valueReg));
+        emitComment("write lowered to decimal integer printer (rt_writeInt)");
+        emit("add r1, " + regName(valueReg) + ", r0");
+        emit("jl r15, rt_writeInt");
         _regs.release(valueReg);
         return;
     }
