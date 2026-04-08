@@ -304,10 +304,21 @@ int main(int argc, char* argv[]) {
             std::string details;
 
 #ifdef _WIN32
-            const fs::path moonExePath = fs::absolute(fs::path("..") / "exe" / "moon.exe");
+            const std::string moonExecutableName = "moon.exe";
 #else
-            const fs::path moonExePath = fs::absolute(fs::path("..") / "exe" / "moon");
+            const std::string moonExecutableName = "moon";
 #endif
+
+            const fs::path driverExePath = fs::absolute(fs::path(argv[0]));
+            const fs::path driverDir = driverExePath.parent_path();
+            const fs::path moonExeSameDir = driverDir / moonExecutableName;
+            const fs::path moonExeWorkspace = fs::absolute(fs::path("exe") / moonExecutableName);
+            const fs::path moonExeLegacyParent = fs::absolute(fs::path("..") / "exe" / moonExecutableName);
+
+            const fs::path moonExePath =
+                fs::exists(moonExeSameDir) ? moonExeSameDir :
+                (fs::exists(moonExeWorkspace) ? moonExeWorkspace : moonExeLegacyParent);
+
             const fs::path codegenDirAbs = fs::absolute(codegenDir);
 
             if (!fs::exists(moonExePath)) {
