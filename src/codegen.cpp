@@ -523,13 +523,21 @@ bool CodeGenVisitor::resolveDataMemberType(const std::shared_ptr<DataMemberNode>
 
     if (node->getLeft() == nullptr) {
         auto infoIt = _stackVarInfo.find(node->getName());
-        if (infoIt == _stackVarInfo.end()) {
+        if (infoIt != _stackVarInfo.end()) {
+            typeName = infoIt->second.typeName;
+            dimensions = infoIt->second.dimensions;
+        } else if (!_currentClassName.empty()) {
+            FieldLayoutInfo fieldLayout;
+            if (!lookupFieldLayout(_currentClassName, node->getName(), fieldLayout, node->getLineNumber())) {
+                return false;
+            }
+
+            typeName = fieldLayout.typeName;
+            dimensions = fieldLayout.dimensions;
+        } else {
             reportError(node->getLineNumber(), "unknown variable '" + node->getName() + "' in type resolution");
             return false;
         }
-
-        typeName = infoIt->second.typeName;
-        dimensions = infoIt->second.dimensions;
     } else {
         std::string ownerType;
         std::vector<int> ownerDimensions;
@@ -781,39 +789,87 @@ int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, i
 
 int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
     if (node.getLeft() == nullptr) {
-        if (!hasOffset(node.getName())) {
-            reportError(node.getLineNumber(), "unknown variable '" + node.getName() + "' in code generation");
-            return -1;
+        const bool isLocalOrParam = hasOffset(node.getName());
+        if (isLocalOrParam) {
+            const int addrReg = _regs.acquire();
+            if (addrReg < 0) {
+                reportError(node.getLineNumber(), "register exhaustion while generating l-value address");
+                return -1;
+            }
+
+            std::vector<int> declaredDimensions;
+            long elementSize = 4;
+            bool isReferenceParam = false;
+            auto infoIt = _stackVarInfo.find(node.getName());
+            if (infoIt != _stackVarInfo.end()) {
+                declaredDimensions = infoIt->second.dimensions;
+                elementSize = infoIt->second.elementSize;
+                isReferenceParam = infoIt->second.isReferenceParam;
+            }
+
+            if (isReferenceParam) {
+                emit("lw " + regName(addrReg) + ", " + std::to_string(lookupOffset(node.getName())) + "(r14)");
+            } else {
+                emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(node.getName())));
+            }
+
+            if (!emitIndexOffsetIntoAddress(addrReg, node.getIndices(), declaredDimensions, elementSize, node.getLineNumber())) {
+                _regs.release(addrReg);
+                return -1;
+            }
+
+            return addrReg;
         }
 
-        const int addrReg = _regs.acquire();
-        if (addrReg < 0) {
-            reportError(node.getLineNumber(), "register exhaustion while generating l-value address");
-            return -1;
+        if (!_currentClassName.empty()) {
+            FieldLayoutInfo fieldLayout;
+            if (!lookupFieldLayout(_currentClassName, node.getName(), fieldLayout, node.getLineNumber())) {
+                return -1;
+            }
+
+            const int addrReg = _regs.acquire();
+            if (addrReg < 0) {
+                reportError(node.getLineNumber(), "register exhaustion while generating field address");
+                return -1;
+            }
+
+            if (!loadThisPointerInto(addrReg, node.getLineNumber())) {
+                _regs.release(addrReg);
+                return -1;
+            }
+
+            if (fieldLayout.offset != 0) {
+                emit("addi " + regName(addrReg) + ", " + regName(addrReg) + ", " + std::to_string(fieldLayout.offset));
+            }
+
+            long fieldElementSize = sizeOfType(fieldLayout.typeName, node.getLineNumber());
+            if (fieldElementSize <= 0) {
+                fieldElementSize = 4;
+            }
+
+            if (!hasUnspecifiedDimension(fieldLayout.dimensions)) {
+                long elementCount = 1;
+                for (int dim : fieldLayout.dimensions) {
+                    elementCount *= dim;
+                }
+                if (elementCount > 0) {
+                    long computed = fieldLayout.size / elementCount;
+                    if (computed > 0) {
+                        fieldElementSize = computed;
+                    }
+                }
+            }
+
+            if (!emitIndexOffsetIntoAddress(addrReg, node.getIndices(), fieldLayout.dimensions, fieldElementSize, node.getLineNumber())) {
+                _regs.release(addrReg);
+                return -1;
+            }
+
+            return addrReg;
         }
 
-        std::vector<int> declaredDimensions;
-        long elementSize = 4;
-        bool isReferenceParam = false;
-        auto infoIt = _stackVarInfo.find(node.getName());
-        if (infoIt != _stackVarInfo.end()) {
-            declaredDimensions = infoIt->second.dimensions;
-            elementSize = infoIt->second.elementSize;
-            isReferenceParam = infoIt->second.isReferenceParam;
-        }
-
-        if (isReferenceParam) {
-            emit("lw " + regName(addrReg) + ", " + std::to_string(lookupOffset(node.getName())) + "(r14)");
-        } else {
-            emit("addi " + regName(addrReg) + ", r14, " + std::to_string(lookupOffset(node.getName())));
-        }
-
-        if (!emitIndexOffsetIntoAddress(addrReg, node.getIndices(), declaredDimensions, elementSize, node.getLineNumber())) {
-            _regs.release(addrReg);
-            return -1;
-        }
-
-        return addrReg;
+        reportError(node.getLineNumber(), "unknown variable '" + node.getName() + "' in code generation");
+        return -1;
     }
 
     const int ownerAddrReg = emitAddressForLValue(node.getLeft(), node.getLineNumber());
