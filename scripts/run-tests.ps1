@@ -10,7 +10,7 @@ param(
 
     [int]$MaxTests = 0,
 
-    [int]$PerTestTimeoutSec = 120,
+    [int]$PerTestTimeoutSec = 10,
 
     [bool]$KillStaleProcesses = $true
 )
@@ -135,7 +135,8 @@ function Invoke-DriverWithTimeout {
             [void](Stop-RepoProcesses -RepoRoot $RepoRoot -Names @('moon', 'final_driver'))
         }
 
-        $proc = Start-Process -FilePath $Driver -ArgumentList @($TestFile) -NoNewWindow -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        $escapedTestFile = '"' + ($TestFile -replace '"', '\\"') + '"'
+        $proc = Start-Process -FilePath $Driver -ArgumentList @($escapedTestFile) -WorkingDirectory $RepoRoot -NoNewWindow -PassThru -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
 
         $timedOut = $false
         if ($TimeoutSec -gt 0) {
@@ -255,6 +256,119 @@ function Get-TargetPhases {
     }
 
     return @($SelectedStep)
+}
+
+function Get-OutputBaseCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$BaseName
+    )
+
+    $candidateRepo = Join-Path $RepoRoot ("output/{0}" -f $BaseName)
+    $candidateParent = Join-Path (Split-Path -Path $RepoRoot -Parent) ("output/{0}" -f $BaseName)
+
+    if ($candidateRepo -ieq $candidateParent) {
+        return @($candidateRepo)
+    }
+
+    return @($candidateRepo, $candidateParent)
+}
+
+function Get-PhaseArtifactPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Phase,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputBase,
+        [Parameter(Mandatory = $true)]
+        [string]$BaseName
+    )
+
+    switch ($Phase) {
+        'lexer' {
+            return @((Join-Path $OutputBase ("Lexer/{0}.outlexerrors" -f $BaseName)))
+        }
+        'parser' {
+            return @((Join-Path $OutputBase ("Parser/{0}.outsyntaxerrors" -f $BaseName)))
+        }
+        'ast' {
+            return @(
+                (Join-Path $OutputBase ("AST/{0}.outast" -f $BaseName)),
+                (Join-Path $OutputBase ("AST/{0}.outast.dot" -f $BaseName))
+            )
+        }
+        'semantic' {
+            return @((Join-Path $OutputBase ("Semantics/{0}.outsemanticerrors" -f $BaseName)))
+        }
+        'codegen' {
+            return @(
+                (Join-Path $OutputBase ("CodeGen/{0}.outcodegenerrors" -f $BaseName)),
+                (Join-Path $OutputBase ("CodeGen/{0}.moon" -f $BaseName))
+            )
+        }
+        'moon' {
+            return @((Join-Path $OutputBase ("CodeGen/{0}.outmoonrun" -f $BaseName)))
+        }
+        default {
+            return @()
+        }
+    }
+}
+
+function Resolve-OutputBaseAfterRun {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$BaseName,
+        [Parameter(Mandatory = $true)]
+        [string[]]$TargetPhases,
+        [Parameter(Mandatory = $true)]
+        [datetime]$RunStart
+    )
+
+    $candidates = Get-OutputBaseCandidates -RepoRoot $RepoRoot -BaseName $BaseName
+    $freshThreshold = $RunStart.AddSeconds(-1)
+    $best = $null
+
+    foreach ($candidate in $candidates) {
+        $existingCount = 0
+        $freshCount = 0
+
+        foreach ($phase in $TargetPhases) {
+            $paths = Get-PhaseArtifactPaths -Phase $phase -OutputBase $candidate -BaseName $BaseName
+            foreach ($path in $paths) {
+                if (Test-Path -LiteralPath $path) {
+                    $existingCount++
+                    try {
+                        if ((Get-Item -LiteralPath $path).LastWriteTime -ge $freshThreshold) {
+                            $freshCount++
+                        }
+                    } catch {
+                        # best effort freshness check
+                    }
+                }
+            }
+        }
+
+        if ($null -eq $best -or
+            $freshCount -gt $best.freshCount -or
+            ($freshCount -eq $best.freshCount -and $existingCount -gt $best.existingCount)) {
+            $best = [ordered]@{
+                path = $candidate
+                freshCount = $freshCount
+                existingCount = $existingCount
+            }
+        }
+    }
+
+    if ($best -and $best.existingCount -gt 0) {
+        return $best.path
+    }
+
+    return $candidates[0]
 }
 
 function Get-NonEmptyLines {
@@ -510,7 +624,7 @@ try {
             -PercentComplete $percentStart
 
         $baseName = [System.IO.Path]::GetFileNameWithoutExtension($testFile)
-        $outputBase = Join-Path $repoRoot ("output/{0}" -f $baseName)
+        $outputBase = (Get-OutputBaseCandidates -RepoRoot $repoRoot -BaseName $baseName)[0]
         $start = Get-Date
 
         try {
@@ -518,6 +632,8 @@ try {
             $consoleOutput = @($runResult.output)
             $exitCode = $runResult.exitCode
             $elapsedMs = [int][Math]::Round(((Get-Date) - $start).TotalMilliseconds)
+
+            $outputBase = Resolve-OutputBaseAfterRun -RepoRoot $repoRoot -BaseName $baseName -TargetPhases $targetPhases -RunStart $start
 
             if ($runResult.timedOut) {
                 throw "Driver timed out after $PerTestTimeoutSec seconds"

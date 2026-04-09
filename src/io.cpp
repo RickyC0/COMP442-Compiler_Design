@@ -16,7 +16,7 @@ std::string getBaseName(const std::string& sourceFile) {
 
 std::string createOutputDir(const std::string& sourceFile) {
     std::string baseName = getBaseName(sourceFile);
-    fs::path outputDir = fs::path("../output") / baseName;
+    fs::path outputDir = fs::path("output") / baseName;
     fs::create_directories(outputDir);
     return outputDir.string();
 }
