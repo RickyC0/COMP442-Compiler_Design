@@ -1,3 +1,23 @@
+/**
+ * @file AST.h
+ * @brief Abstract Syntax Tree (AST) model and visitor contracts.
+ *
+ * @details
+ * This header defines the complete AST node hierarchy used across parsing,
+ * semantic analysis, code generation, and visualization. Nodes preserve source
+ * line numbers and expose a visitor interface so each compiler phase can traverse
+ * the same tree without embedding phase-specific logic into node classes.
+ *
+ * @par Why this design?
+ * The compiler uses a strongly-typed AST with explicit node classes to keep
+ * language structure clear and maintainable. The Visitor pattern allows adding
+ * new passes (analysis, transformations, exports) without modifying the AST API.
+ *
+ * @par What comes next?
+ * Any language feature extension should add or adapt node types here, then update
+ * parser construction, semantic visitor checks, codegen visitor lowering, and
+ * AST printer behavior in lockstep.
+ */
 #ifndef AST_H
 #define AST_H
 #include <string>
@@ -24,8 +44,22 @@ class FuncDefNode;
 class ClassDeclNode;
 class ProgNode;
 
+/**
+ * @class ASTVisitor
+ * @brief Visitor interface for all concrete AST node kinds.
+ *
+ * @details
+ * This interface is the single dispatch surface for compiler passes that operate
+ * on AST nodes. Each pass implements these visit methods and receives a concrete
+ * node type through double-dispatch via ASTNode::accept().
+ *
+ * @par Why explicit visit overloads?
+ * Explicit overloads provide type-safe traversal and avoid runtime casts in each
+ * compiler phase.
+ */
 class ASTVisitor {
     public:
+        /** @brief Virtual destructor for interface-safe polymorphic deletion. */
         virtual ~ASTVisitor() = default;
         virtual void visit(IdNode& node) = 0;
         virtual void visit(IntLitNode& node) = 0;
@@ -51,20 +85,45 @@ class ASTVisitor {
 // BASE CLASS
 // =============================================================================
 
+/**
+ * @class ASTNode
+ * @brief Base class for all AST nodes.
+ *
+ * @details
+ * Provides source line metadata and optional left/right child slots used by
+ * many unary/binary/shared structural nodes.
+ */
 class ASTNode {
     public:
+        /**
+         * @brief Construct base AST node with source line metadata.
+         * @param line 1-based source line number associated with this node.
+         */
         ASTNode(int line = 0) : lineNumber(line) {}
+        /** @brief Virtual destructor for polymorphic ownership safety. */
         virtual ~ASTNode() = default;
 
+        /** @brief Get source line number for diagnostics and tracing. */
         int getLineNumber() const { return lineNumber; }
+        /** @brief Get left child pointer (binary/unary shared convention). */
         std::shared_ptr<ASTNode> getLeft() const { return left; }
+        /** @brief Get right child pointer (binary/shared convention). */
         std::shared_ptr<ASTNode> getRight() const { return right; }
 
+        /** @brief Set left child pointer. */
         void setLeft(std::shared_ptr<ASTNode> leftNode) { left = leftNode; }
+        /** @brief Set right child pointer. */
         void setRight(std::shared_ptr<ASTNode> rightNode) { right = rightNode; }
 
-        // Every node must be able to return a string representation of itself
+        /**
+         * @brief Return compact textual label for diagnostics/printers.
+         * @return Node-specific display string.
+         */
         virtual std::string getValue() const = 0; 
+        /**
+         * @brief Accept a visitor (double-dispatch entry point).
+         * @param visitor Visitor implementation for current compiler phase.
+         */
         virtual void accept(ASTVisitor& visitor) = 0;
 
     private:
@@ -77,6 +136,14 @@ class ASTNode {
 // LEAF NODES (No children)
 // =============================================================================
 
+/**
+ * @class IdNode
+ * @brief Identifier leaf node.
+ *
+ * @details
+ * Represents declared names used in expressions/statements. Resolution and type
+ * meaning are deferred to semantic analysis.
+ */
 class IdNode : public ASTNode {
     private:
         std::string name;
@@ -87,6 +154,10 @@ class IdNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class IntLitNode
+ * @brief Integer literal leaf node.
+ */
 class IntLitNode : public ASTNode {
     private:
         int value;
@@ -97,6 +168,14 @@ class IntLitNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class FloatLitNode
+ * @brief Floating-point literal leaf node.
+ *
+ * @details
+ * The literal value is preserved as parsed; backend lowering policy (for example
+ * fixed-point emission) is applied in code generation, not in this node.
+ */
 class FloatLitNode : public ASTNode {
     private:
         float value;
@@ -107,6 +186,10 @@ class FloatLitNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class TypeNode
+ * @brief Type name leaf node used by grammar/type annotations.
+ */
 class TypeNode : public ASTNode {
     private:
         std::string typeName;
@@ -121,6 +204,13 @@ class TypeNode : public ASTNode {
 // EXPRESSION NODES (Math, Logic, Function Calls)
 // =============================================================================
 
+/**
+ * @class BinaryOpNode
+ * @brief Binary expression node with left/right operands.
+ *
+ * @details
+ * Used for arithmetic, relational, and logical operators.
+ */
 class BinaryOpNode : public ASTNode {
     private:
         std::string op; 
@@ -135,6 +225,10 @@ class BinaryOpNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class UnaryOpNode
+ * @brief Unary expression node with operand in left child.
+ */
 class UnaryOpNode : public ASTNode {
     private:
         std::string op; 
@@ -148,6 +242,14 @@ class UnaryOpNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class FuncCallNode
+ * @brief Function or method call expression node.
+ *
+ * @details
+ * Stores textual function name plus argument expressions. Optional left child can
+ * hold receiver/callee-owner context for member-call forms.
+ */
 class FuncCallNode : public ASTNode {
     private:
         std::string funcName;
@@ -163,6 +265,14 @@ class FuncCallNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class DataMemberNode
+ * @brief Data-member access (optionally indexed) node.
+ *
+ * @details
+ * Encodes both plain identifiers and chained member/index access forms depending
+ * on owner in left child and entries in indices.
+ */
 class DataMemberNode : public ASTNode {
     private:
         std::string idName;
@@ -181,6 +291,13 @@ class DataMemberNode : public ASTNode {
 // STATEMENT NODES (Control Flow, IO, Assignments)
 // =============================================================================
 
+/**
+ * @class AssignStmtNode
+ * @brief Assignment statement node.
+ *
+ * @details
+ * Left child is assignment target, right child is assigned expression.
+ */
 class AssignStmtNode : public ASTNode {
     public:
         AssignStmtNode(int line, std::shared_ptr<ASTNode> target, std::shared_ptr<ASTNode> value) 
@@ -192,6 +309,10 @@ class AssignStmtNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class IfStmtNode
+ * @brief Conditional statement node with optional else block.
+ */
 class IfStmtNode : public ASTNode {
     private:
         std::shared_ptr<ASTNode> elseBlock; 
@@ -206,6 +327,10 @@ class IfStmtNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class WhileStmtNode
+ * @brief While-loop statement node.
+ */
 class WhileStmtNode : public ASTNode {
     public:
         WhileStmtNode(int line, std::shared_ptr<ASTNode> cond, std::shared_ptr<ASTNode> body) 
@@ -217,6 +342,10 @@ class WhileStmtNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class IOStmtNode
+ * @brief I/O statement node (read/write forms).
+ */
 class IOStmtNode : public ASTNode {
     private:
         std::string ioType; 
@@ -229,6 +358,10 @@ class IOStmtNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class ReturnStmtNode
+ * @brief Return statement node.
+ */
 class ReturnStmtNode : public ASTNode {
     public:
         ReturnStmtNode(int line, std::shared_ptr<ASTNode> returnExpr) : ASTNode(line) {
@@ -238,6 +371,10 @@ class ReturnStmtNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class BlockNode
+ * @brief Ordered statement sequence node.
+ */
 class BlockNode : public ASTNode {
     private:
         std::vector<std::shared_ptr<ASTNode>> statements;
@@ -255,6 +392,13 @@ class BlockNode : public ASTNode {
 // DECLARATION NODES (Classes, Functions, Variables)
 // =============================================================================
 
+/**
+ * @class VarDeclNode
+ * @brief Variable/field/parameter declaration node.
+ *
+ * @details
+ * Carries type, name, visibility/scope role, and optional array dimensions.
+ */
 class VarDeclNode : public ASTNode {
     private:
         std::string type;
@@ -274,6 +418,14 @@ class VarDeclNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class FuncDefNode
+ * @brief Function or method definition node.
+ *
+ * @details
+ * Holds signature metadata (return type/name/class owner), parameter list,
+ * local declarations, and body block (in right child).
+ */
 class FuncDefNode : public ASTNode {
     private:
         std::string returnType;
@@ -299,6 +451,13 @@ class FuncDefNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class ClassDeclNode
+ * @brief Class declaration node.
+ *
+ * @details
+ * Stores class name, inherited parents, and declared members (fields/methods).
+ */
 class ClassDeclNode : public ASTNode {
     private:
         std::string name;
@@ -317,6 +476,10 @@ class ClassDeclNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @class ProgNode
+ * @brief Root program node containing classes and top-level functions.
+ */
 class ProgNode : public ASTNode {
     private:
         std::vector<std::shared_ptr<ClassDeclNode>> classes;
@@ -333,10 +496,22 @@ class ProgNode : public ASTNode {
         void accept(ASTVisitor& visitor) override;
 };
 
+/**
+ * @namespace ASTPrinter
+ * @brief AST export utilities for text and DOT formats.
+ *
+ * @details
+ * These functions are side-effect free on AST state and are used by driver/tooling
+ * to produce human-readable and visual artifacts.
+ */
     namespace ASTPrinter {
+        /** @brief Convert AST to structured text tree. */
         std::string toString(const std::shared_ptr<ASTNode>& root);
+        /** @brief Write structured text AST to file. */
         bool writeToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath);
+        /** @brief Convert AST to Graphviz DOT graph content. */
         std::string toDot(const std::shared_ptr<ASTNode>& root);
+        /** @brief Write Graphviz DOT AST to file. */
         bool writeDotToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath);
     }
 
