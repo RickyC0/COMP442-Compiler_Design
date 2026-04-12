@@ -1,9 +1,37 @@
 #include "../include/token.h"
 
+/**
+ * @file token.cpp
+ * @brief Implementation of lexical tokenization helpers.
+ *
+ * @details
+ * This source file implements staged lexical classification:
+ * 1) character-level dispatch,
+ * 2) category-specific scanners (id/number/operator/comment),
+ * 3) token materialization for downstream parser and diagnostics.
+ *
+ * @par Why this implementation style?
+ * Splitting category checks into focused helpers keeps lexical policy readable and
+ * debuggable during grammar evolution.
+ *
+ * @par What comes next?
+ * If the language grows, this file is the primary extension point for new lexical
+ * categories before parser and semantic integration.
+ */
+
 // Static member definitions for block comment accumulation
 std::string Token::_blockCommentAccum;
 int Token::_blockCommentStartLine = 0;
 
+/**
+ * @brief Resolve identifier lexeme against reserved keyword table.
+ * @param lexeme Candidate text.
+ * @return Keyword token type, or ID_ when not reserved.
+ *
+ * @par Why?
+ * Deferring keyword decision after identifier scan allows a single
+ * identifier automaton and simplifies maintenance.
+ */
 Token::Type Token::getKeywordType(const std::string& lexeme) {
     // It is created only the first time this function is called, to avoid atartup crash
     static const std::map<std::string, Token::Type> keywords = {
@@ -37,6 +65,12 @@ Token::Type Token::getKeywordType(const std::string& lexeme) {
     return Token::Type::ID_; // It's not a keyword, so it must be an Identifier
 }
 
+/**
+ * @brief Return current character and advance index safely.
+ * @param line Source line.
+ * @param index In/out scanner cursor.
+ * @return Character at cursor, or '\\0' when out of bounds.
+ */
 char Token::getNextChar(const std::string& line, size_t& index) {
     if (index < line.length()) {
 		return line[index++];
@@ -44,12 +78,25 @@ char Token::getNextChar(const std::string& line, size_t& index) {
     return '\0'; // Indicate end of current_char
 }
 
+/**
+ * @brief Consume input until whitespace boundary for error recovery.
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ *
+ * @par Why?
+ * Recovery-by-skip prevents the lexer from getting stuck on malformed lexemes.
+ */
 void Token::skipToken(size_t& index, const std::string& line){
     while (index < line.length() && !isspace(line[index])) {
         index++;
     }
 }
 
+/**
+ * @brief Compose stable diagnostic message for tokenized lexical error.
+ * @param error_step Pipeline label prefix.
+ * @return Formatted error text.
+ */
 std::string Token::getErrorString(std::string error_step) const {
     std::string error_type = this -> getTypeString();
     std::string error_token = this -> getValue();
@@ -62,6 +109,25 @@ std::string Token::getErrorString(std::string error_step) const {
 }
 
 // TODO make it backtrack when necessary by updating index
+/**
+ * @brief Tokenize one source line into full stream and invalid-token stream.
+ * @param line Source line text.
+ * @param lineNumber 1-based source line number.
+ * @param inBlockComment In/out state for multi-line block comments.
+ * @return Tuple(allTokens, invalidTokens).
+ *
+ * @details
+ * The lexer prioritizes deterministic progress: every iteration either consumes
+ * at least one character or explicitly advances index to avoid infinite loops.
+ *
+ * @par Why this split output?
+ * The driver emits token and error artifacts independently, so we keep both
+ * channels available from a single scan pass.
+ *
+ * @par What comes next?
+ * End-of-file handling should call flushPendingBlockComment() to emit an
+ * unterminated multi-line comment if still open.
+ */
 std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::string& line, int lineNumber, bool& inBlockComment) {
 	size_t index = 0;
 	std::vector<Token> all_tokens;
@@ -206,6 +272,16 @@ std::tuple<std::vector<Token>, std::vector<Token>> Token::tokenize(const std::st
 }
 
 //TODO FIX 0... DONE
+/**
+ * @brief Validate integer segment according to language integer rule.
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ * @return True when integer form is accepted.
+ *
+ * @details
+ * This validator enforces leading-zero policy and rejects illegal identifier
+ * suffixes (except exponent handoff via 'e').
+ */
 bool Token::_isValidIntegerLiteral(size_t& index, const std::string& line) {
     if (index >= line.length()) return false;
 
@@ -257,6 +333,16 @@ bool Token::_isValidIntegerLiteral(size_t& index, const std::string& line) {
 // float ::= integer fraction [e[+|−] integer]
 // Logic: [e[+|−] integer] assuming fraction has been checked
 // TODO FIX XXX.245232'0'
+/**
+ * @brief Validate optional exponent segment of a float literal.
+ * @param index In/out scanner cursor expected at optional 'e'.
+ * @param line Source line.
+ * @return True if exponent syntax is valid.
+ *
+ * @par Why?
+ * Splitting exponent validation from fraction validation keeps numeric error
+ * messages and rollback behavior easier to reason about.
+ */
 bool Token::_isValidFloatLiteral(size_t& index, const std::string& line) {
 	if (index >= line.length() || (line[index] != 'e')) { // No exponent part -> still valid float
         return true; 
@@ -280,6 +366,16 @@ bool Token::_isValidFloatLiteral(size_t& index, const std::string& line) {
 	
 }
 
+/**
+ * @brief Validate and consume fraction segment beginning with '.'.
+ * @param line Source line.
+ * @param index In/out scanner cursor.
+ * @return True when fraction policy is satisfied.
+ *
+ * @details
+ * Current policy permits ".0" but rejects trailing-zero multi-digit fractions
+ * (for example, ".50"). That policy is intentional for this language version.
+ */
 bool Token::_isFractionPart(const std::string& line, size_t& index) {
     if (index >= line.length() || line[index] != '.') { // check for '.'
         return false;
@@ -340,6 +436,16 @@ bool Token::_isFractionPart(const std::string& line, size_t& index) {
 }
 
 //TODO FIXED    Fix float missing + or -, since now it considers it as wrong when they are missing
+/**
+ * @brief Classify numeric lexeme as integer, float, or invalid number.
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ * @return INTEGER_LITERAL_, FLOAT_LITERAL_, or INVALID_NUMBER_.
+ *
+ * @par Why staged checks?
+ * Integer -> fraction -> exponent progression mirrors grammar and allows precise
+ * failure points without re-scanning input.
+ */
 Token::Type Token::isValidIntegerOrFloat(size_t& index, const std::string& line) {
 	bool is_integer = _isValidIntegerLiteral(index, line); 
 
@@ -381,16 +487,37 @@ Token::Type Token::isValidIntegerOrFloat(size_t& index, const std::string& line)
 
 }
 
+/**
+ * @brief Test identifier-body character set.
+ * @param c Character to classify.
+ * @return True for [a-zA-Z0-9_] characters.
+ */
 bool Token::_isAlphaNumeric(char c) {
     // isalnum checks [a-zA-Z0-9]
     // We add the check for underscore '_' manually
     return std::isalnum(c) || c == '_';
 }
 
+/**
+ * @brief Resolve scanned identifier to keyword-or-id token class.
+ * @param current_char Identifier lexeme.
+ * @return Keyword type or ID_.
+ */
 Token::Type Token::isValidKeywordOrId(const std::string& current_char) {
      return getKeywordType(current_char);
 }
 	
+/**
+ * @brief Validate identifier form and classify as keyword or ID.
+ * @param startChar First character of candidate identifier.
+ * @param line Source line.
+ * @param index In/out scanner cursor.
+ * @return ID_/keyword type or INVALID_ID_.
+ *
+ * @par Why?
+ * Leading-character validation here keeps tokenize() dispatch concise and ensures
+ * all identifier diagnostics are consistent.
+ */
 Token::Type Token::isValidId(char startChar, const std::string& line, size_t& index) {
 
 	// An identifier must start with a letter
@@ -406,6 +533,13 @@ Token::Type Token::isValidId(char startChar, const std::string& line, size_t& in
 }
 
 // helper to assess the rest of the identifier
+/**
+ * @brief Consume identifier tail and return full lexeme.
+ * @param startChar First character wrapped as string.
+ * @param line Source line.
+ * @param index In/out scanner cursor.
+ * @return Complete identifier lexeme.
+ */
 std::string Token::_scanIdentifier(const std::string& startChar, const std::string& line, size_t& index) {
     std::string lexeme(1, startChar[0]); // Start with the first character
 
@@ -427,6 +561,15 @@ std::string Token::_scanIdentifier(const std::string& startChar, const std::stri
 }
 
 // Checks for uni and multi-character operators and returns the appropriate Type
+/**
+ * @brief Classify operator and punctuation tokens requiring lookahead.
+ * @param line Source line.
+ * @param index In/out scanner cursor.
+ * @return Operator token class or INVALID_CHAR_.
+ *
+ * @par What comes next?
+ * Add new multi-character operators here when language operators expand.
+ */
 Token::Type Token::isValidCharOperator(const std::string& line, size_t& index) {
     char current = line[index++];
 	char next = line[index];
@@ -472,6 +615,14 @@ Token::Type Token::isValidCharOperator(const std::string& line, size_t& index) {
 	return Type::INVALID_CHAR_;
 }
 
+/**
+ * @brief Disambiguate '/' as divide, inline comment, or block comment.
+ * @param startChar Current scanner character (expected '/').
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ * @param inBlockComment In/out multiline comment state.
+ * @return Comment token type or DIVIDE_.
+ */
 Token::Type Token::isValidComment(char startChar, size_t& index, const std::string& line, bool& inBlockComment) {
 
     // 1. Check if it starts with '/'
@@ -500,6 +651,12 @@ Token::Type Token::isValidComment(char startChar, size_t& index, const std::stri
     return Type::DIVIDE_;
 }
 
+/**
+ * @brief Consume inline comment from "//" to end-of-line.
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ * @return INLINE_COMMENT_.
+ */
 Token::Type Token::_isInlineComment(size_t& index, const std::string& line) {
     // We already know line[index] is '/'. Consume it.
     index++;
@@ -509,6 +666,17 @@ Token::Type Token::_isInlineComment(size_t& index, const std::string& line) {
     return Type::INLINE_COMMENT_;
 }
 
+/**
+ * @brief Consume block comment section and update multiline state.
+ * @param index In/out scanner cursor.
+ * @param line Source line.
+ * @param inBlockComment In/out multiline comment state.
+ * @return BLOCK_COMMENT_ if closed on this line, UNTERMINATED_COMMENT_ otherwise.
+ *
+ * @par Why explicit state?
+ * The tokenizer processes one line at a time, so cross-line comments require
+ * explicit state handoff between tokenize() calls.
+ */
 Token::Type Token::_isBlockComment(size_t& index, const std::string& line, bool& inBlockComment) {
     // We already know line[index] is '*'. Consume it.
     index++;
@@ -538,6 +706,15 @@ Token::Type Token::_isBlockComment(size_t& index, const std::string& line, bool&
     }
 }
 
+/**
+ * @brief Flush unterminated multiline comment at end-of-file.
+ * @param valid Token output stream.
+ * @param invalid Invalid-token output stream.
+ *
+ * @details
+ * Emits a single UNTERMINATED_COMMENT_ token into both streams so diagnostics
+ * remain visible without losing lexical context.
+ */
 void Token::flushPendingBlockComment(std::vector<Token>& valid, std::vector<Token>& invalid) {
     if (!_blockCommentAccum.empty()) {
         Token t(Type::UNTERMINATED_COMMENT_, _blockCommentAccum, _blockCommentStartLine);
