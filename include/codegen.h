@@ -102,9 +102,14 @@ class CodeGenVisitor : public ASTVisitor {
         std::string _currentReturnType;
         long _currentFrameSize = 0;
         long _currentThisOffset = 0;
+        long _traceEmitCounter = 0;
+        int _traceSourceLine = 0;
+        std::string _traceContextTag;
 
         void emit(const std::string& line);
         void emitComment(const std::string& message);
+        void emitSourceLineContext(int line, const std::string& message);
+        void setTraceContext(int line, const std::string& contextTag);
         void reportError(int line, const std::string& message);
 
         static std::string sanitizeName(const std::string& raw);
