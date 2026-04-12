@@ -1,3 +1,19 @@
+/**
+ * @file codegen.cpp
+ * @brief Moon backend implementation for AST-to-assembly lowering.
+ *
+ * @details
+ * This implementation performs deterministic lowering from typed AST nodes to
+ * Moon assembly by combining:
+ * - class/function layout synthesis,
+ * - register and stack-frame orchestration,
+ * - value/address lowering for scalars, arrays, and objects,
+ * - runtime helper emission for numeric input-output.
+ *
+ * @par Why this approach?
+ * Keeping lowering decisions centralized enables traceable instruction output,
+ * consistent diagnostics, and easier debugging against source-line context.
+ */
 #include "../include/codegen.h"
 
 #include <algorithm>
@@ -7,10 +23,12 @@
 #include <cctype>
 
 namespace {
+    /** @brief Convert register index to Moon register token (for example r5). */
     std::string regName(int reg) {
         return "r" + std::to_string(reg);
     }
 
+    /** @brief Trim leading and trailing whitespace from a copy of the input string. */
     std::string trimCopy(const std::string& raw) {
         size_t start = 0;
         while (start < raw.size() && std::isspace(static_cast<unsigned char>(raw[start]))) {
@@ -25,10 +43,12 @@ namespace {
         return raw.substr(start, end - start);
     }
 
+    /** @brief Return true for backend primitive scalar types. */
     bool isBasicScalarType(const std::string& typeName) {
         return typeName == "integer" || typeName == "float" || typeName == "bool";
     }
 
+    /** @brief Detect whether any array dimension is unresolved or non-positive. */
     bool hasUnspecifiedDimension(const std::vector<int>& dimensions) {
         for (int dim : dimensions) {
             if (dim <= 0) {
@@ -38,10 +58,12 @@ namespace {
         return false;
     }
 
+    /** @brief Check prefix match used by trace-comment suppression filters. */
     bool startsWith(const std::string& text, const std::string& prefix) {
         return text.size() >= prefix.size() && text.compare(0, prefix.size(), prefix) == 0;
     }
 
+    /** @brief Render array dimensions into a compact trace-friendly string. */
     std::string dimensionsToString(const std::vector<int>& dimensions) {
         if (dimensions.empty()) {
             return "scalar";
@@ -58,6 +80,7 @@ namespace {
         return oss.str();
     }
 
+    /** @brief Build lightweight node summary strings for trace comments. */
     std::string summarizeNode(const std::shared_ptr<ASTNode>& node) {
         if (node == nullptr) {
             return "<null>";
@@ -123,6 +146,7 @@ namespace {
         return node->getValue();
     }
 
+    /** @brief Utility constexpr used to validate fixed-point scale constant. */
     constexpr bool isPowerOfTen(int value) { // USED LATER IN CODEGEN FOR VALIDATING FLOAT SCALE CONSTANT
         if (value < 1) {
             return false;
@@ -135,15 +159,19 @@ namespace {
         return value == 1;
     }
 
+    /** @brief Fixed-point scale used to lower language floats onto integer-only Moon ops. */
     constexpr int kFloatScale = 100; //must be a power of 10 to avoid precision issues in scaled integer representation. USE THIS CONSTANT ACCROSS ALL CODEGEN LOGIC FOR CONSISTENCY
+    /** @brief First fractional divisor (10 for scale 100) used by decimal emit loops. */
     constexpr int kFloatFirstFractionPlace = kFloatScale / 10;
     static_assert(kFloatScale >= 10 && isPowerOfTen(kFloatScale), "kFloatScale must be a power of ten >= 10");
 }
 
+/** @brief Initialize register allocator state. */
 CodeGenVisitor::RegisterAllocator::RegisterAllocator() {
     reset();
 }
 
+/** @brief Acquire one temporary register from allocator pool. */
 int CodeGenVisitor::RegisterAllocator::acquire() {
     if (_freeRegs.empty()) {
         return -1;
@@ -154,6 +182,7 @@ int CodeGenVisitor::RegisterAllocator::acquire() {
     return reg;
 }
 
+/** @brief Return temporary register to allocator pool if valid. */
 void CodeGenVisitor::RegisterAllocator::release(int reg) {
     if (reg <= 0 || reg > 12) {
         return;
@@ -164,6 +193,7 @@ void CodeGenVisitor::RegisterAllocator::release(int reg) {
     }
 }
 
+/** @brief Restore allocator to full temporary register pool. */
 void CodeGenVisitor::RegisterAllocator::reset() {
     _freeRegs.clear();
     for (int reg = 12; reg >= 1; --reg) {
@@ -171,9 +201,17 @@ void CodeGenVisitor::RegisterAllocator::reset() {
     }
 }
 
+/** @brief Construct backend with output stream sink. */
 CodeGenVisitor::CodeGenVisitor(std::ostream& out)
     : _out(out) {}
 
+/**
+ * @brief Generate Moon assembly from program AST.
+ *
+ * @details
+ * Initializes trace state, emits entry bootstrap, delegates full program
+ * lowering to the AST visitor, then appends runtime I/O helpers.
+ */
 bool CodeGenVisitor::generate(const std::shared_ptr<ProgNode>& root) {
     _errors.clear();
     _labelCounter = 0;
@@ -201,10 +239,18 @@ bool CodeGenVisitor::generate(const std::shared_ptr<ProgNode>& root) {
     return _errors.empty();
 }
 
+/** @brief Expose accumulated code generation diagnostics. */
 const std::vector<std::string>& CodeGenVisitor::getErrors() const {
     return _errors;
 }
 
+/**
+ * @brief Emit assembly line and optional instruction trace comment.
+ *
+ * @details
+ * Non-comment instructions receive an auto-incrementing trace marker to make
+ * generated assembly easy to audit against source-line context.
+ */
 void CodeGenVisitor::emit(const std::string& line) {
     const bool isComment = !line.empty() && line[0] == '%';
     if (!isComment && !line.empty()) {
@@ -229,6 +275,13 @@ void CodeGenVisitor::emit(const std::string& line) {
     _out << line << "\n";
 }
 
+/**
+ * @brief Emit backend comment line with readability filtering.
+ *
+ * @details
+ * Very high-frequency comment categories are suppressed to keep emitted assembly
+ * reviewable in assignment-scale test outputs.
+ */
 void CodeGenVisitor::emitComment(const std::string& message) {
     // Keep Moon output readable by suppressing repetitive low-value traces.
     if (startsWith(message, "semantic step:")) {
@@ -247,6 +300,7 @@ void CodeGenVisitor::emitComment(const std::string& message) {
     emit("% " + message);
 }
 
+/** @brief Attach source-line context tag and emit contextual trace comment. */
 void CodeGenVisitor::emitSourceLineContext(int line, const std::string& message) {
     std::string tag = message;
     if (!message.empty() && message[0] == '[') {
@@ -265,15 +319,18 @@ void CodeGenVisitor::emitSourceLineContext(int line, const std::string& message)
     }
 }
 
+/** @brief Update current trace context tuple (line + semantic tag). */
 void CodeGenVisitor::setTraceContext(int line, const std::string& contextTag) {
     _traceSourceLine = line;
     _traceContextTag = contextTag;
 }
 
+/** @brief Record formatted codegen error with source line. */
 void CodeGenVisitor::reportError(int line, const std::string& message) {
     _errors.push_back("[ERROR][CODEGEN] line " + std::to_string(line) + ": " + message);
 }
 
+/** @brief Sanitize arbitrary identifier text for use in Moon labels. */
 std::string CodeGenVisitor::sanitizeName(const std::string& raw) {
     std::string result;
     result.reserve(raw.size());
@@ -293,10 +350,12 @@ std::string CodeGenVisitor::sanitizeName(const std::string& raw) {
     return result;
 }
 
+/** @brief Create a unique label from prefix plus monotonic counter. */
 std::string CodeGenVisitor::makeLabel(const std::string& prefix) {
     return sanitizeName(prefix) + "_" + std::to_string(++_labelCounter);
 }
 
+/** @brief Build canonical function map key from class/function names. */
 std::string CodeGenVisitor::functionKey(const std::string& className, const std::string& functionName) {
     if (className.empty()) {
         return functionName;
@@ -304,6 +363,7 @@ std::string CodeGenVisitor::functionKey(const std::string& className, const std:
     return className + "::" + functionName;
 }
 
+/** @brief Reset mutable per-function frame/register state before emission. */
 void CodeGenVisitor::resetFunctionState() {
     _stackOffsets.clear();
     _stackVarInfo.clear();
@@ -312,6 +372,13 @@ void CodeGenVisitor::resetFunctionState() {
     _lastExprReg = -1;
 }
 
+/**
+ * @brief Build and cache frame layout for a function or method.
+ *
+ * @details
+ * Layout includes return link slot, optional receiver slot, parameter slots,
+ * local storage slots, and metadata used by argument/assignment lowering.
+ */
 bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& functionNode) {
     if (functionNode == nullptr || functionNode->getRight() == nullptr) {
         return false;
@@ -403,6 +470,7 @@ bool CodeGenVisitor::buildFunctionLayout(const std::shared_ptr<FuncDefNode>& fun
     return true;
 }
 
+/** @brief Lookup cached function layout by owner class and function name. */
 const CodeGenVisitor::FunctionLayoutInfo* CodeGenVisitor::findFunctionLayout(const std::string& className, const std::string& functionName) const {
     const std::string key = functionKey(trimCopy(className), functionName);
     auto it = _functionLayouts.find(key);
@@ -412,6 +480,7 @@ const CodeGenVisitor::FunctionLayoutInfo* CodeGenVisitor::findFunctionLayout(con
     return &it->second;
 }
 
+/** @brief Compute storage size for scalar or class type. */
 long CodeGenVisitor::sizeOfType(const std::string& typeName, int line) {
     const std::string cleanType = trimCopy(typeName);
     if (cleanType.empty()) {
@@ -427,6 +496,13 @@ long CodeGenVisitor::sizeOfType(const std::string& typeName, int line) {
     return sizeOfClass(cleanType, visiting, line);
 }
 
+/**
+ * @brief Build flattened class layout, including inherited fields.
+ *
+ * @details
+ * The visitor tracks active recursion to detect storage dependency cycles and
+ * report clear diagnostics instead of silently producing invalid offsets.
+ */
 bool CodeGenVisitor::buildClassLayout(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
     const std::string cleanClassName = trimCopy(className);
 
@@ -502,6 +578,7 @@ bool CodeGenVisitor::buildClassLayout(const std::string& className, std::unorder
     return true;
 }
 
+/** @brief Compute or retrieve total byte size for a class type. */
 long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_set<std::string>& visiting, int line) {
     const std::string cleanClassName = trimCopy(className);
 
@@ -523,6 +600,7 @@ long CodeGenVisitor::sizeOfClass(const std::string& className, std::unordered_se
     return -1;
 }
 
+/** @brief Resolve field layout metadata within a class layout cache. */
 bool CodeGenVisitor::lookupFieldLayout(const std::string& className, const std::string& fieldName, FieldLayoutInfo& out, int line) {
     const std::string cleanClassName = trimCopy(className);
     std::unordered_set<std::string> visiting;
@@ -546,6 +624,13 @@ bool CodeGenVisitor::lookupFieldLayout(const std::string& className, const std::
     return true;
 }
 
+/**
+ * @brief Compute storage size for a declared variable.
+ *
+ * @details
+ * Array parameters and declarations with unspecified dimensions are lowered as
+ * references (word-sized addresses) rather than inline aggregate storage.
+ */
 long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
     if (decl == nullptr) {
         return 0;
@@ -572,6 +657,7 @@ long CodeGenVisitor::sizeOfVar(const std::shared_ptr<VarDeclNode>& decl) {
     return elements * elementSize;
 }
 
+/** @brief Assign stack offsets and metadata for a set of declarations. */
 void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode>>& vars) {
     for (const auto& var : vars) {
         if (var == nullptr) {
@@ -629,10 +715,12 @@ void CodeGenVisitor::assignOffsets(const std::vector<std::shared_ptr<VarDeclNode
     }
 }
 
+/** @brief Return true when active frame owns a slot for identifier name. */
 bool CodeGenVisitor::hasOffset(const std::string& name) const {
     return _stackOffsets.find(name) != _stackOffsets.end();
 }
 
+/** @brief Lookup active frame offset for identifier name. */
 long CodeGenVisitor::lookupOffset(const std::string& name) const {
     auto it = _stackOffsets.find(name);
     if (it == _stackOffsets.end()) {
@@ -642,6 +730,7 @@ long CodeGenVisitor::lookupOffset(const std::string& name) const {
     return it->second;
 }
 
+/** @brief Evaluate expression subtree and return result register id. */
 int CodeGenVisitor::evalExpr(const std::shared_ptr<ASTNode>& node) {
     _lastExprReg = -1;
 
@@ -654,6 +743,7 @@ int CodeGenVisitor::evalExpr(const std::shared_ptr<ASTNode>& node) {
     return _lastExprReg;
 }
 
+/** @brief Load implicit receiver pointer into target register for method context. */
 bool CodeGenVisitor::loadThisPointerInto(int targetReg, int line) {
     if (targetReg < 0) {
         return false;
@@ -669,6 +759,7 @@ bool CodeGenVisitor::loadThisPointerInto(int targetReg, int line) {
     return true;
 }
 
+/** @brief Resolve effective type and remaining dimensions for data-member access. */
 bool CodeGenVisitor::resolveDataMemberType(const std::shared_ptr<DataMemberNode>& node, std::string& typeName, std::vector<int>& dimensions) {
     if (node == nullptr) {
         return false;
@@ -721,6 +812,13 @@ bool CodeGenVisitor::resolveDataMemberType(const std::shared_ptr<DataMemberNode>
     return true;
 }
 
+/**
+ * @brief Resolve expression type information used by lowering decisions.
+ *
+ * @details
+ * This helper enables mixed numeric operations, object-copy detection, call
+ * return handling, and argument conversions without re-running semantic analysis.
+ */
 bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::string& typeName, std::vector<int>& dimensions) {
     if (node == nullptr) {
         return false;
@@ -826,6 +924,12 @@ bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::
     return false;
 }
 
+/**
+ * @brief Lower multidimensional index expressions into linear byte offset.
+ *
+ * @param addrReg Base address register to update in-place.
+ * @return True when offset emission succeeds.
+ */
 bool CodeGenVisitor::emitIndexOffsetIntoAddress(int addrReg,
                                                 const std::vector<std::shared_ptr<ASTNode>>& indices,
                                                 const std::vector<int>& declaredDimensions,
@@ -888,6 +992,7 @@ bool CodeGenVisitor::emitIndexOffsetIntoAddress(int addrReg,
     return true;
 }
 
+/** @brief Emit l-value address for identifier or member target expression. */
 int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, int line) {
     if (node == nullptr) {
         reportError(line, "null l-value in address generation");
@@ -951,6 +1056,13 @@ int CodeGenVisitor::emitAddressForLValue(const std::shared_ptr<ASTNode>& node, i
     return -1;
 }
 
+/**
+ * @brief Emit address for member/array-chain access.
+ *
+ * @details
+ * Supports local/parameter variables, implicit receiver fields, and explicit
+ * owner expressions with recursive address construction.
+ */
 int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
     if (node.getLeft() == nullptr) {
         const bool isLocalOrParam = hasOffset(node.getName());
@@ -1095,6 +1207,7 @@ int CodeGenVisitor::emitAddressForDataMember(DataMemberNode& node) {
     return ownerAddrReg;
 }
 
+/** @brief Emit address for expressions expected to denote aggregate objects. */
 int CodeGenVisitor::emitAddressForObjectExpression(const std::shared_ptr<ASTNode>& node, int line) {
     if (node == nullptr) {
         reportError(line, "null object expression in code generation");
@@ -1114,6 +1227,7 @@ int CodeGenVisitor::emitAddressForObjectExpression(const std::shared_ptr<ASTNode
     return -1;
 }
 
+/** @brief Emit word-wise memory copy used by object assignment and argument passing. */
 bool CodeGenVisitor::emitCopyWords(int dstAddrReg, int srcAddrReg, long byteCount, int line) {
     if (dstAddrReg < 0 || srcAddrReg < 0) {
         return false;
@@ -1149,6 +1263,7 @@ bool CodeGenVisitor::emitCopyWords(int dstAddrReg, int srcAddrReg, long byteCoun
     return true;
 }
 
+/** @brief Emit scalar store into assignable target location. */
 bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int valueReg) {
     if (target == nullptr || valueReg < 0) {
         return false;
@@ -1175,6 +1290,13 @@ bool CodeGenVisitor::emitStoreTarget(const std::shared_ptr<ASTNode>& target, int
     return true;
 }
 
+/**
+ * @brief Emit one function body with frame-aware conventions.
+ *
+ * @details
+ * Handles prologue/epilogue, parameter/local trace summaries, block lowering,
+ * and method receiver context for nested member accesses.
+ */
 void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functionNode,
                                       const FunctionLayoutInfo& layout,
                                       bool isMainBody) {
@@ -1257,6 +1379,13 @@ void CodeGenVisitor::emitFunctionBody(const std::shared_ptr<FuncDefNode>& functi
     emitComment("============================================================");
 }
 
+/**
+ * @brief Emit runtime helper routines for integer and fixed-point float I/O.
+ *
+ * @details
+ * Helpers are emitted once per compilation unit and invoked via `jl` from read/
+ * write statements to keep core statement lowering simple and uniform.
+ */
 void CodeGenVisitor::emitRuntimeIntegerIO() {
     emitSourceLineContext(0, "[RT_READINT] helper begin");
     emitComment("runtime helper: rt_readInt (returns parsed integer in r1)");
@@ -1487,6 +1616,7 @@ void CodeGenVisitor::emitRuntimeIntegerIO() {
     emit("jr r15");
 }
 
+/** @brief Lower identifier expression into register value load. */
 void CodeGenVisitor::visit(IdNode& node) {
     if (hasOffset(node.getName())) {
         int reg = _regs.acquire();
@@ -1548,6 +1678,7 @@ void CodeGenVisitor::visit(IdNode& node) {
     _lastExprReg = -1;
 }
 
+/** @brief Lower integer literal into immediate-loaded register. */
 void CodeGenVisitor::visit(IntLitNode& node) {
     int reg = _regs.acquire();
     if (reg < 0) {
@@ -1561,6 +1692,7 @@ void CodeGenVisitor::visit(IntLitNode& node) {
     _lastExprReg = reg;
 }
 
+/** @brief Lower float literal into fixed-point integer immediate. */
 void CodeGenVisitor::visit(FloatLitNode& node) {
     int reg = _regs.acquire();
     if (reg < 0) {
@@ -1579,10 +1711,18 @@ void CodeGenVisitor::visit(FloatLitNode& node) {
     _lastExprReg = reg;
 }
 
+/** @brief Type nodes are metadata-only and produce no runtime value. */
 void CodeGenVisitor::visit(TypeNode&) {
     _lastExprReg = -1;
 }
 
+/**
+ * @brief Lower binary expression with scalar/fixed-point operator selection.
+ *
+ * @details
+ * Mixed integer-float arithmetic is handled by fixed-point promotion using the
+ * module-wide scale constant before operation emission.
+ */
 void CodeGenVisitor::visit(BinaryOpNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[EXPR] binary op='" + node.getOperator() + "'");
     int leftReg = evalExpr(node.getLeft());
@@ -1665,6 +1805,7 @@ void CodeGenVisitor::visit(BinaryOpNode& node) {
     _lastExprReg = leftReg;
 }
 
+/** @brief Lower unary operators (negation, logical not, unary plus passthrough). */
 void CodeGenVisitor::visit(UnaryOpNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[EXPR] unary op='" + node.getOperator() + "'");
     int operandReg = evalExpr(node.getLeft());
@@ -1685,6 +1826,13 @@ void CodeGenVisitor::visit(UnaryOpNode& node) {
     _lastExprReg = operandReg;
 }
 
+/**
+ * @brief Lower function or method call sequence.
+ *
+ * @details
+ * Emits argument marshalling, optional receiver handling, frame movement around
+ * call, jump-link transfer, and return-value capture.
+ */
 void CodeGenVisitor::visit(FuncCallNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[CALL] begin '" + node.getFunctionName() + "'");
     const FunctionLayoutInfo* targetLayout = nullptr;
@@ -1886,6 +2034,7 @@ void CodeGenVisitor::visit(FuncCallNode& node) {
     _lastExprReg = resultReg;
 }
 
+/** @brief Lower member access expression by address resolution then load. */
 void CodeGenVisitor::visit(DataMemberNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[EXPR] data member '" + node.getName() + "' idx=" + std::to_string(node.getIndices().size()));
     const int addrReg = emitAddressForDataMember(node);
@@ -1911,6 +2060,13 @@ void CodeGenVisitor::visit(DataMemberNode& node) {
     _lastExprReg = valueReg;
 }
 
+/**
+ * @brief Lower assignment statement for scalar store or aggregate object copy.
+ *
+ * @details
+ * Object assignment emits explicit memory copy loops while scalar assignment
+ * follows expression evaluation and target-address store.
+ */
 void CodeGenVisitor::visit(AssignStmtNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[ASSIGN] begin");
     std::string leftType;
@@ -1989,6 +2145,7 @@ void CodeGenVisitor::visit(AssignStmtNode& node) {
     _regs.release(valueReg);
 }
 
+/** @brief Lower if/else control flow with generated branch labels. */
 void CodeGenVisitor::visit(IfStmtNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[CTRL] if begin");
     int condReg = evalExpr(node.getLeft());
@@ -2020,6 +2177,7 @@ void CodeGenVisitor::visit(IfStmtNode& node) {
     emit(endLabel);
 }
 
+/** @brief Lower while loop with explicit start/end labels and conditional branch. */
 void CodeGenVisitor::visit(WhileStmtNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[CTRL] while begin");
     const std::string startLabel = makeLabel("while_start");
@@ -2046,6 +2204,13 @@ void CodeGenVisitor::visit(WhileStmtNode& node) {
     emit(endLabel);
 }
 
+/**
+ * @brief Lower read/write statements through runtime helper routines.
+ *
+ * @details
+ * Read and write share helper-based ABI so statement lowering only manages
+ * target/source evaluation and register conventions.
+ */
 void CodeGenVisitor::visit(IOStmtNode& node) {
     const std::string ioType = node.getValue();
     emitSourceLineContext(node.getLineNumber(), "[IO] begin kind='" + ioType + "'");
@@ -2115,6 +2280,7 @@ void CodeGenVisitor::visit(IOStmtNode& node) {
     reportError(node.getLineNumber(), "unknown I/O statement kind in code generation: '" + ioType + "'");
 }
 
+/** @brief Lower return statement and transfer result to return register. */
 void CodeGenVisitor::visit(ReturnStmtNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[RET] begin");
     if (node.getLeft() != nullptr) {
@@ -2153,6 +2319,7 @@ void CodeGenVisitor::visit(ReturnStmtNode& node) {
     }
 }
 
+/** @brief Lower statement block by visiting statements in source order. */
 void CodeGenVisitor::visit(BlockNode& node) {
     emitSourceLineContext(node.getLineNumber(), "[BLOCK] statements=" + std::to_string(node.getStatements().size()));
     for (const auto& stmt : node.getStatements()) {
@@ -2167,19 +2334,29 @@ void CodeGenVisitor::visit(BlockNode& node) {
     }
 }
 
+/** @brief Variable declarations are layout-only and emit no direct instructions. */
 void CodeGenVisitor::visit(VarDeclNode&) {
     // Storage is assigned when entering a function frame.
 }
 
+/** @brief Function declarations are emitted centrally during program lowering. */
 void CodeGenVisitor::visit(FuncDefNode& node) {
     (void)node;
     // Function bodies are emitted in visit(ProgNode) with layout-aware call metadata.
 }
 
+/** @brief Class declaration node currently contributes layout metadata only. */
 void CodeGenVisitor::visit(ClassDeclNode& node) {
     emitComment("class code generation not implemented for: " + node.getName());
 }
 
+/**
+ * @brief Lower full program: collect layouts, emit main, emit non-main functions.
+ *
+ * @details
+ * Main body is emitted first as entry execution path, then other routines are
+ * emitted and referenced by labels for call sites.
+ */
 void CodeGenVisitor::visit(ProgNode& node) {
     _classDecls.clear();
     _classLayouts.clear();
@@ -2275,6 +2452,10 @@ void CodeGenVisitor::visit(ProgNode& node) {
     emit(programEndLabel);
 }
 
+/**
+ * @brief Convenience front-end for writing generated Moon assembly to file.
+ * @return True when generation succeeded and output file was writable.
+ */
 bool generateMoonAssembly(const std::shared_ptr<ProgNode>& root, const std::string& outputPath, std::vector<std::string>* errors) {
     std::ofstream out(outputPath, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!out.is_open()) {
