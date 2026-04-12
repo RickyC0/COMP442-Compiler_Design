@@ -498,7 +498,7 @@ class Token {
          *
          * @details
          * This is explicit shared state across tokenize() calls to preserve full
-         * comment lexeme when "/*" and the closing star-slash span different lines.
+         * comment lexeme when the opening '/' + '*' and the closing '*' + '/' span different lines.
          */
         static std::string _blockCommentAccum;
 

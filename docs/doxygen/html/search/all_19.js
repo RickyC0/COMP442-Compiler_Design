@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['table_20architecture_0',['Symbol Table Architecture',['../index.html#autotoc_md10',1,'']]],
+  ['table_20construction_1',['Pass 1: Symbol Table Construction',['../index.html#autotoc_md12',1,'']]],
+  ['tables_2',['4. Semantic Analysis and Symbol Tables',['../index.html#autotoc_md9',1,'']]],
+  ['terminated_5fcomment_5f_3',['TERMINATED_COMMENT_',['../class_token.html#acf70e9411196c602738c3ed2428c7137a1fa2ce20c123e34f437dd8abef1586a8',1,'Token']]],
+  ['the_20two_20pass_20system_20crucial_4',['The Two-Pass System (Crucial)',['../index.html#autotoc_md11',1,'']]],
+  ['the_20visitor_20pattern_20double_20dispatch_5',['The Visitor Pattern (Double-Dispatch)',['../index.html#autotoc_md7',1,'']]],
+  ['then_5fkeyword_5f_6',['THEN_KEYWORD_',['../class_token.html#acf70e9411196c602738c3ed2428c7137a1e8891a3bd99b9f729805e03d0b5e8cc',1,'Token']]],
+  ['thisoffset_7',['thisOffset',['../struct_code_gen_visitor_1_1_function_layout_info.html#a73a9bf28a5e7aa0fdd47eb73fae5c5ed',1,'CodeGenVisitor::FunctionLayoutInfo']]],
+  ['todot_8',['toDot',['../namespace_a_s_t_printer.html#a52c48a46dfd7a193a7c16eebc2b8574d',1,'ASTPrinter']]],
+  ['token_9',['Token',['../class_token.html',1,'Token'],['../class_token.html#a115889c9cf78ac846f39f72439b9ffb5',1,'Token::Token(Type type, const std::string &amp;value, int lineNumber)'],['../class_token.html#a28857fe5c15e75db89ef881dd5a90bea',1,'Token::Token(const Token &amp;other)']]],
+  ['token_2ecpp_10',['token.cpp',['../token_8cpp.html',1,'']]],
+  ['token_2eh_11',['token.h',['../token_8h.html',1,'']]],
+  ['tokenize_12',['tokenize',['../class_token.html#a75cb7d92b8df96524d57415925a46889',1,'Token']]],
+  ['tokenizefile_13',['tokenizeFile',['../io_8h.html#a1067d83526493fff9e9f3bc7ae48cf86',1,'tokenizeFile(const std::string &amp;filename):&#160;io.cpp'],['../io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86',1,'tokenizeFile(const std::string &amp;filename):&#160;io.cpp']]],
+  ['tostring_14',['toString',['../class_token.html#a6f1c3f5f607e9b576b4202b108f13c60',1,'Token::toString()'],['../namespace_a_s_t_printer.html#a7a1404500ba357cd0ec27b6bd70223d1',1,'ASTPrinter::toString()']]],
+  ['tree_20ast_20and_20visualization_15',['3. Abstract Syntax Tree (AST) and Visualization',['../index.html#autotoc_md5',1,'']]],
+  ['ttype_16',['TTYPE',['../my__parser_8cpp.html#a6b04c3c16b597bd82efe4c500d8ce724',1,'my_parser.cpp']]],
+  ['two_20pass_20system_20crucial_17',['The Two-Pass System (Crucial)',['../index.html#autotoc_md11',1,'']]],
+  ['type_18',['Type',['../class_token.html#acf70e9411196c602738c3ed2428c7137',1,'Token']]],
+  ['type_19',['type',['../class_var_decl_node.html#a4ded304908ba4f2383751c7af789df13',1,'VarDeclNode::type'],['../struct_symbol_entry.html#ae61482ced30d322080959dddb4dc3dc6',1,'SymbolEntry::type']]],
+  ['type_20checking_20and_20resolution_20',['Pass 2: Type Checking and Resolution',['../index.html#autotoc_md13',1,'']]],
+  ['type_5f_21',['type_',['../class_token.html#abc2dacaaa0e08ce0a61a51042a0ae811',1,'Token']]],
+  ['typename_22',['typeName',['../class_type_node.html#a44ada38889136659fab21c3ee3b7fa7c',1,'TypeNode::typeName'],['../struct_code_gen_visitor_1_1_stack_var_info.html#a8fee498f22dc8e02f7e052ac7d20b615',1,'CodeGenVisitor::StackVarInfo::typeName'],['../struct_code_gen_visitor_1_1_field_layout_info.html#a3ce93bea0078a1a5f96bcb36b1a05ad8',1,'CodeGenVisitor::FieldLayoutInfo::typeName']]],
+  ['typenode_23',['TypeNode',['../class_type_node.html',1,'TypeNode'],['../class_type_node.html#adc1d9ff0580c161e23bf09b7de5c4c49',1,'TypeNode::TypeNode()']]]
+];

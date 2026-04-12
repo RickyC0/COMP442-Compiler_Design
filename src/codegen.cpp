@@ -928,6 +928,10 @@ bool CodeGenVisitor::resolveNodeType(const std::shared_ptr<ASTNode>& node, std::
  * @brief Lower multidimensional index expressions into linear byte offset.
  *
  * @param addrReg Base address register to update in-place.
+ * @param indices Runtime index expressions in source order.
+ * @param declaredDimensions Declared array dimensions for stride computation.
+ * @param elementSize Element size in bytes.
+ * @param line Source line for diagnostics/tracing.
  * @return True when offset emission succeeds.
  */
 bool CodeGenVisitor::emitIndexOffsetIntoAddress(int addrReg,
