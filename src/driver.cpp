@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     UI::printKV("Source", sourceFile);
 
     CompilerOutputPaths outputs = prepareCompilerOutputPaths(sourceFile, argv[0]);
-    UI::printKV("Output", outputs.outputDir);
+    UI::printKV("Output", makeDisplayPath(outputs.outputDir));
 
     std::vector<std::vector<Token>> valid_tokens;
     bool parseSuccess = false;
@@ -297,15 +297,15 @@ int main(int argc, char* argv[]) {
 
     UI::printSummaryTable(phases);
 
-    UI::printArtifactList("Lexer Outputs", {
+    UI::printArtifactList("Lexer Outputs", makeDisplayArtifacts({
         {"Tokens", outputs.validTokensFile},
         {"Lex Errors", outputs.invalidTokensFile}
-    });
+    }));
 
-    UI::printArtifactList("Parser Outputs", {
+    UI::printArtifactList("Parser Outputs", makeDisplayArtifacts({
         {"Derivation", outputs.derivationFile},
         {"Syntax Errors", outputs.syntaxErrorsFile}
-    });
+    }));
 
     std::vector<std::pair<std::string, std::string>> astArtifacts = {
         {"AST", outputs.astFile},
@@ -314,18 +314,18 @@ int main(int argc, char* argv[]) {
     if (dotAvailable && pngGenerated) {
         astArtifacts.push_back({"PNG", outputs.astPngFile});
     }
-    UI::printArtifactList("AST Outputs", astArtifacts);
+    UI::printArtifactList("AST Outputs", makeDisplayArtifacts(astArtifacts));
 
-    UI::printArtifactList("Semantic Outputs", {
+    UI::printArtifactList("Semantic Outputs", makeDisplayArtifacts({
         {"Symbol Tables", outputs.symbolTablesFile},
         {"Sem Diagnostics ", outputs.semanticDiagnosticsFile},
-    });
+    }));
 
-    UI::printArtifactList("CodeGen Outputs", {
+    UI::printArtifactList("CodeGen Outputs", makeDisplayArtifacts({
         {"Moon", outputs.moonOutputFile},
         {"CodeGen Diags", outputs.codegenDiagnosticsFile},
         {"Moon Run Log", outputs.moonRunLogFile},
-    });
+    }));
 
     UI::printDone();
 

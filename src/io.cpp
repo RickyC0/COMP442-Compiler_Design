@@ -75,6 +75,42 @@ std::string buildOutputPath(const std::string& outputDir, const std::string& bas
     return (fs::path(outputDir) / (baseName + extension)).string();
 }
 
+std::string makeDisplayPath(const std::string& rawPath) {
+    if (rawPath.empty()) {
+        return rawPath;
+    }
+
+    std::error_code ec;
+    const fs::path absolutePath = fs::absolute(fs::path(rawPath), ec);
+    if (ec) {
+        return rawPath;
+    }
+
+    const fs::path cwd = fs::current_path(ec);
+    if (ec) {
+        return absolutePath.lexically_normal().string();
+    }
+
+    const fs::path relativePath = fs::relative(absolutePath, cwd, ec);
+    if (!ec && !relativePath.empty()) {
+        return relativePath.lexically_normal().string();
+    }
+
+    return absolutePath.lexically_normal().string();
+}
+
+std::vector<std::pair<std::string, std::string>> makeDisplayArtifacts(
+    const std::vector<std::pair<std::string, std::string>>& artifacts) {
+    std::vector<std::pair<std::string, std::string>> displayArtifacts;
+    displayArtifacts.reserve(artifacts.size());
+
+    for (const auto& artifact : artifacts) {
+        displayArtifacts.push_back({artifact.first, makeDisplayPath(artifact.second)});
+    }
+
+    return displayArtifacts;
+}
+
 CompilerOutputPaths prepareCompilerOutputPaths(const std::string& sourceFile, const std::string& driverExecutablePath) {
     CompilerOutputPaths paths;
 

@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "token.h"
@@ -44,6 +45,9 @@ std::string createOutputDir(const std::string& sourceFile, const std::string& dr
 std::string buildOutputPath(const std::string& outputDir, const std::string& baseName, const std::string& extension);
 std::string getBaseName(const std::string& sourceFile);
 CompilerOutputPaths prepareCompilerOutputPaths(const std::string& sourceFile, const std::string& driverExecutablePath);
+std::string makeDisplayPath(const std::string& rawPath);
+std::vector<std::pair<std::string, std::string>> makeDisplayArtifacts(
+	const std::vector<std::pair<std::string, std::string>>& artifacts);
 
 // Lexer I/O
 std::tuple<std::vector<std::vector<Token>>, std::vector<std::vector<Token>>> tokenizeFile(const std::string& filename);
