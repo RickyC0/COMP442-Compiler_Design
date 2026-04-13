@@ -176,6 +176,8 @@ class SemanticAnalyzer : public ASTVisitor {
         std::shared_ptr<SymbolTable> _currentScope;
         /** @brief Class name -> class scope map. */
         std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
+        /** @brief All class names declared in the program AST (order-independent lookup). */
+        std::unordered_set<std::string> _declaredClassNames;
         /** @brief Declared member function identities: Class::name(paramProfile). */
         std::unordered_set<std::string> _declaredMemberFunctionKeys;
         /** @brief Collected semantic errors. */

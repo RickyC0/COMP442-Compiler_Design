@@ -382,11 +382,18 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _warnings.clear();
     _blockCounter = 0;
     _classScopes.clear();
+    _declaredClassNames.clear();
     _declaredMemberFunctionKeys.clear();
     _functionReturnTypeStack.clear();
     _globalScope = std::make_shared<SymbolTable>("global");
 
     if (root != nullptr) {
+        for (const auto& cls : root->getClasses()) {
+            if (cls != nullptr) {
+                _declaredClassNames.insert(cls->getName());
+            }
+        }
+
         setPassOne(true);
         _blockCounter = 0;
         _currentScope = _globalScope;
@@ -950,7 +957,7 @@ void SemanticAnalyzer::visit(BlockNode& node) {
  */
 void SemanticAnalyzer::visit(VarDeclNode& node) {
     const std::string declaredTypeBase = baseTypeName(node.getTypeName());
-    if (!isBuiltinType(declaredTypeBase) && _classScopes.find(declaredTypeBase) == _classScopes.end()) {
+    if (!isBuiltinType(declaredTypeBase) && _declaredClassNames.find(declaredTypeBase) == _declaredClassNames.end()) {
         reportError(node.getLineNumber(), "11.5 undeclared class: '" + declaredTypeBase + "'");
     }
 
