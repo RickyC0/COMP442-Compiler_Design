@@ -7,6 +7,55 @@
 
 namespace fs = std::filesystem;
 
+namespace {
+bool isRepoRoot(const fs::path& candidate) {
+    return fs::exists(candidate / "CMakeLists.txt") &&
+           fs::exists(candidate / "include") &&
+           fs::exists(candidate / "src");
+}
+
+fs::path findRepoRootFrom(fs::path start) {
+    while (!start.empty()) {
+        if (isRepoRoot(start)) {
+            return start;
+        }
+
+        const fs::path parent = start.parent_path();
+        if (parent == start) {
+            break;
+        }
+        start = parent;
+    }
+
+    return {};
+}
+
+fs::path resolveRepoRoot(const std::string& sourceFile, const std::string& driverExecutablePath) {
+    if (!driverExecutablePath.empty()) {
+        const fs::path exePath = fs::absolute(fs::path(driverExecutablePath));
+        const fs::path fromExe = findRepoRootFrom(exePath.parent_path());
+        if (!fromExe.empty()) {
+            return fromExe;
+        }
+    }
+
+    if (!sourceFile.empty()) {
+        const fs::path sourcePath = fs::absolute(fs::path(sourceFile));
+        const fs::path fromSource = findRepoRootFrom(sourcePath.parent_path());
+        if (!fromSource.empty()) {
+            return fromSource;
+        }
+    }
+
+    const fs::path fromCwd = findRepoRootFrom(fs::current_path());
+    if (!fromCwd.empty()) {
+        return fromCwd;
+    }
+
+    return fs::current_path();
+}
+}
+
 // ============================================================================
 // Output path helpers
 // ============================================================================
@@ -15,9 +64,9 @@ std::string getBaseName(const std::string& sourceFile) {
     return fs::path(sourceFile).stem().string();
 }
 
-std::string createOutputDir(const std::string& sourceFile) {
+std::string createOutputDir(const std::string& sourceFile, const std::string& driverExecutablePath) {
     std::string baseName = getBaseName(sourceFile);
-    fs::path outputDir = fs::path("output") / baseName;
+    fs::path outputDir = resolveRepoRoot(sourceFile, driverExecutablePath) / "output" / baseName;
     fs::create_directories(outputDir);
     return outputDir.string();
 }
@@ -26,11 +75,11 @@ std::string buildOutputPath(const std::string& outputDir, const std::string& bas
     return (fs::path(outputDir) / (baseName + extension)).string();
 }
 
-CompilerOutputPaths prepareCompilerOutputPaths(const std::string& sourceFile) {
+CompilerOutputPaths prepareCompilerOutputPaths(const std::string& sourceFile, const std::string& driverExecutablePath) {
     CompilerOutputPaths paths;
 
     paths.baseName = getBaseName(sourceFile);
-    paths.outputDir = createOutputDir(sourceFile);
+    paths.outputDir = createOutputDir(sourceFile, driverExecutablePath);
 
     fs::path lexerDir = fs::path(paths.outputDir) / "Lexer";
     fs::path parserDir = fs::path(paths.outputDir) / "Parser";
@@ -130,11 +179,22 @@ void writeTokensToFile(const std::string& filename, const std::vector<std::vecto
     file.close();
 }
 
-std::vector<std::vector<Token>> lex_file(const std::string& input_file,  const std::string valid_out_file, const std::string invalid_out_file){
+std::vector<std::vector<Token>> lex_file(const std::string& input_file,
+                                         const std::string valid_out_file,
+                                         const std::string invalid_out_file,
+                                         size_t* invalidTokenCount) {
     auto valid_and_invalid_tokens = tokenizeFile(input_file);
 
     auto valids = std::get<0>(valid_and_invalid_tokens);
     auto invalids = std::get<1>(valid_and_invalid_tokens);
+
+    size_t invalidCount = 0;
+    for (const auto& lineTokens : invalids) {
+        invalidCount += lineTokens.size();
+    }
+    if (invalidTokenCount != nullptr) {
+        *invalidTokenCount = invalidCount;
+    }
 
     writeTokensToFile(valid_out_file, valids);
     writeErrorsToFile(invalid_out_file, invalids);

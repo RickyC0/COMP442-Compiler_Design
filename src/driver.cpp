@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
     UI::printTitle("COMP442 COMPILER DRIVER DASHBOARD");
     UI::printKV("Source", sourceFile);
 
-    CompilerOutputPaths outputs = prepareCompilerOutputPaths(sourceFile);
+    CompilerOutputPaths outputs = prepareCompilerOutputPaths(sourceFile, argv[0]);
     UI::printKV("Output", outputs.outputDir);
 
     std::vector<std::vector<Token>> valid_tokens;
@@ -55,12 +55,19 @@ int main(int argc, char* argv[]) {
     UI::printSection("[1/6] LEXICAL ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
-        valid_tokens = lex_file(sourceFile, outputs.validTokensFile, outputs.invalidTokensFile);
+        size_t lexicalErrorCount = 0;
+        valid_tokens = lex_file(sourceFile, outputs.validTokensFile, outputs.invalidTokensFile, &lexicalErrorCount);
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        UI::printStatusLine(true, "Tokenization completed");
-        phases.push_back({"Lexer", true, durationMs, "Generated token and lexical error files"});
+        if (lexicalErrorCount == 0) {
+            UI::printStatusLine(true, "Tokenization completed (no lexical errors)");
+            phases.push_back({"Lexer", true, durationMs, "Generated token and lexical error files"});
+        } else {
+            UI::printStatusLine(false, "Tokenization completed with " + std::to_string(lexicalErrorCount) + " lexical error(s)");
+            phases.push_back({"Lexer", false, durationMs,
+                              std::to_string(lexicalErrorCount) + " lexical error(s) written to file"});
+        }
 
     } catch (const std::exception& e) {
         UI::printCrash("Lexer", e.what());

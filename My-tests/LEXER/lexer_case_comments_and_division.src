@@ -1,0 +1,7 @@
+a/b
+a // inline comment with operators == <= ::
+x/* block comment */y
+z /* multi
+line block
+comment */ w
+1/2/*tail*/3
