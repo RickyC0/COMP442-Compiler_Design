@@ -98,9 +98,10 @@ std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& 
     while (currentScope != nullptr) {
         const std::string name = currentScope->getScopeName();
         if (name.rfind("function ", 0) == 0) {
-            size_t sep = name.find("::");
+            const size_t functionPrefixLen = std::string("function ").size();
+            size_t sep = name.find("::", functionPrefixLen);
             if (sep != std::string::npos) {
-                return name.substr(5, sep - 5);
+                return name.substr(functionPrefixLen, sep - functionPrefixLen);
             }
             return "";
         }
@@ -263,6 +264,28 @@ bool tryEvalIntConst(const std::shared_ptr<ASTNode>& node, int& outValue) {
 
     return false;
 }
+
+std::string functionParamProfile(const FuncDefNode& node) {
+    std::ostringstream profile;
+    profile << "(";
+    const auto params = node.getParams();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) {
+            profile << ",";
+        }
+
+        profile << params[i]->getTypeName();
+        for (int dim : params[i]->getDimensions()) {
+            if (dim < 0) {
+                profile << "[]";
+            } else {
+                profile << "[" << dim << "]";
+            }
+        }
+    }
+    profile << ")";
+    return profile.str();
+}
 }
 
 /**
@@ -359,6 +382,7 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _warnings.clear();
     _blockCounter = 0;
     _classScopes.clear();
+    _declaredMemberFunctionKeys.clear();
     _functionReturnTypeStack.clear();
     _globalScope = std::make_shared<SymbolTable>("global");
 
@@ -937,7 +961,7 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
             if (classIt != _classScopes.end() && classIt->second != nullptr) {
                 const SymbolEntry* classMember = classIt->second->lookupInCurrent(node.getName());
                 if (classMember != nullptr && classMember->kind == SymbolKind::Field) {
-                    reportWarning(node.getLineNumber(), "8.6 local variable shadows data member: '" + node.getName() + "'");
+                    reportWarning(node.getLineNumber(), "8.7 local variable in member function shadows data member: '" + node.getName() + "'");
                 }
             }
         }
@@ -954,7 +978,7 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
                     if (parentIt != _classScopes.end() && parentIt->second != nullptr) {
                         const SymbolEntry* inherited = parentIt->second->lookupInCurrent(node.getName());
                         if (inherited != nullptr && inherited->kind == SymbolKind::Field) {
-                            reportWarning(node.getLineNumber(), "8.5 shadowed inherited data member: '" + node.getName() + "'");
+                            reportWarning(node.getLineNumber(), "8.6 shadowed inherited data member: '" + node.getName() + "'");
                         }
                     }
                 }
@@ -1009,6 +1033,15 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     _currentScope = ownerScope;
 
     const bool isImplementation = node.getRight() != nullptr;
+    const std::string paramProfile = functionParamProfile(node);
+    const std::string memberFunctionKey = ownerClass.empty()
+        ? std::string()
+        : (ownerClass + "::" + node.getName() + paramProfile);
+
+    if (isPassOne() && !ownerClass.empty() && !isImplementation) {
+        _declaredMemberFunctionKeys.insert(memberFunctionKey);
+    }
+
     if (isPassOne()) {
         SymbolEntry entry;
         entry.name = node.getName();
@@ -1038,7 +1071,10 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         } else if (existing->kind != SymbolKind::Function) {
             reportError(entry.line, "symbol '" + entry.name + "' already exists with non-function kind in scope '" + _currentScope->getScopeName() + "'");
         } else {
-            if (existing->type != entry.type) {
+            const bool sameParameterProfile = (existing->paramTypes == entry.paramTypes) &&
+                                              (existing->paramDimensions == entry.paramDimensions);
+
+            if (!sameParameterProfile) {
                 if (ownerClass.empty()) {
                     reportWarning(entry.line, "9.1 overloaded free function: '" + entry.name + "'");
                 } else {
@@ -1050,9 +1086,9 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
 
             const bool existingHasDecl = existing->details.find("declaration") != std::string::npos;
             const bool existingHasImpl = existing->details.find("implementation") != std::string::npos;
-            if (isImplementation && existingHasDecl && !existingHasImpl) {
+            if (isImplementation && sameParameterProfile && existingHasDecl && !existingHasImpl) {
                 existing->details = ownerDescriptor + " (declaration + implementation)";
-            } else if (isImplementation && existingHasImpl) {
+            } else if (isImplementation && sameParameterProfile && existingHasImpl) {
                 if (ownerClass.empty()) {
                     reportError(entry.line, "8.2 multiply declared free function: '" + entry.name + "'");
                 } else {
@@ -1068,10 +1104,7 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     }
 
     if (!isPassOne() && !ownerClass.empty()) {
-        const SymbolEntry* declaredMethod = _currentScope->lookupInCurrent(node.getName());
-        const bool hasDeclaration = declaredMethod != nullptr &&
-            declaredMethod->kind == SymbolKind::Function &&
-            declaredMethod->details.find("declaration") != std::string::npos;
+        const bool hasDeclaration = _declaredMemberFunctionKeys.find(memberFunctionKey) != _declaredMemberFunctionKeys.end();
         if (!hasDeclaration) {
             reportError(
                 node.getLineNumber(),
@@ -1086,7 +1119,9 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         return;
     }
 
-    std::string funcScopeName = ownerClass.empty() ? ("function " + node.getName()) : ("function " + ownerClass + "::" + node.getName());
+    std::string funcScopeName = ownerClass.empty()
+        ? ("function " + node.getName() + paramProfile)
+        : ("function " + ownerClass + "::" + node.getName() + paramProfile);
     std::shared_ptr<SymbolTable> prev = _currentScope;
     _currentScope = getOrCreateChildScope(_currentScope, funcScopeName);
 

@@ -25,6 +25,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 /**
@@ -175,6 +176,8 @@ class SemanticAnalyzer : public ASTVisitor {
         std::shared_ptr<SymbolTable> _currentScope;
         /** @brief Class name -> class scope map. */
         std::unordered_map<std::string, std::shared_ptr<SymbolTable>> _classScopes;
+        /** @brief Declared member function identities: Class::name(paramProfile). */
+        std::unordered_set<std::string> _declaredMemberFunctionKeys;
         /** @brief Collected semantic errors. */
         std::vector<std::string> _errors;
         /** @brief Collected semantic warnings. */
