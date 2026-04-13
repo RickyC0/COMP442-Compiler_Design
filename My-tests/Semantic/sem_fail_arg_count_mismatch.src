@@ -1,3 +1,5 @@
+// TEST 6.1.25 / 12.1 [error] function call with wrong number of parameters | EXPECT: ERROR
+
 sum(integer a, integer b) : integer
     do
         return(a + b);

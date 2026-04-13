@@ -1,3 +1,5 @@
+// TEST 6.1.10 / 9.1 [warning] overloaded free function | EXPECT: WARNING
+
 foo(integer a) : void
   do
   end

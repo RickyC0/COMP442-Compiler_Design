@@ -1,3 +1,6 @@
+// TEST 6.1.30 / 14.1 [error] circular class dependency via inheritance  | EXPECT: ERROR
+// TEST 6.1.31 / 14.1 [error] circular class dependency via member types | EXPECT: ERROR
+
 class A inherits C {
 };
 
@@ -6,6 +9,14 @@ class B inherits A {
 
 class C inherits B {
 
+};
+
+class X {
+  public Y y;
+};
+
+class Y {
+  public X x;
 };
 
 main

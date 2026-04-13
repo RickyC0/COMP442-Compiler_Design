@@ -1,0 +1,70 @@
+// Parser coverage test: complex expressions + control flow + dot chains + array indexing
+// Expected parser result: PASS (no syntax errors)
+// Covers:
+// 3.1.4 complex expressions (arithmetic + relational + logic operators in one expression)
+// 3.1.5 loop/conditional statement, with and without do-end blocks
+// 3.1.7 function call as a statement
+// 3.1.8 dot operator, including multiply nested and including array members
+// 3.1.9 access to arrays: uni- and multi-dimensional, using expressions as index
+
+class Cell {
+    public integer v;
+};
+
+class Row {
+    public Cell cells[4];
+};
+
+class Grid {
+    public Row rows[3]; // TEST 3.1.1 array of class types member declaration | EXPECT: PASS
+    public bump(integer i, integer j) : void; // TEST 3.1.2 member function declaration | EXPECT: PASS
+};
+
+Grid::bump(integer i, integer j) : void // TEST 3.1.2 member function definition
+    local
+        integer delta;
+    do
+        delta = 1;
+        rows[i + 1].cells[j * 1].v = rows[i + 1].cells[j * 1].v + delta; // TEST 3.1.8 nested dot with array members + 3.1.9 expression indices | EXPECT: PASS
+    end
+
+mark(integer x) : integer
+    do
+        if (x > 0) then
+            return(1);
+        else
+            return(0);
+        ;
+    end
+
+main
+    local
+        Grid g;
+        integer i;
+        integer j;
+        integer out;
+    do
+        i = 0;
+        j = 1;
+
+        if (((i + j * 2 - 1) and (not 0)) >= ((j / 1 + 0) or i)) then // TEST 3.1.4 complex arithmetic+relational+logic expression (grammar-compatible single RelOp form) + 3.1.5 conditional | EXPECT: PASS
+            g.bump(i, j); // TEST 3.1.7 function call as statement + 3.1.8 dot operator | EXPECT: PASS
+        else
+            do
+                g.bump(0, 0);
+                g.bump(0, 1);
+            end
+        ;
+
+        while (i < 2) do // TEST 3.1.5 loop statement with do-end block | EXPECT: PASS
+            g.rows[i].cells[(j + 1) / 1].v = g.rows[i].cells[(j + 1) / 1].v + 1; // TEST 3.1.8 nested dot + 3.1.9 uni/multi-dimensional access with expression index | EXPECT: PASS
+            i = i + 1;
+        end;
+
+        while (j < 3) 
+            j = j + 1;
+        ; // TEST 3.1.5 loop statement without do-end brackets (grammar requires loop terminator ';' after StatBlock) | EXPECT: PASS
+
+        out = mark(g.rows[1].cells[2].v); // TEST 3.1.8 nested dot chain in call argument | EXPECT: PASS
+        write(out); // TEST 3.1.6 write(expression) statement | EXPECT: PASS
+    end

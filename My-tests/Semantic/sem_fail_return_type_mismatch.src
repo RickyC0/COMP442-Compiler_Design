@@ -1,3 +1,5 @@
+// TEST 6.1.15 / 10.3 [error] type error in return statement | EXPECT: ERROR
+
 bad() : integer
     local
         float x;

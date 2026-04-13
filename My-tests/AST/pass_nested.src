@@ -1,0 +1,23 @@
+// TEST 4.1.5 nested control-flow statements                    | EXPECT: PASS
+// TEST 4.1.6 write statement in nested branch                  | EXPECT: PASS
+
+main
+    local
+        integer i;
+        integer j;
+    do
+        i = 0;
+        j = 10;
+
+        while (i <= 5) do                  // TEST 4.1.5 outer while do-end | EXPECT: PASS
+            if (j > 5) then
+                j = j - 1;
+            else
+                if (j == 5) then           // TEST 4.1.5 nested if/else      | EXPECT: PASS
+                    write(j);              // TEST 4.1.6 write in branch      | EXPECT: PASS
+                else
+                    i = i + 1;
+                ;
+            ;
+        end;
+    end

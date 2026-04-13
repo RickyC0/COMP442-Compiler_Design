@@ -1,0 +1,20 @@
+// TEST 4.1.x negative coverage with targeted syntax failures
+// EXPECT: ERROR lines are intentionally malformed to validate recovery/reporting
+
+class Bad {
+    public integer x                         // TEST 4.1.1 missing ';' after declaration | EXPECT: ERROR
+    public foo(integer a : void;            // TEST 4.1.2 malformed function declaration | EXPECT: ERROR
+    public void void_before_function_name(); // TEST 4.1.2 invalid return-type placement  | EXPECT: ERROR
+};
+
+main
+    local
+        Bad b;
+    do
+        b.foo(1,);                          // TEST 4.1.7 malformed call argument list   | EXPECT: ERROR
+        b. = 2;                             // TEST 4.1.8 invalid dotted assignment lhs  | EXPECT: ERROR
+        break;                              // TEST 4.1.7 unsupported/invalid statement  | EXPECT: ERROR
+        continue;                           // TEST 4.1.7 unsupported/invalid statement  | EXPECT: ERROR
+        b.x = 3;
+        write(b.x);
+    end

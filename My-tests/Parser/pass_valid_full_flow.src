@@ -1,0 +1,45 @@
+class Vec2 {
+    public float x; // TEST 3.1.1 float member declaration | EXPECT: PASS
+    public float y; // TEST 3.1.1 float member declaration | EXPECT: PASS
+    public set(float nx, float ny) : void; // TEST 3.1.2 member function declaration | EXPECT: PASS
+    public sum() : float; // TEST 3.1.2 member function declaration with float return | EXPECT: PASS
+};
+
+Vec2::set(float nx, float ny) : void // TEST 3.1.2 member function definition | EXPECT: PASS
+    do
+        x = nx;
+        y = ny;
+    end
+
+Vec2::sum() : float // TEST 3.1.2 member function definition with local declaration + return(expr)
+    local
+        float total;
+    do
+        total = x + y;
+        return(total);
+    end
+
+compute(integer a, integer b) : integer // TEST 3.1.2 free function definition | EXPECT: PASS
+    local
+        integer out;
+    do
+        out = a * (b + 2);
+        return(out);
+    end
+
+main
+    local
+        Vec2 v;
+        float s;
+        integer k;
+    do
+        v.set(1.5, 2.5); // TEST 3.1.7 call as statement + 3.1.8 dot operator | EXPECT: PASS
+        s = v.sum(); // TEST 3.1.8 dot operator in expression | EXPECT: PASS
+        k = compute(3, 4); // TEST 3.1.7 free function call in expression | EXPECT: PASS
+
+        if (k > 0) then // TEST 3.1.5 conditional statement + relational operator | EXPECT: PASS
+            write(k); // TEST 3.1.6 write(expression) statement | EXPECT: PASS
+        else
+            write(0);
+        ;
+    end

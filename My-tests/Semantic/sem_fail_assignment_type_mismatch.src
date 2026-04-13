@@ -1,3 +1,5 @@
+// TEST 6.1.14 / 10.2 [error] type error in assignment statement | EXPECT: ERROR
+
 class Point {
     public float x;
 };

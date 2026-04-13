@@ -1,0 +1,28 @@
+// TEST 4.1.5 nested while/if statement forms                  | EXPECT: PASS
+// TEST 4.1.6 write statements                                  | EXPECT: PASS
+
+main
+    local
+        integer i;
+        integer j;
+    do
+        i = 0;
+        j = 3;
+
+        while (i < 5)                      // TEST 4.1.5 while with single statement body | EXPECT: PASS
+            if (j > 0) then
+                j = j - 1;
+            else
+                j = 2;
+            ;
+        ;
+
+        if (i == 0) then                   // TEST 4.1.5 if-then-else statement           | EXPECT: PASS
+            i = i + 10;
+        else
+            i = i - 10;
+        ;
+
+        write(i);
+        write(j);
+    end

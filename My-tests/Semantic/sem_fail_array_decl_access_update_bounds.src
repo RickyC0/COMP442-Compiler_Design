@@ -1,3 +1,5 @@
+// TEST 6.1.29 / 13.3 [error] array parameter using wrong number of dimensions | EXPECT: ERROR
+
 updateArray(integer arr[], integer size) : void
     local
         integer i;
@@ -5,6 +7,16 @@ updateArray(integer arr[], integer size) : void
         i = 0;
         while (i < size) do
             arr[i] = arr[i] + 1;
+            i = i + 1;
+        end;
+    end
+
+updateMatrix(integer grid[][], integer rows) : void
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < rows) do
             i = i + 1;
         end;
     end
@@ -21,4 +33,5 @@ main
         data[-1] = 99;
         updateArray(data, 6);
         updateArray(data, -1);
+        updateMatrix(data, 4);
     end

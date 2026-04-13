@@ -1,0 +1,42 @@
+// Parser coverage test: syntax error detection, reporting, and recovery
+// Expected parser result: FAIL (multiple syntax errors)
+// Covers:
+// 3.2 syntax error detection/reporting/recovery
+// 3.2.1 completeness - detecting different kinds of syntax errors
+// 3.2.2 error recovery mechanism - parser continues after earlier errors
+// 3.2.3 clarity/accuracy of error reporting
+
+class BrokenA {
+    public integer x // TEST 3.2.1 missing ';' after declaration | EXPECT: ERROR
+    private float y; // TEST 3.2.2 recovery should continue to parse this declaration | EXPECT: PASS
+};
+
+class BrokenB inherits BrokenA, { // TEST 3.2.1 malformed inheritance list (trailing comma) | EXPECT: ERROR
+    public integer z; // TEST 3.2.2 recovery should still parse class member | EXPECT: PASS
+};
+
+sum(integer a float b) : integer // TEST 3.2.1 missing comma in parameter list | EXPECT: ERROR
+    local
+        integer t // TEST 3.2.1 missing ';' in local declaration | EXPECT: ERROR
+    do
+        t = a + b // TEST 3.2.1 missing ';' after assignment | EXPECT: ERROR
+        if (a > b) then
+            write(a) // TEST 3.2.1 missing ';' in then-branch statement | EXPECT: ERROR
+        else
+            write(b);
+        ;
+        return(t);
+    end
+
+main
+    local
+        integer i // TEST 3.2.1 missing ';' in main local declaration | EXPECT: ERROR
+        float m[2][];
+    do
+        i = 0 // TEST 3.2.1 missing ';' after assignment | EXPECT: ERROR
+        read(i; // TEST 3.2.1 missing ')' in read(var) | EXPECT: ERROR
+        while (i < 3) do
+            i = i + 1 // TEST 3.2.1 missing ';' in loop body | EXPECT: ERROR
+        end // TEST 3.2.1 missing ';' after while-end | EXPECT: ERROR
+        write(i)); // TEST 3.2.1 extra ')' in write(expression) | EXPECT: ERROR
+    end

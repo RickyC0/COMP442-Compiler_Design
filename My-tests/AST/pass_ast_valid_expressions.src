@@ -1,0 +1,26 @@
+// TEST 4.1.4 arithmetic + relational + logical expression      | EXPECT: PASS
+// TEST 4.1.5 conditional/loop forms                             | EXPECT: PASS
+// TEST 4.1.6 write/return statements                            | EXPECT: PASS
+
+main
+    local
+        integer a;
+        integer b;
+        float c;
+    do
+        a = 1 + 2 * 3;                     // TEST 4.1.4 arithmetic precedence          | EXPECT: PASS
+        b = -(a - 4) + +5;                 // TEST 4.1.4 unary + and -                  | EXPECT: PASS
+        c = (a * b) / 2.0;                 // TEST 4.1.4 mixed integer/float arithmetic | EXPECT: PASS
+
+        if ((a < b) or (not 0)) then       // TEST 4.1.4 relational + logical operators | EXPECT: PASS
+            write(a + b * 2);
+        else
+            write(c);
+        ;
+
+        while (a <= 20) do
+            a = a + 1;
+        end;
+
+        return(a);
+    end

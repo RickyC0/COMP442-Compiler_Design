@@ -1,0 +1,39 @@
+// TEST 4.1.3 class declarations with inheritance               | EXPECT: PASS
+// TEST 4.1.2 member function definitions                       | EXPECT: PASS
+// TEST 4.1.7 function calls as statements                      | EXPECT: PASS
+
+class Animal {
+    public integer age;      // TEST 4.1.3 public member in class | EXPECT: PASS
+    public speak() : void;   // TEST 4.1.2 member function decl   | EXPECT: PASS
+};
+
+class Dog inherits Animal {
+    public integer breed;                // TEST 4.1.3 inherited class member  | EXPECT: PASS
+    public bark(integer times) : void;   // TEST 4.1.2 member function decl     | EXPECT: PASS
+};
+
+Animal::speak() : void
+    do
+        write(age);
+    end
+
+Dog::bark(integer times) : void
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < times) do             // TEST 4.1.5 while do-end block       | EXPECT: PASS
+            write(breed);
+            i = i + 1;
+        end;
+    end
+
+main
+    local
+        Dog d;
+    do
+        d.age = 5;
+        d.breed = 2;
+        d.speak();                       // TEST 4.1.7 function call statement   | EXPECT: PASS
+        d.bark(3);                       // TEST 4.1.7 function call statement   | EXPECT: PASS
+    end
