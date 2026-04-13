@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['whilestmtnode_0',['WhileStmtNode',['../class_while_stmt_node.html',1,'']]]
+  ['vardeclnode_0',['VarDeclNode',['../class_var_decl_node.html',1,'']]]
 ];

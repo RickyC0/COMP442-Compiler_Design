@@ -25,12 +25,14 @@ var hierarchy =
       [ "SemanticAnalyzer", "class_semantic_analyzer.html", null ]
     ] ],
     [ "CodeGenVisitor::ClassLayoutInfo", "struct_code_gen_visitor_1_1_class_layout_info.html", null ],
+    [ "CompilerOutputPaths", "struct_compiler_output_paths.html", null ],
     [ "std::enable_shared_from_this", null, [
       [ "SymbolTable", "class_symbol_table.html", null ]
     ] ],
     [ "CodeGenVisitor::FieldLayoutInfo", "struct_code_gen_visitor_1_1_field_layout_info.html", null ],
     [ "Parser::FuncHeadInfo", "struct_parser_1_1_func_head_info.html", null ],
     [ "CodeGenVisitor::FunctionLayoutInfo", "struct_code_gen_visitor_1_1_function_layout_info.html", null ],
+    [ "MoonRunResult", "struct_moon_run_result.html", null ],
     [ "Parser", "class_parser.html", null ],
     [ "PhaseSummary", "struct_phase_summary.html", null ],
     [ "UI::PngRenderResult", "struct_u_i_1_1_png_render_result.html", null ],

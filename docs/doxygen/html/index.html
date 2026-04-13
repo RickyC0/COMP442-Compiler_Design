@@ -364,7 +364,53 @@ Error Strategy in Codegen</h2>
 <div class="fragment"><div class="line">cd ./src/</div>
 <div class="line">g++ -std=c++17 -static -I../include -o ../exe/driver *.cpp </div>
 </div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md25"></a>
-7. Generated Outputs</h1>
+7. Running the Driver and Test Script</h1>
+<p>All commands below assume you are in the repository root.</p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md26"></a>
+Run one input file directly</h2>
+<div class="fragment"><div class="line"># If you built driver.exe</div>
+<div class="line">.\exe\driver.exe .\My-tests\Parser\your_test.src</div>
+<div class="line"> </div>
+<div class="line"># If you are using the built in final driver</div>
+<div class="line">.\exe\final_driver.exe .\My-tests\Parser\your_test.src</div>
+</div><!-- fragment --><p>Replace the input path with any <span class="tt">.src</span> file you want to compile.</p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md27"></a>
+Run one section of tests</h2>
+<p>Use the script to run one compiler stage at a time:</p>
+<div class="fragment"><div class="line">.\scripts\run-tests.ps1 -Step parser</div>
+</div><!-- fragment --><p>Valid <span class="tt">-Step</span> values are:</p>
+<ul>
+<li><span class="tt">lexer</span></li>
+<li><span class="tt">parser</span></li>
+<li><span class="tt">ast</span></li>
+<li><span class="tt">semantic</span></li>
+<li><span class="tt">codegen</span></li>
+<li><span class="tt">moon</span></li>
+<li><span class="tt">all</span></li>
+</ul>
+<p>Folder mapping used by the script:</p>
+<ul>
+<li><span class="tt">lexer</span> -&gt; <span class="tt">My-tests/LEXER</span></li>
+<li><span class="tt">parser</span> -&gt; <span class="tt">My-tests/Parser</span></li>
+<li><span class="tt">ast</span> -&gt; <span class="tt">My-tests/AST</span></li>
+<li><span class="tt">semantic</span> -&gt; <span class="tt">My-tests/Semantic</span></li>
+<li><span class="tt">codegen</span> -&gt; <span class="tt">My-tests/CodeGen</span></li>
+<li><span class="tt">moon</span> -&gt; <span class="tt">My-tests/CodeGen</span></li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md28"></a>
+Run all tests</h2>
+<div class="fragment"><div class="line">.\scripts\run-tests.ps1 -Step all</div>
+</div><!-- fragment --><p><span class="tt">-Step all</span> runs the full pipeline checks (<span class="tt">lexer</span>, <span class="tt">parser</span>, <span class="tt">ast</span>, <span class="tt">semantic</span>, <span class="tt">codegen</span>, <span class="tt">moon</span>).</p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md29"></a>
+Common optional flags</h2>
+<div class="fragment"><div class="line">.\scripts\run-tests.ps1 -Step semantic -DriverPath .\exe\driver.exe -PerTestTimeoutSec 20 -MaxTests 50</div>
+</div><!-- fragment --><ul>
+<li><span class="tt">-TestsRoot</span> defaults to <span class="tt">./My-tests</span></li>
+<li><span class="tt">-DriverPath</span> defaults to <span class="tt">./exe/final_driver.exe</span>, then <span class="tt">./exe/driver.exe</span></li>
+<li><span class="tt">-ReportPath</span> defaults to <span class="tt">./output/test-reports/test-stats-&lt;step&gt;-&lt;timestamp&gt;.json</span></li>
+</ul>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md30"></a>
+8. Generated Outputs</h1>
 <p>Current outputs per source file:</p>
 <ul>
 <li><span class="tt">output/&lt;name&gt;/Lexer/&lt;name&gt;.outlextokens</span></li>

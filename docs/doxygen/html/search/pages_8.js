@@ -1,6 +1,28 @@
 var searchData=
 [
-  ['backend_0',['5. Code Generation (Moon Backend)',['../index.html#autotoc_md16',1,'']]],
-  ['behavior_1',['Numeric and I/O Behavior',['../index.html#autotoc_md22',1,'']]],
-  ['build_2',['6. Build',['../index.html#autotoc_md24',1,'']]]
+  ['abstract_20syntax_20tree_20ast_20and_20visualization_0',['3. Abstract Syntax Tree (AST) and Visualization',['../index.html#autotoc_md5',1,'']]],
+  ['additional_20semantic_20filters_20declared_20size_20arrays_1',['Additional Semantic Filters (Declared-size Arrays)',['../dir_7d6750c3a6e6fcf5fb76a7415130b15e.html#autotoc_md38',1,'']]],
+  ['addressing_2',['Arrays, Objects, and Addressing',['../index.html#autotoc_md20',1,'']]],
+  ['all_20tests_3',['Run all tests',['../index.html#autotoc_md28',1,'']]],
+  ['allocation_20expectations_4',['Allocation Expectations',['../dir_caafffc9c80d8a15feed4e63c1fec57a.html#autotoc_md34',1,'']]],
+  ['analysis_20and_20symbol_20tables_5',['4. Semantic Analysis and Symbol Tables',['../index.html#autotoc_md9',1,'']]],
+  ['analysis_20parsing_6',['2. Syntactic Analysis (Parsing)',['../index.html#autotoc_md2',1,'']]],
+  ['and_20addressing_7',['Arrays, Objects, and Addressing',['../index.html#autotoc_md20',1,'']]],
+  ['and_20architectural_20overview_8',['1. Introduction and Architectural Overview',['../index.html#autotoc_md1',1,'']]],
+  ['and_20calls_9',['Control Flow and Calls',['../index.html#autotoc_md21',1,'']]],
+  ['and_20consequences_10',['Main Design Choices (with Rationale and Consequences)',['../index.html#autotoc_md17',1,'']]],
+  ['and_20i_20o_20behavior_11',['Numeric and I/O Behavior',['../index.html#autotoc_md22',1,'']]],
+  ['and_20object_20orientation_12',['Name Resolution and Object Orientation',['../index.html#autotoc_md14',1,'']]],
+  ['and_20resolution_13',['Pass 2: Type Checking and Resolution',['../index.html#autotoc_md13',1,'']]],
+  ['and_20symbol_20tables_14',['4. Semantic Analysis and Symbol Tables',['../index.html#autotoc_md9',1,'']]],
+  ['and_20test_20script_15',['7. Running the Driver and Test Script',['../index.html#autotoc_md25',1,'']]],
+  ['and_20uml_20dot_20visualization_16',['AST Printer and UML DOT Visualization',['../index.html#autotoc_md8',1,'']]],
+  ['and_20used_17',['How Memory is Reserved and Used',['../index.html#autotoc_md19',1,'']]],
+  ['and_20visualization_18',['3. Abstract Syntax Tree (AST) and Visualization',['../index.html#autotoc_md5',1,'']]],
+  ['architectural_20overview_19',['1. Introduction and Architectural Overview',['../index.html#autotoc_md1',1,'']]],
+  ['architecture_20',['Architecture',['../index.html#autotoc_md6',1,'Node Architecture'],['../index.html#autotoc_md10',1,'Symbol Table Architecture']]],
+  ['arrays_21',['Additional Semantic Filters (Declared-size Arrays)',['../dir_7d6750c3a6e6fcf5fb76a7415130b15e.html#autotoc_md38',1,'']]],
+  ['arrays_20objects_20and_20addressing_22',['Arrays, Objects, and Addressing',['../index.html#autotoc_md20',1,'']]],
+  ['ast_20and_20visualization_23',['3. Abstract Syntax Tree (AST) and Visualization',['../index.html#autotoc_md5',1,'']]],
+  ['ast_20printer_20and_20uml_20dot_20visualization_24',['AST Printer and UML DOT Visualization',['../index.html#autotoc_md8',1,'']]]
 ];

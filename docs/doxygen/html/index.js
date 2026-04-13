@@ -29,5 +29,11 @@ var index =
       [ "Error Strategy in Codegen", "index.html#autotoc_md23", null ]
     ] ],
     [ "6. Build", "index.html#autotoc_md24", null ],
-    [ "7. Generated Outputs", "index.html#autotoc_md25", null ]
+    [ "7. Running the Driver and Test Script", "index.html#autotoc_md25", [
+      [ "Run one input file directly", "index.html#autotoc_md26", null ],
+      [ "Run one section of tests", "index.html#autotoc_md27", null ],
+      [ "Run all tests", "index.html#autotoc_md28", null ],
+      [ "Common optional flags", "index.html#autotoc_md29", null ]
+    ] ],
+    [ "8. Generated Outputs", "index.html#autotoc_md30", null ]
 ];

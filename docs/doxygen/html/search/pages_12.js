@@ -1,9 +1,8 @@
 var searchData=
 [
-  ['o_20behavior_0',['Numeric and I/O Behavior',['../index.html#autotoc_md22',1,'']]],
-  ['object_20orientation_1',['Name Resolution and Object Orientation',['../index.html#autotoc_md14',1,'']]],
-  ['objects_20and_20addressing_2',['Arrays, Objects, and Addressing',['../index.html#autotoc_md20',1,'']]],
-  ['orientation_3',['Name Resolution and Object Orientation',['../index.html#autotoc_md14',1,'']]],
-  ['outputs_4',['7. Generated Outputs',['../index.html#autotoc_md25',1,'']]],
-  ['overview_5',['1. Introduction and Architectural Overview',['../index.html#autotoc_md1',1,'']]]
+  ['main_20design_20choices_20with_20rationale_20and_20consequences_0',['Main Design Choices (with Rationale and Consequences)',['../index.html#autotoc_md17',1,'']]],
+  ['memory_20is_20reserved_20and_20used_1',['How Memory is Reserved and Used',['../index.html#autotoc_md19',1,'']]],
+  ['methodology_2',['Methodology',['../index.html#autotoc_md3',1,'']]],
+  ['moon_3',['Register Usage (Moon)',['../index.html#autotoc_md18',1,'']]],
+  ['moon_20backend_4',['5. Code Generation (Moon Backend)',['../index.html#autotoc_md16',1,'']]]
 ];

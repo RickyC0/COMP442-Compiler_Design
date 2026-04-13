@@ -1,6 +1,15 @@
 var searchData=
 [
-  ['_7eastnode_0',['~ASTNode',['../class_a_s_t_node.html#a578124183c58a444f3fd7668848ea887',1,'ASTNode']]],
-  ['_7eastvisitor_1',['~ASTVisitor',['../class_a_s_t_visitor.html#ae5d0d48349eaec597efec08753a3f11b',1,'ASTVisitor']]],
-  ['_7eparser_2',['~Parser',['../class_parser.html#a3e658b5917a93a3ef648050d060e3a93',1,'Parser']]]
+  ['while_5fkeyword_5f_0',['WHILE_KEYWORD_',['../class_token.html#acf70e9411196c602738c3ed2428c7137a36633a1e8c44080d2af7e4c000577e03',1,'Token']]],
+  ['whilestmtnode_1',['WhileStmtNode',['../class_while_stmt_node.html',1,'WhileStmtNode'],['../class_while_stmt_node.html#a64df3dd6eeeffc9c408632e84f003ac4',1,'WhileStmtNode::WhileStmtNode()']]],
+  ['with_20rationale_20and_20consequences_2',['Main Design Choices (with Rationale and Consequences)',['../index.html#autotoc_md17',1,'']]],
+  ['write_5fkeyword_5f_3',['WRITE_KEYWORD_',['../class_token.html#acf70e9411196c602738c3ed2428c7137a5738f20756dfc2ceb0b4420e4da0ab45',1,'Token']]],
+  ['writederivationtofile_4',['writeDerivationToFile',['../io_8h.html#ac70f54979bde552bdd71197503b22e82',1,'writeDerivationToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;derivationSteps):&#160;io.cpp'],['../io_8cpp.html#ac70f54979bde552bdd71197503b22e82',1,'writeDerivationToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;derivationSteps):&#160;io.cpp']]],
+  ['writedottofile_5',['writeDotToFile',['../namespace_a_s_t_printer.html#a25d6a3cd4da9686267fa8b2fe961f799',1,'ASTPrinter']]],
+  ['writeerrorstofile_6',['writeErrorsToFile',['../io_8h.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de',1,'writeErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens):&#160;io.cpp'],['../io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de',1,'writeErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens):&#160;io.cpp']]],
+  ['writelinestofile_7',['writeLinesToFile',['../io_8h.html#a9274e2723eec7a8945e912be7d585cd7',1,'writeLinesToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;lines):&#160;io.cpp'],['../io_8cpp.html#a9274e2723eec7a8945e912be7d585cd7',1,'writeLinesToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;lines):&#160;io.cpp']]],
+  ['writesyntaxerrorstofile_8',['writeSyntaxErrorsToFile',['../io_8h.html#af7bd99f3364119eb617e6613bca2ea19',1,'writeSyntaxErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;errors):&#160;io.cpp'],['../io_8cpp.html#af7bd99f3364119eb617e6613bca2ea19',1,'writeSyntaxErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;errors):&#160;io.cpp']]],
+  ['writetexttofile_9',['writeTextToFile',['../io_8h.html#a35ebbad0ba41e41ad61dc95456f396af',1,'writeTextToFile(const std::string &amp;filename, const std::string &amp;text):&#160;io.cpp'],['../io_8cpp.html#a35ebbad0ba41e41ad61dc95456f396af',1,'writeTextToFile(const std::string &amp;filename, const std::string &amp;text):&#160;io.cpp']]],
+  ['writetofile_10',['writeToFile',['../namespace_a_s_t_printer.html#ad4431129a1ab715b0cb7fbd3d8848f8f',1,'ASTPrinter']]],
+  ['writetokenstofile_11',['writeTokensToFile',['../io_8h.html#a7d441c2e4bda31ecb7e44491c6391eea',1,'writeTokensToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens):&#160;io.cpp'],['../io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea',1,'writeTokensToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens):&#160;io.cpp']]]
 ];

@@ -139,7 +139,7 @@ Private Attributes</h2></td></tr>
 <div class="textblock"><p>Hierarchical lexical scope with symbol-definition and resolution services. </p>
 <p>Each scope stores local declarations and links to parent/children scopes. Resolution first checks current scope then walks upward to parent scopes. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00081">81</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00082">82</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 </div><a name="doc-constructors" id="doc-constructors"></a><h2 id="header-doc-constructors" class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="ac19be7951a4e2da8754d9917053dfd29" name="ac19be7951a4e2da8754d9917053dfd29"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ac19be7951a4e2da8754d9917053dfd29">&#9670;&#160;</a></span>SymbolTable()</h2>
@@ -172,9 +172,9 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00273">273</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00296">296</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00112">_parent</a>, and <a class="el" href="semantic_8h_source.html#l00111">_scopeName</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00113">_parent</a>, and <a class="el" href="semantic_8h_source.html#l00112">_scopeName</a>.</p>
 
 </div>
 </div>
@@ -197,9 +197,9 @@ Private Attributes</h2></td></tr>
 <p>Create and register a child scope below this scope. </p>
 <p>Create child scope and register in current scope children list. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00277">277</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00300">300</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00113">_children</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_children</a>.</p>
 
 </div>
 </div>
@@ -221,9 +221,9 @@ Private Attributes</h2></td></tr>
 <p>Define a symbol in current scope; fails on same-scope redeclaration. </p>
 <p>Define symbol in current scope if name is not already present. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00284">284</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00307">307</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_entries</a>, <a class="el" href="semantic_8h_source.html#l00115">_entryIndex</a>, and <a class="el" href="semantic_8h_source.html#l00052">SymbolEntry::name</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00115">_entries</a>, <a class="el" href="semantic_8h_source.html#l00116">_entryIndex</a>, and <a class="el" href="semantic_8h_source.html#l00053">SymbolEntry::name</a>.</p>
 
 </div>
 </div>
@@ -244,9 +244,9 @@ Private Attributes</h2></td></tr>
 
 <p>Get child scopes. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00337">337</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00360">360</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00113">_children</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_children</a>.</p>
 
 </div>
 </div>
@@ -268,9 +268,9 @@ Private Attributes</h2></td></tr>
 <p>Get all entries defined in this scope. </p>
 <p>Get entries defined directly in this scope. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00342">342</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00365">365</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_entries</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00115">_entries</a>.</p>
 
 </div>
 </div>
@@ -292,9 +292,9 @@ Private Attributes</h2></td></tr>
 <p>Get parent scope (null for root). </p>
 <p>Get parent scope. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00332">332</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00355">355</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00112">_parent</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00113">_parent</a>.</p>
 
 </div>
 </div>
@@ -316,9 +316,9 @@ Private Attributes</h2></td></tr>
 <p>Get scope display name. </p>
 <p>Get scope name. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00327">327</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00350">350</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00111">_scopeName</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00112">_scopeName</a>.</p>
 
 </div>
 </div>
@@ -340,11 +340,11 @@ Private Attributes</h2></td></tr>
 <p>Find symbol only in current scope (const). </p>
 <p>Lookup symbol only in current scope (const). </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00295">295</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00318">318</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_entries</a>, and <a class="el" href="semantic_8h_source.html#l00115">_entryIndex</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00115">_entries</a>, and <a class="el" href="semantic_8h_source.html#l00116">_entryIndex</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00313">resolve()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00336">resolve()</a>.</p>
 
 </div>
 </div>
@@ -366,9 +366,9 @@ Private Attributes</h2></td></tr>
 <p>Find symbol only in current scope (mutable). </p>
 <p>Lookup symbol only in current scope (mutable). </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00304">304</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00327">327</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00114">_entries</a>, and <a class="el" href="semantic_8h_source.html#l00115">_entryIndex</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00115">_entries</a>, and <a class="el" href="semantic_8h_source.html#l00116">_entryIndex</a>.</p>
 
 </div>
 </div>
@@ -390,9 +390,9 @@ Private Attributes</h2></td></tr>
 <p>Resolve symbol through current scope then ancestors. </p>
 <p>Resolve symbol recursively through parent scopes. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00313">313</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00336">336</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00112">_parent</a>, and <a class="el" href="semantic_8cpp_source.html#l00295">lookupInCurrent()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00113">_parent</a>, and <a class="el" href="semantic_8cpp_source.html#l00318">lookupInCurrent()</a>.</p>
 
 </div>
 </div>
@@ -417,9 +417,9 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00113">113</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00114">114</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00277">createChild()</a>, and <a class="el" href="semantic_8cpp_source.html#l00337">getChildren()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00300">createChild()</a>, and <a class="el" href="semantic_8cpp_source.html#l00360">getChildren()</a>.</p>
 
 </div>
 </div>
@@ -443,9 +443,9 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00114">114</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00115">115</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00284">define()</a>, <a class="el" href="semantic_8cpp_source.html#l00342">getEntries()</a>, <a class="el" href="semantic_8cpp_source.html#l00295">lookupInCurrent()</a>, and <a class="el" href="semantic_8cpp_source.html#l00304">lookupMutableInCurrent()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00307">define()</a>, <a class="el" href="semantic_8cpp_source.html#l00365">getEntries()</a>, <a class="el" href="semantic_8cpp_source.html#l00318">lookupInCurrent()</a>, and <a class="el" href="semantic_8cpp_source.html#l00327">lookupMutableInCurrent()</a>.</p>
 
 </div>
 </div>
@@ -469,9 +469,9 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00115">115</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00116">116</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00284">define()</a>, <a class="el" href="semantic_8cpp_source.html#l00295">lookupInCurrent()</a>, and <a class="el" href="semantic_8cpp_source.html#l00304">lookupMutableInCurrent()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00307">define()</a>, <a class="el" href="semantic_8cpp_source.html#l00318">lookupInCurrent()</a>, and <a class="el" href="semantic_8cpp_source.html#l00327">lookupMutableInCurrent()</a>.</p>
 
 </div>
 </div>
@@ -495,9 +495,9 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00112">112</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00113">113</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00332">getParent()</a>, <a class="el" href="semantic_8cpp_source.html#l00313">resolve()</a>, and <a class="el" href="semantic_8cpp_source.html#l00273">SymbolTable()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00355">getParent()</a>, <a class="el" href="semantic_8cpp_source.html#l00336">resolve()</a>, and <a class="el" href="semantic_8cpp_source.html#l00296">SymbolTable()</a>.</p>
 
 </div>
 </div>
@@ -521,9 +521,9 @@ Private Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00111">111</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00112">112</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00327">getScopeName()</a>, and <a class="el" href="semantic_8cpp_source.html#l00273">SymbolTable()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00350">getScopeName()</a>, and <a class="el" href="semantic_8cpp_source.html#l00296">SymbolTable()</a>.</p>
 
 </div>
 </div>

@@ -94,189 +94,459 @@ $(function(){initNavTree('io_8cpp_source.html','',''); });
 <div class="contents">
 <a href="io_8cpp.html">Go to the documentation of this file.</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="preprocessor">#include &quot;<a class="code" href="io_8h.html">../include/io.h</a>&quot;</span></div>
 <div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="preprocessor">#include &quot;<a class="code" href="token_8h.html">../include/token.h</a>&quot;</span></div>
-<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#include &lt;stdexcept&gt;</span></div>
-<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;iostream&gt;</span></div>
-<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;filesystem&gt;</span></div>
-<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span> </div>
-<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="keyword">namespace </span>fs = std::filesystem;</div>
-<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span> </div>
-<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">// Output path helpers</span></div>
-<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span> </div>
-<div class="foldopen" id="foldopen00013" data-start="{" data-end="}">
-<div class="line"><a id="l00013" name="l00013"></a><span class="lineno"><a class="line" href="io_8h.html#ab67be3a583d2a27d6feb0c461e8a47ad">   13</a></span>std::string <a class="code hl_function" href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a>(<span class="keyword">const</span> std::string&amp; sourceFile) {</div>
-<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>    <span class="keywordflow">return</span> fs::path(sourceFile).stem().string();</div>
+<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="preprocessor">#include &lt;cstdlib&gt;</span></div>
+<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="preprocessor">#include &lt;stdexcept&gt;</span></div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="preprocessor">#include &lt;iostream&gt;</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="preprocessor">#include &lt;filesystem&gt;</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span> </div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="keyword">namespace </span>fs = std::filesystem;</div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span> </div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="keyword">namespace </span>{</div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span><span class="keywordtype">bool</span> isRepoRoot(<span class="keyword">const</span> fs::path&amp; candidate) {</div>
+<div class="line"><a id="l00012" name="l00012"></a><span class="lineno">   12</span>    <span class="keywordflow">return</span> fs::exists(candidate / <span class="stringliteral">&quot;CMakeLists.txt&quot;</span>) &amp;&amp;</div>
+<div class="line"><a id="l00013" name="l00013"></a><span class="lineno">   13</span>           fs::exists(candidate / <span class="stringliteral">&quot;include&quot;</span>) &amp;&amp;</div>
+<div class="line"><a id="l00014" name="l00014"></a><span class="lineno">   14</span>           fs::exists(candidate / <span class="stringliteral">&quot;src&quot;</span>);</div>
 <div class="line"><a id="l00015" name="l00015"></a><span class="lineno">   15</span>}</div>
-</div>
 <div class="line"><a id="l00016" name="l00016"></a><span class="lineno">   16</span> </div>
-<div class="foldopen" id="foldopen00017" data-start="{" data-end="}">
-<div class="line"><a id="l00017" name="l00017"></a><span class="lineno"><a class="line" href="io_8h.html#a14178986e611f8ef21ab33a64a79910e">   17</a></span>std::string <a class="code hl_function" href="io_8cpp.html#a14178986e611f8ef21ab33a64a79910e">createOutputDir</a>(<span class="keyword">const</span> std::string&amp; sourceFile) {</div>
-<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    std::string baseName = <a class="code hl_function" href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a>(sourceFile);</div>
-<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>    fs::path outputDir = fs::path(<span class="stringliteral">&quot;output&quot;</span>) / baseName;</div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>    fs::create_directories(outputDir);</div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>    <span class="keywordflow">return</span> outputDir.string();</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span>}</div>
-</div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
-<div class="foldopen" id="foldopen00024" data-start="{" data-end="}">
-<div class="line"><a id="l00024" name="l00024"></a><span class="lineno"><a class="line" href="io_8h.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">   24</a></span>std::string <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(<span class="keyword">const</span> std::string&amp; outputDir, <span class="keyword">const</span> std::string&amp; baseName, <span class="keyword">const</span> std::string&amp; extension) {</div>
-<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>    <span class="keywordflow">return</span> (fs::path(outputDir) / (baseName + extension)).string();</div>
-<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>}</div>
-</div>
-<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span> </div>
-<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span> </div>
-<div class="foldopen" id="foldopen00029" data-start="{" data-end="}">
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="io_8h.html#a1067d83526493fff9e9f3bc7ae48cf86">   29</a></span>std::tuple&lt;std::vector&lt;std::vector&lt;Token&gt;&gt;, std::vector&lt;std::vector&lt;Token&gt;&gt;&gt; <a class="code hl_function" href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a>(<span class="keyword">const</span> std::string&amp; filename) {</div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>    std::tuple&lt;std::vector&lt;std::vector&lt;Token&gt;&gt;, std::vector&lt;std::vector&lt;Token&gt;&gt;&gt; valid_and_invalid_tokens;</div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>    std::ifstream file(filename);</div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span>fs::path findRepoRootFrom(fs::path start) {</div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span>    <span class="keywordflow">while</span> (!start.empty()) {</div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span>        <span class="keywordflow">if</span> (isRepoRoot(start)) {</div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span>            <span class="keywordflow">return</span> start;</div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>        }</div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span> </div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span>        <span class="keyword">const</span> fs::path parent = start.parent_path();</div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>        <span class="keywordflow">if</span> (parent == start) {</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span>            <span class="keywordflow">break</span>;</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span>        }</div>
+<div class="line"><a id="l00027" name="l00027"></a><span class="lineno">   27</span>        start = parent;</div>
+<div class="line"><a id="l00028" name="l00028"></a><span class="lineno">   28</span>    }</div>
+<div class="line"><a id="l00029" name="l00029"></a><span class="lineno">   29</span> </div>
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>    <span class="keywordflow">return</span> {};</div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>}</div>
 <div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span> </div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file: &quot;</span> + filename);</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    }</div>
-<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span> </div>
-<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>    std::string line;</div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    <span class="keywordtype">int</span> lineNumber = 1;</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    <span class="keywordtype">bool</span> inBlockComment = <span class="keyword">false</span>;</div>
-<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span> </div>
-<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>    <span class="keywordflow">while</span> (std::getline(file, line)) {</div>
-<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>        <span class="keyword">auto</span> token_vectors = <a class="code hl_function" href="class_token.html#a75cb7d92b8df96524d57415925a46889">Token::tokenize</a>(line, lineNumber, inBlockComment);</div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>        std::vector&lt;Token&gt; valids = std::get&lt;0&gt;(token_vectors);</div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        std::vector&lt;Token&gt; invalids = std::get&lt;1&gt;(token_vectors);</div>
-<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span> </div>
-<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>        std::get&lt;0&gt;(valid_and_invalid_tokens).push_back(valids);</div>
-<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>        std::get&lt;1&gt;(valid_and_invalid_tokens).push_back(invalids);</div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span> </div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>        lineNumber++;</div>
-<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    }</div>
-<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span> </div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    <span class="comment">// If we reached EOF while still inside a block comment, flush it as an error</span></div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    <span class="keywordflow">if</span> (inBlockComment) {</div>
-<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span>        std::vector&lt;Token&gt; pendingValid;</div>
-<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>        std::vector&lt;Token&gt; pendingInvalid;</div>
-<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>        <a class="code hl_function" href="class_token.html#af8fe3027503d5eeb448295ea91537a94">Token::flushPendingBlockComment</a>(pendingValid, pendingInvalid);</div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>        <span class="keywordflow">if</span> (!pendingValid.empty()) {</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span>            std::get&lt;0&gt;(valid_and_invalid_tokens).push_back(pendingValid);</div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>        }</div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>        <span class="keywordflow">if</span> (!pendingInvalid.empty()) {</div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>            std::get&lt;1&gt;(valid_and_invalid_tokens).push_back(pendingInvalid);</div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>        }</div>
-<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    }</div>
-<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span> </div>
-<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    file.close();</div>
-<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno">   67</span>    <span class="keywordflow">return</span> valid_and_invalid_tokens;</div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>}</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>fs::path resolveRepoRoot(<span class="keyword">const</span> std::string&amp; sourceFile, <span class="keyword">const</span> std::string&amp; driverExecutablePath) {</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    <span class="keywordflow">if</span> (!driverExecutablePath.empty()) {</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        <span class="keyword">const</span> fs::path exePath = fs::absolute(fs::path(driverExecutablePath));</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        <span class="keyword">const</span> fs::path fromExe = findRepoRootFrom(exePath.parent_path());</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        <span class="keywordflow">if</span> (!fromExe.empty()) {</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>            <span class="keywordflow">return</span> fromExe;</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>        }</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    }</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span> </div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="keywordflow">if</span> (!sourceFile.empty()) {</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>        <span class="keyword">const</span> fs::path sourcePath = fs::absolute(fs::path(sourceFile));</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span>        <span class="keyword">const</span> fs::path fromSource = findRepoRootFrom(sourcePath.parent_path());</div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>        <span class="keywordflow">if</span> (!fromSource.empty()) {</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>            <span class="keywordflow">return</span> fromSource;</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>        }</div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>    }</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="keyword">const</span> fs::path fromCwd = findRepoRootFrom(fs::current_path());</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    <span class="keywordflow">if</span> (!fromCwd.empty()) {</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>        <span class="keywordflow">return</span> fromCwd;</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    }</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    <span class="keywordflow">return</span> fs::current_path();</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span>}</div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span>}</div>
+<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
+<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span><span class="comment">// ============================================================================</span></div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span><span class="comment">// Output path helpers</span></div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span><span class="comment">// ============================================================================</span></div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span> </div>
+<div class="foldopen" id="foldopen00063" data-start="{" data-end="}">
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno"><a class="line" href="io_8h.html#ab67be3a583d2a27d6feb0c461e8a47ad">   63</a></span>std::string <a class="code hl_function" href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a>(<span class="keyword">const</span> std::string&amp; sourceFile) {</div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    <span class="keywordflow">return</span> fs::path(sourceFile).stem().string();</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>}</div>
 </div>
-<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span> </div>
-<div class="foldopen" id="foldopen00070" data-start="{" data-end="}">
-<div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="io_8h.html#a7d441c2e4bda31ecb7e44491c6391eea">   70</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::vector&lt;Token&gt;&gt;&amp; tokens) {</div>
-<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>    std::ofstream file(filename);</div>
-<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span> </div>
-<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno">   74</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    }</div>
-<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span> </div>
-<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; tokenLine : tokens) {</div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span>        <span class="keywordflow">if</span>(tokenLine.empty()){ <span class="comment">// to not leave blank lines in the files</span></div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>            <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        }</div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span> </div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; token : tokenLine) {</div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>            file &lt;&lt; token.toString();</div>
-<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>        }</div>
-<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span> </div>
-<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        file &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span> </div>
+<div class="foldopen" id="foldopen00067" data-start="{" data-end="}">
+<div class="line"><a id="l00067" name="l00067"></a><span class="lineno"><a class="line" href="io_8h.html#a8ddfd7936fdd91ea6bfc22f164f65c61">   67</a></span>std::string <a class="code hl_function" href="io_8cpp.html#a8ddfd7936fdd91ea6bfc22f164f65c61">createOutputDir</a>(<span class="keyword">const</span> std::string&amp; sourceFile, <span class="keyword">const</span> std::string&amp; driverExecutablePath) {</div>
+<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span>    std::string baseName = <a class="code hl_function" href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a>(sourceFile);</div>
+<div class="line"><a id="l00069" name="l00069"></a><span class="lineno">   69</span>    fs::path outputDir = resolveRepoRoot(sourceFile, driverExecutablePath) / <span class="stringliteral">&quot;output&quot;</span> / baseName;</div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    fs::create_directories(outputDir);</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span>    <span class="keywordflow">return</span> outputDir.string();</div>
+<div class="line"><a id="l00072" name="l00072"></a><span class="lineno">   72</span>}</div>
+</div>
+<div class="line"><a id="l00073" name="l00073"></a><span class="lineno">   73</span> </div>
+<div class="foldopen" id="foldopen00074" data-start="{" data-end="}">
+<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="io_8h.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">   74</a></span>std::string <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(<span class="keyword">const</span> std::string&amp; outputDir, <span class="keyword">const</span> std::string&amp; baseName, <span class="keyword">const</span> std::string&amp; extension) {</div>
+<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span>    <span class="keywordflow">return</span> (fs::path(outputDir) / (baseName + extension)).string();</div>
+<div class="line"><a id="l00076" name="l00076"></a><span class="lineno">   76</span>}</div>
+</div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span> </div>
+<div class="foldopen" id="foldopen00078" data-start="{" data-end="}">
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno"><a class="line" href="io_8h.html#a830d7cf5b2b5172bb72c9b88318d1066">   78</a></span>std::string <a class="code hl_function" href="io_8cpp.html#a830d7cf5b2b5172bb72c9b88318d1066">makeDisplayPath</a>(<span class="keyword">const</span> std::string&amp; rawPath) {</div>
+<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span>    <span class="keywordflow">if</span> (rawPath.empty()) {</div>
+<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>        <span class="keywordflow">return</span> rawPath;</div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    }</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    std::error_code ec;</div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    <span class="keyword">const</span> fs::path absolutePath = fs::absolute(fs::path(rawPath), ec);</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    <span class="keywordflow">if</span> (ec) {</div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span>        <span class="keywordflow">return</span> rawPath;</div>
 <div class="line"><a id="l00087" name="l00087"></a><span class="lineno">   87</span>    }</div>
 <div class="line"><a id="l00088" name="l00088"></a><span class="lineno">   88</span> </div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    file.close();</div>
-<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>}</div>
+<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span>    <span class="keyword">const</span> fs::path cwd = fs::current_path(ec);</div>
+<div class="line"><a id="l00090" name="l00090"></a><span class="lineno">   90</span>    <span class="keywordflow">if</span> (ec) {</div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span>        <span class="keywordflow">return</span> absolutePath.lexically_normal().string();</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span>    }</div>
+<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span> </div>
+<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span>    <span class="keyword">const</span> fs::path relativePath = fs::relative(absolutePath, cwd, ec);</div>
+<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <span class="keywordflow">if</span> (!ec &amp;&amp; !relativePath.empty()) {</div>
+<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>        <span class="keywordflow">return</span> relativePath.lexically_normal().string();</div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span>    }</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span> </div>
+<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <span class="keywordflow">return</span> absolutePath.lexically_normal().string();</div>
+<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span>}</div>
 </div>
-<div class="line"><a id="l00091" name="l00091"></a><span class="lineno">   91</span> </div>
-<div class="foldopen" id="foldopen00092" data-start="{" data-end="}">
-<div class="line"><a id="l00092" name="l00092"></a><span class="lineno"><a class="line" href="io_8h.html#a81cbeddfb1fb5e15e49f4dd5ba014506">   92</a></span>std::vector&lt;std::vector&lt;Token&gt;&gt; <a class="code hl_function" href="io_8cpp.html#a81cbeddfb1fb5e15e49f4dd5ba014506">lex_file</a>(<span class="keyword">const</span> std::string&amp; input_file,  <span class="keyword">const</span> std::string valid_out_file, <span class="keyword">const</span> std::string invalid_out_file){</div>
-<div class="line"><a id="l00093" name="l00093"></a><span class="lineno">   93</span>    <span class="keyword">auto</span> valid_and_invalid_tokens = <a class="code hl_function" href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a>(input_file);</div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno">   94</span> </div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    <span class="keyword">auto</span> valids = std::get&lt;0&gt;(valid_and_invalid_tokens);</div>
-<div class="line"><a id="l00096" name="l00096"></a><span class="lineno">   96</span>    <span class="keyword">auto</span> invalids = std::get&lt;1&gt;(valid_and_invalid_tokens);</div>
-<div class="line"><a id="l00097" name="l00097"></a><span class="lineno">   97</span> </div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    <a class="code hl_function" href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a>(valid_out_file, valids);</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span>    <a class="code hl_function" href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a>(invalid_out_file, invalids);</div>
-<div class="line"><a id="l00100" name="l00100"></a><span class="lineno">  100</span> </div>
-<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span>    <span class="keywordflow">return</span> valids;</div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span>}</div>
-</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
-<div class="foldopen" id="foldopen00104" data-start="{" data-end="}">
-<div class="line"><a id="l00104" name="l00104"></a><span class="lineno"><a class="line" href="io_8h.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">  104</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::vector&lt;Token&gt;&gt;&amp; tokens){</div>
-<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno">  101</span> </div>
+<div class="foldopen" id="foldopen00102" data-start="{" data-end="}">
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno"><a class="line" href="io_8h.html#a66562ad08fbc75f2e176d42711a45faa">  102</a></span>std::vector&lt;std::pair&lt;std::string, std::string&gt;&gt; <a class="code hl_function" href="io_8cpp.html#a66562ad08fbc75f2e176d42711a45faa">makeDisplayArtifacts</a>(</div>
+<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span>    <span class="keyword">const</span> std::vector&lt;std::pair&lt;std::string, std::string&gt;&gt;&amp; artifacts) {</div>
+<div class="line"><a id="l00104" name="l00104"></a><span class="lineno">  104</span>    std::vector&lt;std::pair&lt;std::string, std::string&gt;&gt; displayArtifacts;</div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno">  105</span>    displayArtifacts.reserve(artifacts.size());</div>
 <div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
-<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
+<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; artifact : artifacts) {</div>
+<div class="line"><a id="l00108" name="l00108"></a><span class="lineno">  108</span>        displayArtifacts.push_back({artifact.first, <a class="code hl_function" href="io_8cpp.html#a830d7cf5b2b5172bb72c9b88318d1066">makeDisplayPath</a>(artifact.second)});</div>
 <div class="line"><a id="l00109" name="l00109"></a><span class="lineno">  109</span>    }</div>
 <div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span> </div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; tokenLine : tokens) {</div>
-<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>        <span class="keywordflow">if</span>(tokenLine.empty()){ <span class="comment">// to not leave blank lines in the files</span></div>
-<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span>            <span class="keywordflow">continue</span>;</div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span>        }</div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; token : tokenLine) {</div>
-<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span>            file &lt;&lt; token.getErrorString(<span class="stringliteral">&quot;Lexical Error&quot;</span>);</div>
-<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>            file &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
-<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>        }</div>
+<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span>    <span class="keywordflow">return</span> displayArtifacts;</div>
+<div class="line"><a id="l00112" name="l00112"></a><span class="lineno">  112</span>}</div>
+</div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno">  113</span> </div>
+<div class="foldopen" id="foldopen00114" data-start="{" data-end="}">
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno"><a class="line" href="io_8h.html#ae4c38eb41971a590d9a4824914a5fe77">  114</a></span><a class="code hl_struct" href="struct_compiler_output_paths.html">CompilerOutputPaths</a> <a class="code hl_function" href="io_8cpp.html#ae4c38eb41971a590d9a4824914a5fe77">prepareCompilerOutputPaths</a>(<span class="keyword">const</span> std::string&amp; sourceFile, <span class="keyword">const</span> std::string&amp; driverExecutablePath) {</div>
+<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span>    <a class="code hl_struct" href="struct_compiler_output_paths.html">CompilerOutputPaths</a> paths;</div>
+<div class="line"><a id="l00116" name="l00116"></a><span class="lineno">  116</span> </div>
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno">  117</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a> = <a class="code hl_function" href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a>(sourceFile);</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a> = <a class="code hl_function" href="io_8cpp.html#a8ddfd7936fdd91ea6bfc22f164f65c61">createOutputDir</a>(sourceFile, driverExecutablePath);</div>
 <div class="line"><a id="l00119" name="l00119"></a><span class="lineno">  119</span> </div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    }</div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span> </div>
-<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    file.close();</div>
-<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>}</div>
-</div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span> </div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span><span class="comment">// Parser I/O</span></div>
-<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span><span class="comment">// ============================================================================</span></div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span> </div>
-<div class="foldopen" id="foldopen00129" data-start="{" data-end="}">
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno"><a class="line" href="io_8h.html#af7bd99f3364119eb617e6613bca2ea19">  129</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#af7bd99f3364119eb617e6613bca2ea19">writeSyntaxErrorsToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; errors) {</div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00120" name="l00120"></a><span class="lineno">  120</span>    fs::path lexerDir = fs::path(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a>) / <span class="stringliteral">&quot;Lexer&quot;</span>;</div>
+<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span>    fs::path parserDir = fs::path(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a>) / <span class="stringliteral">&quot;Parser&quot;</span>;</div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    fs::path astDir = fs::path(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a>) / <span class="stringliteral">&quot;AST&quot;</span>;</div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span>    fs::path semanticDir = fs::path(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a>) / <span class="stringliteral">&quot;Semantics&quot;</span>;</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span>    fs::path codegenDir = fs::path(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">outputDir</a>) / <span class="stringliteral">&quot;CodeGen&quot;</span>;</div>
+<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span> </div>
+<div class="line"><a id="l00126" name="l00126"></a><span class="lineno">  126</span>    fs::create_directories(lexerDir);</div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno">  127</span>    fs::create_directories(parserDir);</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span>    fs::create_directories(astDir);</div>
+<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span>    fs::create_directories(semanticDir);</div>
+<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span>    fs::create_directories(codegenDir);</div>
 <div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span> </div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>    }</div>
-<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span> </div>
-<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; err : errors) {</div>
-<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span>        file &lt;&lt; err &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
-<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>    }</div>
-<div class="line"><a id="l00139" name="l00139"></a><span class="lineno">  139</span> </div>
-<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span>    file.close();</div>
-<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span>}</div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a1b5346f8da54fd149bd21763ec7164d1">lexerDir</a> = lexerDir.string();</div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#aac935de5f9bdc479d204ebd3f6c7b3e6">parserDir</a> = parserDir.string();</div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a3488e9383ae324ae71d6bdf05189edda">astDir</a> = astDir.string();</div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a72cda54b817d596747632043f914b8a4">semanticDir</a> = semanticDir.string();</div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#af73b523e0245ef65f4b134200efb09ac">codegenDir</a> = codegenDir.string();</div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
+<div class="line"><a id="l00138" name="l00138"></a><span class="lineno">  138</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a7cdf25cc3bc5f565d1fc6b9ff1933bd6">validTokensFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a1b5346f8da54fd149bd21763ec7164d1">lexerDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outlextokens&quot;</span>);</div>
+<div class="line"><a id="l00139" name="l00139"></a><span class="lineno">  139</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a8d85cecc4258eb09a6da0e9edab95ab4">invalidTokensFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a1b5346f8da54fd149bd21763ec7164d1">lexerDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outlexerrors&quot;</span>);</div>
+<div class="line"><a id="l00140" name="l00140"></a><span class="lineno">  140</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a35412cfc90341a2462799b8452dcba84">derivationFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#aac935de5f9bdc479d204ebd3f6c7b3e6">parserDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outderivation&quot;</span>);</div>
+<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a640a8ca7ae87be435b293c4a0d61ecfd">syntaxErrorsFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#aac935de5f9bdc479d204ebd3f6c7b3e6">parserDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outsyntaxerrors&quot;</span>);</div>
+<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a9d7fd25fa9f3d2c87022dbdbf1c44178">astFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a3488e9383ae324ae71d6bdf05189edda">astDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outast&quot;</span>);</div>
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno">  143</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#afb57cbf4cf5764fde1737780df749a21">astDotFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a3488e9383ae324ae71d6bdf05189edda">astDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outast.dot&quot;</span>);</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a985ea8f020125c1d6047608c739d27bb">astPngFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a3488e9383ae324ae71d6bdf05189edda">astDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outast.png&quot;</span>);</div>
+<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a7cfbab00bb703dccd6958f309051ef56">symbolTablesFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a72cda54b817d596747632043f914b8a4">semanticDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outsymboltables&quot;</span>);</div>
+<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a8a006695c8e7de5371df9c818bf86555">semanticDiagnosticsFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a72cda54b817d596747632043f914b8a4">semanticDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outsemanticerrors&quot;</span>);</div>
+<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#ae51920b73dd6f7c0346327232bd801ae">moonOutputFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#af73b523e0245ef65f4b134200efb09ac">codegenDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.moon&quot;</span>);</div>
+<div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a1b9ae72590728eaf96a0a5739253ab88">codegenDiagnosticsFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#af73b523e0245ef65f4b134200efb09ac">codegenDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outcodegenerrors&quot;</span>);</div>
+<div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span>    paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4ded5ad8950652c3044dab2764121970">moonRunLogFile</a> = <a class="code hl_function" href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a>(paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#af73b523e0245ef65f4b134200efb09ac">codegenDir</a>, paths.<a class="code hl_variable" href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">baseName</a>, <span class="stringliteral">&quot;.outmoonrun&quot;</span>);</div>
+<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span> </div>
+<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>    <span class="keywordflow">return</span> paths;</div>
+<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>}</div>
 </div>
-<div class="line"><a id="l00142" name="l00142"></a><span class="lineno">  142</span> </div>
-<div class="foldopen" id="foldopen00143" data-start="{" data-end="}">
-<div class="line"><a id="l00143" name="l00143"></a><span class="lineno"><a class="line" href="io_8h.html#ac70f54979bde552bdd71197503b22e82">  143</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#ac70f54979bde552bdd71197503b22e82">writeDerivationToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; derivationSteps) {</div>
-<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span>    std::ofstream file(filename);</div>
-<div class="line"><a id="l00145" name="l00145"></a><span class="lineno">  145</span> </div>
-<div class="line"><a id="l00146" name="l00146"></a><span class="lineno">  146</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
-<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
-<div class="line"><a id="l00148" name="l00148"></a><span class="lineno">  148</span>    }</div>
-<div class="line"><a id="l00149" name="l00149"></a><span class="lineno">  149</span> </div>
-<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; step : derivationSteps) {</div>
-<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span>        file &lt;&lt; step &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
-<div class="line"><a id="l00152" name="l00152"></a><span class="lineno">  152</span>    }</div>
 <div class="line"><a id="l00153" name="l00153"></a><span class="lineno">  153</span> </div>
-<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span>    file.close();</div>
-<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>}</div>
+<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span> </div>
+<div class="foldopen" id="foldopen00155" data-start="{" data-end="}">
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno"><a class="line" href="io_8h.html#a1067d83526493fff9e9f3bc7ae48cf86">  155</a></span>std::tuple&lt;std::vector&lt;std::vector&lt;Token&gt;&gt;, std::vector&lt;std::vector&lt;Token&gt;&gt;&gt; <a class="code hl_function" href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a>(<span class="keyword">const</span> std::string&amp; filename) {</div>
+<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span>    std::tuple&lt;std::vector&lt;std::vector&lt;Token&gt;&gt;, std::vector&lt;std::vector&lt;Token&gt;&gt;&gt; valid_and_invalid_tokens;</div>
+<div class="line"><a id="l00157" name="l00157"></a><span class="lineno">  157</span>    std::ifstream file(filename);</div>
+<div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span> </div>
+<div class="line"><a id="l00159" name="l00159"></a><span class="lineno">  159</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00160" name="l00160"></a><span class="lineno">  160</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file: &quot;</span> + filename);</div>
+<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span>    }</div>
+<div class="line"><a id="l00162" name="l00162"></a><span class="lineno">  162</span> </div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    std::string line;</div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span>    <span class="keywordtype">int</span> lineNumber = 1;</div>
+<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span>    <span class="keywordtype">bool</span> inBlockComment = <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span> </div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    <span class="keywordflow">while</span> (std::getline(file, line)) {</div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>        <span class="keyword">auto</span> token_vectors = <a class="code hl_function" href="class_token.html#a75cb7d92b8df96524d57415925a46889">Token::tokenize</a>(line, lineNumber, inBlockComment);</div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>        std::vector&lt;Token&gt; valids = std::get&lt;0&gt;(token_vectors);</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>        std::vector&lt;Token&gt; invalids = std::get&lt;1&gt;(token_vectors);</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span> </div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>        std::get&lt;0&gt;(valid_and_invalid_tokens).push_back(valids);</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>        std::get&lt;1&gt;(valid_and_invalid_tokens).push_back(invalids);</div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span> </div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>        lineNumber++;</div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    }</div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span> </div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>    <span class="comment">// If we reached EOF while still inside a block comment, flush it as an error</span></div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span>    <span class="keywordflow">if</span> (inBlockComment) {</div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>        std::vector&lt;Token&gt; pendingValid;</div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>        std::vector&lt;Token&gt; pendingInvalid;</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span>        <a class="code hl_function" href="class_token.html#af8fe3027503d5eeb448295ea91537a94">Token::flushPendingBlockComment</a>(pendingValid, pendingInvalid);</div>
+<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>        <span class="keywordflow">if</span> (!pendingValid.empty()) {</div>
+<div class="line"><a id="l00184" name="l00184"></a><span class="lineno">  184</span>            std::get&lt;0&gt;(valid_and_invalid_tokens).push_back(pendingValid);</div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span>        }</div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>        <span class="keywordflow">if</span> (!pendingInvalid.empty()) {</div>
+<div class="line"><a id="l00187" name="l00187"></a><span class="lineno">  187</span>            std::get&lt;1&gt;(valid_and_invalid_tokens).push_back(pendingInvalid);</div>
+<div class="line"><a id="l00188" name="l00188"></a><span class="lineno">  188</span>        }</div>
+<div class="line"><a id="l00189" name="l00189"></a><span class="lineno">  189</span>    }</div>
+<div class="line"><a id="l00190" name="l00190"></a><span class="lineno">  190</span> </div>
+<div class="line"><a id="l00191" name="l00191"></a><span class="lineno">  191</span>    file.close();</div>
+<div class="line"><a id="l00192" name="l00192"></a><span class="lineno">  192</span> </div>
+<div class="line"><a id="l00193" name="l00193"></a><span class="lineno">  193</span>    <span class="keywordflow">return</span> valid_and_invalid_tokens;</div>
+<div class="line"><a id="l00194" name="l00194"></a><span class="lineno">  194</span>}</div>
+</div>
+<div class="line"><a id="l00195" name="l00195"></a><span class="lineno">  195</span> </div>
+<div class="foldopen" id="foldopen00196" data-start="{" data-end="}">
+<div class="line"><a id="l00196" name="l00196"></a><span class="lineno"><a class="line" href="io_8h.html#a7d441c2e4bda31ecb7e44491c6391eea">  196</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::vector&lt;Token&gt;&gt;&amp; tokens) {</div>
+<div class="line"><a id="l00197" name="l00197"></a><span class="lineno">  197</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00198" name="l00198"></a><span class="lineno">  198</span> </div>
+<div class="line"><a id="l00199" name="l00199"></a><span class="lineno">  199</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00200" name="l00200"></a><span class="lineno">  200</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
+<div class="line"><a id="l00201" name="l00201"></a><span class="lineno">  201</span>    }</div>
+<div class="line"><a id="l00202" name="l00202"></a><span class="lineno">  202</span> </div>
+<div class="line"><a id="l00203" name="l00203"></a><span class="lineno">  203</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; tokenLine : tokens) {</div>
+<div class="line"><a id="l00204" name="l00204"></a><span class="lineno">  204</span>        <span class="keywordflow">if</span>(tokenLine.empty()){ <span class="comment">// to not leave blank lines in the files</span></div>
+<div class="line"><a id="l00205" name="l00205"></a><span class="lineno">  205</span>            <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l00206" name="l00206"></a><span class="lineno">  206</span>        }</div>
+<div class="line"><a id="l00207" name="l00207"></a><span class="lineno">  207</span> </div>
+<div class="line"><a id="l00208" name="l00208"></a><span class="lineno">  208</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; token : tokenLine) {</div>
+<div class="line"><a id="l00209" name="l00209"></a><span class="lineno">  209</span>            file &lt;&lt; token.toString();</div>
+<div class="line"><a id="l00210" name="l00210"></a><span class="lineno">  210</span>        }</div>
+<div class="line"><a id="l00211" name="l00211"></a><span class="lineno">  211</span> </div>
+<div class="line"><a id="l00212" name="l00212"></a><span class="lineno">  212</span>        file &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00213" name="l00213"></a><span class="lineno">  213</span>    }</div>
+<div class="line"><a id="l00214" name="l00214"></a><span class="lineno">  214</span> </div>
+<div class="line"><a id="l00215" name="l00215"></a><span class="lineno">  215</span>    file.close();</div>
+<div class="line"><a id="l00216" name="l00216"></a><span class="lineno">  216</span>}</div>
+</div>
+<div class="line"><a id="l00217" name="l00217"></a><span class="lineno">  217</span> </div>
+<div class="foldopen" id="foldopen00218" data-start="{" data-end="}">
+<div class="line"><a id="l00218" name="l00218"></a><span class="lineno"><a class="line" href="io_8h.html#a1f4b12d4984ea10a7ed5bee3ff48f0b3">  218</a></span>std::vector&lt;std::vector&lt;Token&gt;&gt; <a class="code hl_function" href="io_8cpp.html#a5aec7774e09e0aa68afb68c941802fff">lex_file</a>(<span class="keyword">const</span> std::string&amp; input_file,</div>
+<div class="line"><a id="l00219" name="l00219"></a><span class="lineno">  219</span>                                         <span class="keyword">const</span> std::string valid_out_file,</div>
+<div class="line"><a id="l00220" name="l00220"></a><span class="lineno">  220</span>                                         <span class="keyword">const</span> std::string invalid_out_file,</div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>                                         <span class="keywordtype">size_t</span>* invalidTokenCount) {</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span>    <span class="keyword">auto</span> valid_and_invalid_tokens = <a class="code hl_function" href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a>(input_file);</div>
+<div class="line"><a id="l00223" name="l00223"></a><span class="lineno">  223</span> </div>
+<div class="line"><a id="l00224" name="l00224"></a><span class="lineno">  224</span>    <span class="keyword">auto</span> valids = std::get&lt;0&gt;(valid_and_invalid_tokens);</div>
+<div class="line"><a id="l00225" name="l00225"></a><span class="lineno">  225</span>    <span class="keyword">auto</span> invalids = std::get&lt;1&gt;(valid_and_invalid_tokens);</div>
+<div class="line"><a id="l00226" name="l00226"></a><span class="lineno">  226</span> </div>
+<div class="line"><a id="l00227" name="l00227"></a><span class="lineno">  227</span>    <span class="keywordtype">size_t</span> invalidCount = 0;</div>
+<div class="line"><a id="l00228" name="l00228"></a><span class="lineno">  228</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; lineTokens : invalids) {</div>
+<div class="line"><a id="l00229" name="l00229"></a><span class="lineno">  229</span>        invalidCount += lineTokens.size();</div>
+<div class="line"><a id="l00230" name="l00230"></a><span class="lineno">  230</span>    }</div>
+<div class="line"><a id="l00231" name="l00231"></a><span class="lineno">  231</span>    <span class="keywordflow">if</span> (invalidTokenCount != <span class="keyword">nullptr</span>) {</div>
+<div class="line"><a id="l00232" name="l00232"></a><span class="lineno">  232</span>        *invalidTokenCount = invalidCount;</div>
+<div class="line"><a id="l00233" name="l00233"></a><span class="lineno">  233</span>    }</div>
+<div class="line"><a id="l00234" name="l00234"></a><span class="lineno">  234</span> </div>
+<div class="line"><a id="l00235" name="l00235"></a><span class="lineno">  235</span>    <a class="code hl_function" href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a>(valid_out_file, valids);</div>
+<div class="line"><a id="l00236" name="l00236"></a><span class="lineno">  236</span>    <a class="code hl_function" href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a>(invalid_out_file, invalids);</div>
+<div class="line"><a id="l00237" name="l00237"></a><span class="lineno">  237</span> </div>
+<div class="line"><a id="l00238" name="l00238"></a><span class="lineno">  238</span>    <span class="keywordflow">return</span> valids;</div>
+<div class="line"><a id="l00239" name="l00239"></a><span class="lineno">  239</span>}</div>
+</div>
+<div class="line"><a id="l00240" name="l00240"></a><span class="lineno">  240</span> </div>
+<div class="foldopen" id="foldopen00241" data-start="{" data-end="}">
+<div class="line"><a id="l00241" name="l00241"></a><span class="lineno"><a class="line" href="io_8h.html#a9274e2723eec7a8945e912be7d585cd7">  241</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="io_8cpp.html#a9274e2723eec7a8945e912be7d585cd7">writeLinesToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; lines) {</div>
+<div class="line"><a id="l00242" name="l00242"></a><span class="lineno">  242</span>    std::ofstream file(filename, std::ios::out | std::ios::trunc);</div>
+<div class="line"><a id="l00243" name="l00243"></a><span class="lineno">  243</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00244" name="l00244"></a><span class="lineno">  244</span>        <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00245" name="l00245"></a><span class="lineno">  245</span>    }</div>
+<div class="line"><a id="l00246" name="l00246"></a><span class="lineno">  246</span> </div>
+<div class="line"><a id="l00247" name="l00247"></a><span class="lineno">  247</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; line : lines) {</div>
+<div class="line"><a id="l00248" name="l00248"></a><span class="lineno">  248</span>        file &lt;&lt; line &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00249" name="l00249"></a><span class="lineno">  249</span>    }</div>
+<div class="line"><a id="l00250" name="l00250"></a><span class="lineno">  250</span> </div>
+<div class="line"><a id="l00251" name="l00251"></a><span class="lineno">  251</span>    <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00252" name="l00252"></a><span class="lineno">  252</span>}</div>
+</div>
+<div class="line"><a id="l00253" name="l00253"></a><span class="lineno">  253</span> </div>
+<div class="foldopen" id="foldopen00254" data-start="{" data-end="}">
+<div class="line"><a id="l00254" name="l00254"></a><span class="lineno"><a class="line" href="io_8h.html#a35ebbad0ba41e41ad61dc95456f396af">  254</a></span><span class="keywordtype">bool</span> <a class="code hl_function" href="io_8cpp.html#a35ebbad0ba41e41ad61dc95456f396af">writeTextToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::string&amp; text) {</div>
+<div class="line"><a id="l00255" name="l00255"></a><span class="lineno">  255</span>    std::ofstream file(filename, std::ios::out | std::ios::trunc);</div>
+<div class="line"><a id="l00256" name="l00256"></a><span class="lineno">  256</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00257" name="l00257"></a><span class="lineno">  257</span>        <span class="keywordflow">return</span> <span class="keyword">false</span>;</div>
+<div class="line"><a id="l00258" name="l00258"></a><span class="lineno">  258</span>    }</div>
+<div class="line"><a id="l00259" name="l00259"></a><span class="lineno">  259</span> </div>
+<div class="line"><a id="l00260" name="l00260"></a><span class="lineno">  260</span>    file &lt;&lt; text;</div>
+<div class="line"><a id="l00261" name="l00261"></a><span class="lineno">  261</span>    <span class="keywordflow">return</span> <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00262" name="l00262"></a><span class="lineno">  262</span>}</div>
+</div>
+<div class="line"><a id="l00263" name="l00263"></a><span class="lineno">  263</span> </div>
+<div class="foldopen" id="foldopen00264" data-start="{" data-end="}">
+<div class="line"><a id="l00264" name="l00264"></a><span class="lineno"><a class="line" href="io_8h.html#a63dc0f8567e9e400370b0f9818be6456">  264</a></span><a class="code hl_struct" href="struct_moon_run_result.html">MoonRunResult</a> <a class="code hl_function" href="io_8cpp.html#a63dc0f8567e9e400370b0f9818be6456">runMoonSimulator</a>(<span class="keyword">const</span> std::string&amp; driverExecutablePath,</div>
+<div class="line"><a id="l00265" name="l00265"></a><span class="lineno">  265</span>                               <span class="keyword">const</span> std::string&amp; moonInputFile,</div>
+<div class="line"><a id="l00266" name="l00266"></a><span class="lineno">  266</span>                               <span class="keyword">const</span> std::string&amp; moonRunLogFile) {</div>
+<div class="line"><a id="l00267" name="l00267"></a><span class="lineno">  267</span>    <a class="code hl_struct" href="struct_moon_run_result.html">MoonRunResult</a> result;</div>
+<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span> </div>
+<div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span><span class="preprocessor">#ifdef _WIN32</span></div>
+<div class="line"><a id="l00270" name="l00270"></a><span class="lineno">  270</span>    <span class="keyword">const</span> std::string moonExecutableName = <span class="stringliteral">&quot;moon.exe&quot;</span>;</div>
+<div class="line"><a id="l00271" name="l00271"></a><span class="lineno">  271</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00272" name="l00272"></a><span class="lineno">  272</span>    <span class="keyword">const</span> std::string moonExecutableName = <span class="stringliteral">&quot;moon&quot;</span>;</div>
+<div class="line"><a id="l00273" name="l00273"></a><span class="lineno">  273</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span> </div>
+<div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span>    <span class="keyword">const</span> fs::path driverExePath = fs::absolute(fs::path(driverExecutablePath));</div>
+<div class="line"><a id="l00276" name="l00276"></a><span class="lineno">  276</span>    <span class="keyword">const</span> fs::path driverDir = driverExePath.parent_path();</div>
+<div class="line"><a id="l00277" name="l00277"></a><span class="lineno">  277</span>    <span class="keyword">const</span> fs::path moonExeSameDir = driverDir / moonExecutableName;</div>
+<div class="line"><a id="l00278" name="l00278"></a><span class="lineno">  278</span>    <span class="keyword">const</span> fs::path moonExeWorkspace = fs::absolute(fs::path(<span class="stringliteral">&quot;exe&quot;</span>) / moonExecutableName);</div>
+<div class="line"><a id="l00279" name="l00279"></a><span class="lineno">  279</span>    <span class="keyword">const</span> fs::path moonExeLegacyParent = fs::absolute(fs::path(<span class="stringliteral">&quot;..&quot;</span>) / <span class="stringliteral">&quot;exe&quot;</span> / moonExecutableName);</div>
+<div class="line"><a id="l00280" name="l00280"></a><span class="lineno">  280</span> </div>
+<div class="line"><a id="l00281" name="l00281"></a><span class="lineno">  281</span>    <span class="keyword">const</span> fs::path moonExePath =</div>
+<div class="line"><a id="l00282" name="l00282"></a><span class="lineno">  282</span>        fs::exists(moonExeSameDir) ? moonExeSameDir :</div>
+<div class="line"><a id="l00283" name="l00283"></a><span class="lineno">  283</span>        (fs::exists(moonExeWorkspace) ? moonExeWorkspace : moonExeLegacyParent);</div>
+<div class="line"><a id="l00284" name="l00284"></a><span class="lineno">  284</span> </div>
+<div class="line"><a id="l00285" name="l00285"></a><span class="lineno">  285</span>    result.<a class="code hl_variable" href="struct_moon_run_result.html#a75b810630e3cfaef74b67522d054e532">moonExecutablePath</a> = moonExePath.string();</div>
+<div class="line"><a id="l00286" name="l00286"></a><span class="lineno">  286</span> </div>
+<div class="line"><a id="l00287" name="l00287"></a><span class="lineno">  287</span>    <span class="keywordflow">if</span> (!fs::exists(moonExePath)) {</div>
+<div class="line"><a id="l00288" name="l00288"></a><span class="lineno">  288</span>        result.<a class="code hl_variable" href="struct_moon_run_result.html#ab682ba5a92e3f7cbd9cf5166ccdcd3c5">details</a> = <span class="stringliteral">&quot;Skipped: /exe/moon executable not found&quot;</span>;</div>
+<div class="line"><a id="l00289" name="l00289"></a><span class="lineno">  289</span>        <a class="code hl_function" href="io_8cpp.html#a9274e2723eec7a8945e912be7d585cd7">writeLinesToFile</a>(moonRunLogFile, {</div>
+<div class="line"><a id="l00290" name="l00290"></a><span class="lineno">  290</span>            <span class="stringliteral">&quot;[ERROR][MOON] Executable not found: &quot;</span> + moonExePath.string()</div>
+<div class="line"><a id="l00291" name="l00291"></a><span class="lineno">  291</span>        });</div>
+<div class="line"><a id="l00292" name="l00292"></a><span class="lineno">  292</span>        <span class="keywordflow">return</span> result;</div>
+<div class="line"><a id="l00293" name="l00293"></a><span class="lineno">  293</span>    }</div>
+<div class="line"><a id="l00294" name="l00294"></a><span class="lineno">  294</span> </div>
+<div class="line"><a id="l00295" name="l00295"></a><span class="lineno">  295</span>    <span class="keyword">const</span> fs::path moonInputPath = fs::path(moonInputFile);</div>
+<div class="line"><a id="l00296" name="l00296"></a><span class="lineno">  296</span>    <span class="keywordflow">if</span> (!fs::exists(moonInputPath)) {</div>
+<div class="line"><a id="l00297" name="l00297"></a><span class="lineno">  297</span>        result.<a class="code hl_variable" href="struct_moon_run_result.html#ab682ba5a92e3f7cbd9cf5166ccdcd3c5">details</a> = <span class="stringliteral">&quot;Skipped: generated .moon file not found&quot;</span>;</div>
+<div class="line"><a id="l00298" name="l00298"></a><span class="lineno">  298</span>        <a class="code hl_function" href="io_8cpp.html#a9274e2723eec7a8945e912be7d585cd7">writeLinesToFile</a>(moonRunLogFile, {</div>
+<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>            <span class="stringliteral">&quot;[ERROR][MOON] Generated Moon file not found: &quot;</span> + moonInputFile</div>
+<div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span>        });</div>
+<div class="line"><a id="l00301" name="l00301"></a><span class="lineno">  301</span>        <span class="keywordflow">return</span> result;</div>
+<div class="line"><a id="l00302" name="l00302"></a><span class="lineno">  302</span>    }</div>
+<div class="line"><a id="l00303" name="l00303"></a><span class="lineno">  303</span> </div>
+<div class="line"><a id="l00304" name="l00304"></a><span class="lineno">  304</span>    fs::path inputDir = moonInputPath.parent_path();</div>
+<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>    <span class="keywordflow">if</span> (inputDir.empty()) {</div>
+<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span>        inputDir = fs::path(<span class="stringliteral">&quot;.&quot;</span>);</div>
+<div class="line"><a id="l00307" name="l00307"></a><span class="lineno">  307</span>    }</div>
+<div class="line"><a id="l00308" name="l00308"></a><span class="lineno">  308</span> </div>
+<div class="line"><a id="l00309" name="l00309"></a><span class="lineno">  309</span>    <span class="keyword">const</span> fs::path codegenDirAbs = fs::absolute(inputDir);</div>
+<div class="line"><a id="l00310" name="l00310"></a><span class="lineno">  310</span>    <span class="keyword">const</span> std::string moonInputName = moonInputPath.filename().string();</div>
+<div class="line"><a id="l00311" name="l00311"></a><span class="lineno">  311</span>    <span class="keyword">const</span> std::string runLogName = fs::path(moonRunLogFile).filename().string();</div>
+<div class="line"><a id="l00312" name="l00312"></a><span class="lineno">  312</span> </div>
+<div class="line"><a id="l00313" name="l00313"></a><span class="lineno">  313</span><span class="preprocessor">#ifdef _WIN32</span></div>
+<div class="line"><a id="l00314" name="l00314"></a><span class="lineno">  314</span>    <span class="keyword">const</span> std::string command =</div>
+<div class="line"><a id="l00315" name="l00315"></a><span class="lineno">  315</span>        <span class="stringliteral">&quot;cd /d \&quot;&quot;</span> + codegenDirAbs.string() + <span class="stringliteral">&quot;\&quot; &amp;&amp; \&quot;&quot;</span> + moonExePath.string() + <span class="stringliteral">&quot;\&quot; \&quot;&quot;</span> + moonInputName + <span class="stringliteral">&quot;\&quot; &gt; \&quot;&quot;</span> + runLogName + <span class="stringliteral">&quot;\&quot; 2&gt;&amp;1&quot;</span>;</div>
+<div class="line"><a id="l00316" name="l00316"></a><span class="lineno">  316</span><span class="preprocessor">#else</span></div>
+<div class="line"><a id="l00317" name="l00317"></a><span class="lineno">  317</span>    <span class="keyword">const</span> std::string command =</div>
+<div class="line"><a id="l00318" name="l00318"></a><span class="lineno">  318</span>        <span class="stringliteral">&quot;cd \&quot;&quot;</span> + codegenDirAbs.string() + <span class="stringliteral">&quot;\&quot; &amp;&amp; \&quot;&quot;</span> + moonExePath.string() + <span class="stringliteral">&quot;\&quot; \&quot;&quot;</span> + moonInputName + <span class="stringliteral">&quot;\&quot; &gt; \&quot;&quot;</span> + runLogName + <span class="stringliteral">&quot;\&quot; 2&gt;&amp;1&quot;</span>;</div>
+<div class="line"><a id="l00319" name="l00319"></a><span class="lineno">  319</span><span class="preprocessor">#endif</span></div>
+<div class="line"><a id="l00320" name="l00320"></a><span class="lineno">  320</span> </div>
+<div class="line"><a id="l00321" name="l00321"></a><span class="lineno">  321</span>    result.<a class="code hl_variable" href="struct_moon_run_result.html#aea72e971e292943599e250eb567efb12">attempted</a> = <span class="keyword">true</span>;</div>
+<div class="line"><a id="l00322" name="l00322"></a><span class="lineno">  322</span>    <span class="keyword">const</span> <span class="keywordtype">int</span> exitCode = std::system(command.c_str());</div>
+<div class="line"><a id="l00323" name="l00323"></a><span class="lineno">  323</span>    result.<a class="code hl_variable" href="struct_moon_run_result.html#a5d9c163376e9844bce1ba7b9ac7655ef">success</a> = (exitCode == 0);</div>
+<div class="line"><a id="l00324" name="l00324"></a><span class="lineno">  324</span>    result.<a class="code hl_variable" href="struct_moon_run_result.html#ab682ba5a92e3f7cbd9cf5166ccdcd3c5">details</a> = result.<a class="code hl_variable" href="struct_moon_run_result.html#a5d9c163376e9844bce1ba7b9ac7655ef">success</a></div>
+<div class="line"><a id="l00325" name="l00325"></a><span class="lineno">  325</span>        ? <span class="stringliteral">&quot;Moon executed generated assembly&quot;</span></div>
+<div class="line"><a id="l00326" name="l00326"></a><span class="lineno">  326</span>        : <span class="stringliteral">&quot;Moon exited with non-zero status&quot;</span>;</div>
+<div class="line"><a id="l00327" name="l00327"></a><span class="lineno">  327</span> </div>
+<div class="line"><a id="l00328" name="l00328"></a><span class="lineno">  328</span>    <span class="keywordflow">return</span> result;</div>
+<div class="line"><a id="l00329" name="l00329"></a><span class="lineno">  329</span>}</div>
+</div>
+<div class="line"><a id="l00330" name="l00330"></a><span class="lineno">  330</span> </div>
+<div class="foldopen" id="foldopen00331" data-start="{" data-end="}">
+<div class="line"><a id="l00331" name="l00331"></a><span class="lineno"><a class="line" href="io_8h.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">  331</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::vector&lt;Token&gt;&gt;&amp; tokens){</div>
+<div class="line"><a id="l00332" name="l00332"></a><span class="lineno">  332</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00333" name="l00333"></a><span class="lineno">  333</span> </div>
+<div class="line"><a id="l00334" name="l00334"></a><span class="lineno">  334</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
+<div class="line"><a id="l00336" name="l00336"></a><span class="lineno">  336</span>    }</div>
+<div class="line"><a id="l00337" name="l00337"></a><span class="lineno">  337</span> </div>
+<div class="line"><a id="l00338" name="l00338"></a><span class="lineno">  338</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; tokenLine : tokens) {</div>
+<div class="line"><a id="l00339" name="l00339"></a><span class="lineno">  339</span>        <span class="keywordflow">if</span>(tokenLine.empty()){ <span class="comment">// to not leave blank lines in the files</span></div>
+<div class="line"><a id="l00340" name="l00340"></a><span class="lineno">  340</span>            <span class="keywordflow">continue</span>;</div>
+<div class="line"><a id="l00341" name="l00341"></a><span class="lineno">  341</span>        }</div>
+<div class="line"><a id="l00342" name="l00342"></a><span class="lineno">  342</span>        <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; token : tokenLine) {</div>
+<div class="line"><a id="l00343" name="l00343"></a><span class="lineno">  343</span>            file &lt;&lt; token.getErrorString(<span class="stringliteral">&quot;Lexical Error&quot;</span>);</div>
+<div class="line"><a id="l00344" name="l00344"></a><span class="lineno">  344</span>            file &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00345" name="l00345"></a><span class="lineno">  345</span>        }</div>
+<div class="line"><a id="l00346" name="l00346"></a><span class="lineno">  346</span> </div>
+<div class="line"><a id="l00347" name="l00347"></a><span class="lineno">  347</span>    }</div>
+<div class="line"><a id="l00348" name="l00348"></a><span class="lineno">  348</span> </div>
+<div class="line"><a id="l00349" name="l00349"></a><span class="lineno">  349</span>    file.close();</div>
+<div class="line"><a id="l00350" name="l00350"></a><span class="lineno">  350</span>}</div>
+</div>
+<div class="line"><a id="l00351" name="l00351"></a><span class="lineno">  351</span> </div>
+<div class="line"><a id="l00352" name="l00352"></a><span class="lineno">  352</span><span class="comment">// ============================================================================</span></div>
+<div class="line"><a id="l00353" name="l00353"></a><span class="lineno">  353</span><span class="comment">// Parser I/O</span></div>
+<div class="line"><a id="l00354" name="l00354"></a><span class="lineno">  354</span><span class="comment">// ============================================================================</span></div>
+<div class="line"><a id="l00355" name="l00355"></a><span class="lineno">  355</span> </div>
+<div class="foldopen" id="foldopen00356" data-start="{" data-end="}">
+<div class="line"><a id="l00356" name="l00356"></a><span class="lineno"><a class="line" href="io_8h.html#af7bd99f3364119eb617e6613bca2ea19">  356</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#af7bd99f3364119eb617e6613bca2ea19">writeSyntaxErrorsToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; errors) {</div>
+<div class="line"><a id="l00357" name="l00357"></a><span class="lineno">  357</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00358" name="l00358"></a><span class="lineno">  358</span> </div>
+<div class="line"><a id="l00359" name="l00359"></a><span class="lineno">  359</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00360" name="l00360"></a><span class="lineno">  360</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
+<div class="line"><a id="l00361" name="l00361"></a><span class="lineno">  361</span>    }</div>
+<div class="line"><a id="l00362" name="l00362"></a><span class="lineno">  362</span> </div>
+<div class="line"><a id="l00363" name="l00363"></a><span class="lineno">  363</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; err : errors) {</div>
+<div class="line"><a id="l00364" name="l00364"></a><span class="lineno">  364</span>        file &lt;&lt; err &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span>    }</div>
+<div class="line"><a id="l00366" name="l00366"></a><span class="lineno">  366</span> </div>
+<div class="line"><a id="l00367" name="l00367"></a><span class="lineno">  367</span>    file.close();</div>
+<div class="line"><a id="l00368" name="l00368"></a><span class="lineno">  368</span>}</div>
+</div>
+<div class="line"><a id="l00369" name="l00369"></a><span class="lineno">  369</span> </div>
+<div class="foldopen" id="foldopen00370" data-start="{" data-end="}">
+<div class="line"><a id="l00370" name="l00370"></a><span class="lineno"><a class="line" href="io_8h.html#ac70f54979bde552bdd71197503b22e82">  370</a></span><span class="keywordtype">void</span> <a class="code hl_function" href="io_8cpp.html#ac70f54979bde552bdd71197503b22e82">writeDerivationToFile</a>(<span class="keyword">const</span> std::string&amp; filename, <span class="keyword">const</span> std::vector&lt;std::string&gt;&amp; derivationSteps) {</div>
+<div class="line"><a id="l00371" name="l00371"></a><span class="lineno">  371</span>    std::ofstream file(filename);</div>
+<div class="line"><a id="l00372" name="l00372"></a><span class="lineno">  372</span> </div>
+<div class="line"><a id="l00373" name="l00373"></a><span class="lineno">  373</span>    <span class="keywordflow">if</span> (!file.is_open()) {</div>
+<div class="line"><a id="l00374" name="l00374"></a><span class="lineno">  374</span>        <span class="keywordflow">throw</span> std::runtime_error(<span class="stringliteral">&quot;Could not open file for writing: &quot;</span> + filename);</div>
+<div class="line"><a id="l00375" name="l00375"></a><span class="lineno">  375</span>    }</div>
+<div class="line"><a id="l00376" name="l00376"></a><span class="lineno">  376</span> </div>
+<div class="line"><a id="l00377" name="l00377"></a><span class="lineno">  377</span>    <span class="keywordflow">for</span> (<span class="keyword">const</span> <span class="keyword">auto</span>&amp; step : derivationSteps) {</div>
+<div class="line"><a id="l00378" name="l00378"></a><span class="lineno">  378</span>        file &lt;&lt; step &lt;&lt; <span class="stringliteral">&quot;\n&quot;</span>;</div>
+<div class="line"><a id="l00379" name="l00379"></a><span class="lineno">  379</span>    }</div>
+<div class="line"><a id="l00380" name="l00380"></a><span class="lineno">  380</span> </div>
+<div class="line"><a id="l00381" name="l00381"></a><span class="lineno">  381</span>    file.close();</div>
+<div class="line"><a id="l00382" name="l00382"></a><span class="lineno">  382</span>}</div>
 </div>
 <div class="ttc" id="aclass_token_html_a75cb7d92b8df96524d57415925a46889"><div class="ttname"><a href="class_token.html#a75cb7d92b8df96524d57415925a46889">Token::tokenize</a></div><div class="ttdeci">static std::tuple&lt; std::vector&lt; Token &gt;, std::vector&lt; Token &gt; &gt; tokenize(const std::string &amp;line, int lineNumber, bool &amp;inBlockComment)</div><div class="ttdoc">Tokenize one source line.</div><div class="ttdef"><b>Definition</b> <a href="token_8cpp_source.html#l00131">token.cpp:131</a></div></div>
 <div class="ttc" id="aclass_token_html_af8fe3027503d5eeb448295ea91537a94"><div class="ttname"><a href="class_token.html#af8fe3027503d5eeb448295ea91537a94">Token::flushPendingBlockComment</a></div><div class="ttdeci">static void flushPendingBlockComment(std::vector&lt; Token &gt; &amp;valid, std::vector&lt; Token &gt; &amp;invalid)</div><div class="ttdoc">Emit pending unterminated block comment as both valid and invalid token.</div><div class="ttdef"><b>Definition</b> <a href="token_8cpp_source.html#l00718">token.cpp:718</a></div></div>
-<div class="ttc" id="aio_8cpp_html_a1067d83526493fff9e9f3bc7ae48cf86"><div class="ttname"><a href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a></div><div class="ttdeci">std::tuple&lt; std::vector&lt; std::vector&lt; Token &gt; &gt;, std::vector&lt; std::vector&lt; Token &gt; &gt; &gt; tokenizeFile(const std::string &amp;filename)</div><div class="ttdef"><b>Definition</b> <a href="#l00029">io.cpp:29</a></div></div>
-<div class="ttc" id="aio_8cpp_html_a14178986e611f8ef21ab33a64a79910e"><div class="ttname"><a href="io_8cpp.html#a14178986e611f8ef21ab33a64a79910e">createOutputDir</a></div><div class="ttdeci">std::string createOutputDir(const std::string &amp;sourceFile)</div><div class="ttdef"><b>Definition</b> <a href="#l00017">io.cpp:17</a></div></div>
-<div class="ttc" id="aio_8cpp_html_a6ce42e53b0f3ed650ad5d8a0ac42a42d"><div class="ttname"><a href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a></div><div class="ttdeci">std::string buildOutputPath(const std::string &amp;outputDir, const std::string &amp;baseName, const std::string &amp;extension)</div><div class="ttdef"><b>Definition</b> <a href="#l00024">io.cpp:24</a></div></div>
-<div class="ttc" id="aio_8cpp_html_a7d441c2e4bda31ecb7e44491c6391eea"><div class="ttname"><a href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a></div><div class="ttdeci">void writeTokensToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens)</div><div class="ttdef"><b>Definition</b> <a href="#l00070">io.cpp:70</a></div></div>
-<div class="ttc" id="aio_8cpp_html_a81cbeddfb1fb5e15e49f4dd5ba014506"><div class="ttname"><a href="io_8cpp.html#a81cbeddfb1fb5e15e49f4dd5ba014506">lex_file</a></div><div class="ttdeci">std::vector&lt; std::vector&lt; Token &gt; &gt; lex_file(const std::string &amp;input_file, const std::string valid_out_file, const std::string invalid_out_file)</div><div class="ttdef"><b>Definition</b> <a href="#l00092">io.cpp:92</a></div></div>
-<div class="ttc" id="aio_8cpp_html_ab67be3a583d2a27d6feb0c461e8a47ad"><div class="ttname"><a href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a></div><div class="ttdeci">std::string getBaseName(const std::string &amp;sourceFile)</div><div class="ttdef"><b>Definition</b> <a href="#l00013">io.cpp:13</a></div></div>
-<div class="ttc" id="aio_8cpp_html_ac70f54979bde552bdd71197503b22e82"><div class="ttname"><a href="io_8cpp.html#ac70f54979bde552bdd71197503b22e82">writeDerivationToFile</a></div><div class="ttdeci">void writeDerivationToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;derivationSteps)</div><div class="ttdef"><b>Definition</b> <a href="#l00143">io.cpp:143</a></div></div>
-<div class="ttc" id="aio_8cpp_html_adc5ffd8ec7ebbee0f7ab6f107a30c2de"><div class="ttname"><a href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a></div><div class="ttdeci">void writeErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens)</div><div class="ttdef"><b>Definition</b> <a href="#l00104">io.cpp:104</a></div></div>
-<div class="ttc" id="aio_8cpp_html_af7bd99f3364119eb617e6613bca2ea19"><div class="ttname"><a href="io_8cpp.html#af7bd99f3364119eb617e6613bca2ea19">writeSyntaxErrorsToFile</a></div><div class="ttdeci">void writeSyntaxErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;errors)</div><div class="ttdef"><b>Definition</b> <a href="#l00129">io.cpp:129</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a1067d83526493fff9e9f3bc7ae48cf86"><div class="ttname"><a href="io_8cpp.html#a1067d83526493fff9e9f3bc7ae48cf86">tokenizeFile</a></div><div class="ttdeci">std::tuple&lt; std::vector&lt; std::vector&lt; Token &gt; &gt;, std::vector&lt; std::vector&lt; Token &gt; &gt; &gt; tokenizeFile(const std::string &amp;filename)</div><div class="ttdef"><b>Definition</b> <a href="#l00155">io.cpp:155</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a35ebbad0ba41e41ad61dc95456f396af"><div class="ttname"><a href="io_8cpp.html#a35ebbad0ba41e41ad61dc95456f396af">writeTextToFile</a></div><div class="ttdeci">bool writeTextToFile(const std::string &amp;filename, const std::string &amp;text)</div><div class="ttdef"><b>Definition</b> <a href="#l00254">io.cpp:254</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a5aec7774e09e0aa68afb68c941802fff"><div class="ttname"><a href="io_8cpp.html#a5aec7774e09e0aa68afb68c941802fff">lex_file</a></div><div class="ttdeci">std::vector&lt; std::vector&lt; Token &gt; &gt; lex_file(const std::string &amp;input_file, const std::string valid_out_file, const std::string invalid_out_file, size_t *invalidTokenCount)</div><div class="ttdef"><b>Definition</b> <a href="#l00218">io.cpp:218</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a63dc0f8567e9e400370b0f9818be6456"><div class="ttname"><a href="io_8cpp.html#a63dc0f8567e9e400370b0f9818be6456">runMoonSimulator</a></div><div class="ttdeci">MoonRunResult runMoonSimulator(const std::string &amp;driverExecutablePath, const std::string &amp;moonInputFile, const std::string &amp;moonRunLogFile)</div><div class="ttdef"><b>Definition</b> <a href="#l00264">io.cpp:264</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a66562ad08fbc75f2e176d42711a45faa"><div class="ttname"><a href="io_8cpp.html#a66562ad08fbc75f2e176d42711a45faa">makeDisplayArtifacts</a></div><div class="ttdeci">std::vector&lt; std::pair&lt; std::string, std::string &gt; &gt; makeDisplayArtifacts(const std::vector&lt; std::pair&lt; std::string, std::string &gt; &gt; &amp;artifacts)</div><div class="ttdef"><b>Definition</b> <a href="#l00102">io.cpp:102</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a6ce42e53b0f3ed650ad5d8a0ac42a42d"><div class="ttname"><a href="io_8cpp.html#a6ce42e53b0f3ed650ad5d8a0ac42a42d">buildOutputPath</a></div><div class="ttdeci">std::string buildOutputPath(const std::string &amp;outputDir, const std::string &amp;baseName, const std::string &amp;extension)</div><div class="ttdef"><b>Definition</b> <a href="#l00074">io.cpp:74</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a7d441c2e4bda31ecb7e44491c6391eea"><div class="ttname"><a href="io_8cpp.html#a7d441c2e4bda31ecb7e44491c6391eea">writeTokensToFile</a></div><div class="ttdeci">void writeTokensToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens)</div><div class="ttdef"><b>Definition</b> <a href="#l00196">io.cpp:196</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a830d7cf5b2b5172bb72c9b88318d1066"><div class="ttname"><a href="io_8cpp.html#a830d7cf5b2b5172bb72c9b88318d1066">makeDisplayPath</a></div><div class="ttdeci">std::string makeDisplayPath(const std::string &amp;rawPath)</div><div class="ttdef"><b>Definition</b> <a href="#l00078">io.cpp:78</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a8ddfd7936fdd91ea6bfc22f164f65c61"><div class="ttname"><a href="io_8cpp.html#a8ddfd7936fdd91ea6bfc22f164f65c61">createOutputDir</a></div><div class="ttdeci">std::string createOutputDir(const std::string &amp;sourceFile, const std::string &amp;driverExecutablePath)</div><div class="ttdef"><b>Definition</b> <a href="#l00067">io.cpp:67</a></div></div>
+<div class="ttc" id="aio_8cpp_html_a9274e2723eec7a8945e912be7d585cd7"><div class="ttname"><a href="io_8cpp.html#a9274e2723eec7a8945e912be7d585cd7">writeLinesToFile</a></div><div class="ttdeci">bool writeLinesToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;lines)</div><div class="ttdef"><b>Definition</b> <a href="#l00241">io.cpp:241</a></div></div>
+<div class="ttc" id="aio_8cpp_html_ab67be3a583d2a27d6feb0c461e8a47ad"><div class="ttname"><a href="io_8cpp.html#ab67be3a583d2a27d6feb0c461e8a47ad">getBaseName</a></div><div class="ttdeci">std::string getBaseName(const std::string &amp;sourceFile)</div><div class="ttdef"><b>Definition</b> <a href="#l00063">io.cpp:63</a></div></div>
+<div class="ttc" id="aio_8cpp_html_ac70f54979bde552bdd71197503b22e82"><div class="ttname"><a href="io_8cpp.html#ac70f54979bde552bdd71197503b22e82">writeDerivationToFile</a></div><div class="ttdeci">void writeDerivationToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;derivationSteps)</div><div class="ttdef"><b>Definition</b> <a href="#l00370">io.cpp:370</a></div></div>
+<div class="ttc" id="aio_8cpp_html_adc5ffd8ec7ebbee0f7ab6f107a30c2de"><div class="ttname"><a href="io_8cpp.html#adc5ffd8ec7ebbee0f7ab6f107a30c2de">writeErrorsToFile</a></div><div class="ttdeci">void writeErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::vector&lt; Token &gt; &gt; &amp;tokens)</div><div class="ttdef"><b>Definition</b> <a href="#l00331">io.cpp:331</a></div></div>
+<div class="ttc" id="aio_8cpp_html_ae4c38eb41971a590d9a4824914a5fe77"><div class="ttname"><a href="io_8cpp.html#ae4c38eb41971a590d9a4824914a5fe77">prepareCompilerOutputPaths</a></div><div class="ttdeci">CompilerOutputPaths prepareCompilerOutputPaths(const std::string &amp;sourceFile, const std::string &amp;driverExecutablePath)</div><div class="ttdef"><b>Definition</b> <a href="#l00114">io.cpp:114</a></div></div>
+<div class="ttc" id="aio_8cpp_html_af7bd99f3364119eb617e6613bca2ea19"><div class="ttname"><a href="io_8cpp.html#af7bd99f3364119eb617e6613bca2ea19">writeSyntaxErrorsToFile</a></div><div class="ttdeci">void writeSyntaxErrorsToFile(const std::string &amp;filename, const std::vector&lt; std::string &gt; &amp;errors)</div><div class="ttdef"><b>Definition</b> <a href="#l00356">io.cpp:356</a></div></div>
 <div class="ttc" id="aio_8h_html"><div class="ttname"><a href="io_8h.html">io.h</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html"><div class="ttname"><a href="struct_compiler_output_paths.html">CompilerOutputPaths</a></div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00012">io.h:12</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a1b5346f8da54fd149bd21763ec7164d1"><div class="ttname"><a href="struct_compiler_output_paths.html#a1b5346f8da54fd149bd21763ec7164d1">CompilerOutputPaths::lexerDir</a></div><div class="ttdeci">std::string lexerDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00016">io.h:16</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a1b9ae72590728eaf96a0a5739253ab88"><div class="ttname"><a href="struct_compiler_output_paths.html#a1b9ae72590728eaf96a0a5739253ab88">CompilerOutputPaths::codegenDiagnosticsFile</a></div><div class="ttdeci">std::string codegenDiagnosticsFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00032">io.h:32</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a3488e9383ae324ae71d6bdf05189edda"><div class="ttname"><a href="struct_compiler_output_paths.html#a3488e9383ae324ae71d6bdf05189edda">CompilerOutputPaths::astDir</a></div><div class="ttdeci">std::string astDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00018">io.h:18</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a35412cfc90341a2462799b8452dcba84"><div class="ttname"><a href="struct_compiler_output_paths.html#a35412cfc90341a2462799b8452dcba84">CompilerOutputPaths::derivationFile</a></div><div class="ttdeci">std::string derivationFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00024">io.h:24</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a4d566e2aa8064b704fb747d3a07dc062"><div class="ttname"><a href="struct_compiler_output_paths.html#a4d566e2aa8064b704fb747d3a07dc062">CompilerOutputPaths::baseName</a></div><div class="ttdeci">std::string baseName</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00013">io.h:13</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a4ded5ad8950652c3044dab2764121970"><div class="ttname"><a href="struct_compiler_output_paths.html#a4ded5ad8950652c3044dab2764121970">CompilerOutputPaths::moonRunLogFile</a></div><div class="ttdeci">std::string moonRunLogFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00033">io.h:33</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a640a8ca7ae87be435b293c4a0d61ecfd"><div class="ttname"><a href="struct_compiler_output_paths.html#a640a8ca7ae87be435b293c4a0d61ecfd">CompilerOutputPaths::syntaxErrorsFile</a></div><div class="ttdeci">std::string syntaxErrorsFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00025">io.h:25</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a72cda54b817d596747632043f914b8a4"><div class="ttname"><a href="struct_compiler_output_paths.html#a72cda54b817d596747632043f914b8a4">CompilerOutputPaths::semanticDir</a></div><div class="ttdeci">std::string semanticDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00019">io.h:19</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a7cdf25cc3bc5f565d1fc6b9ff1933bd6"><div class="ttname"><a href="struct_compiler_output_paths.html#a7cdf25cc3bc5f565d1fc6b9ff1933bd6">CompilerOutputPaths::validTokensFile</a></div><div class="ttdeci">std::string validTokensFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00022">io.h:22</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a7cfbab00bb703dccd6958f309051ef56"><div class="ttname"><a href="struct_compiler_output_paths.html#a7cfbab00bb703dccd6958f309051ef56">CompilerOutputPaths::symbolTablesFile</a></div><div class="ttdeci">std::string symbolTablesFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00029">io.h:29</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a8a006695c8e7de5371df9c818bf86555"><div class="ttname"><a href="struct_compiler_output_paths.html#a8a006695c8e7de5371df9c818bf86555">CompilerOutputPaths::semanticDiagnosticsFile</a></div><div class="ttdeci">std::string semanticDiagnosticsFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00030">io.h:30</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a8d85cecc4258eb09a6da0e9edab95ab4"><div class="ttname"><a href="struct_compiler_output_paths.html#a8d85cecc4258eb09a6da0e9edab95ab4">CompilerOutputPaths::invalidTokensFile</a></div><div class="ttdeci">std::string invalidTokensFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00023">io.h:23</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a9310dd40fe10052907f98a56e98faed0"><div class="ttname"><a href="struct_compiler_output_paths.html#a9310dd40fe10052907f98a56e98faed0">CompilerOutputPaths::outputDir</a></div><div class="ttdeci">std::string outputDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00014">io.h:14</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a985ea8f020125c1d6047608c739d27bb"><div class="ttname"><a href="struct_compiler_output_paths.html#a985ea8f020125c1d6047608c739d27bb">CompilerOutputPaths::astPngFile</a></div><div class="ttdeci">std::string astPngFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00028">io.h:28</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_a9d7fd25fa9f3d2c87022dbdbf1c44178"><div class="ttname"><a href="struct_compiler_output_paths.html#a9d7fd25fa9f3d2c87022dbdbf1c44178">CompilerOutputPaths::astFile</a></div><div class="ttdeci">std::string astFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00026">io.h:26</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_aac935de5f9bdc479d204ebd3f6c7b3e6"><div class="ttname"><a href="struct_compiler_output_paths.html#aac935de5f9bdc479d204ebd3f6c7b3e6">CompilerOutputPaths::parserDir</a></div><div class="ttdeci">std::string parserDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00017">io.h:17</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_ae51920b73dd6f7c0346327232bd801ae"><div class="ttname"><a href="struct_compiler_output_paths.html#ae51920b73dd6f7c0346327232bd801ae">CompilerOutputPaths::moonOutputFile</a></div><div class="ttdeci">std::string moonOutputFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00031">io.h:31</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_af73b523e0245ef65f4b134200efb09ac"><div class="ttname"><a href="struct_compiler_output_paths.html#af73b523e0245ef65f4b134200efb09ac">CompilerOutputPaths::codegenDir</a></div><div class="ttdeci">std::string codegenDir</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00020">io.h:20</a></div></div>
+<div class="ttc" id="astruct_compiler_output_paths_html_afb57cbf4cf5764fde1737780df749a21"><div class="ttname"><a href="struct_compiler_output_paths.html#afb57cbf4cf5764fde1737780df749a21">CompilerOutputPaths::astDotFile</a></div><div class="ttdeci">std::string astDotFile</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00027">io.h:27</a></div></div>
+<div class="ttc" id="astruct_moon_run_result_html"><div class="ttname"><a href="struct_moon_run_result.html">MoonRunResult</a></div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00036">io.h:36</a></div></div>
+<div class="ttc" id="astruct_moon_run_result_html_a5d9c163376e9844bce1ba7b9ac7655ef"><div class="ttname"><a href="struct_moon_run_result.html#a5d9c163376e9844bce1ba7b9ac7655ef">MoonRunResult::success</a></div><div class="ttdeci">bool success</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00038">io.h:38</a></div></div>
+<div class="ttc" id="astruct_moon_run_result_html_a75b810630e3cfaef74b67522d054e532"><div class="ttname"><a href="struct_moon_run_result.html#a75b810630e3cfaef74b67522d054e532">MoonRunResult::moonExecutablePath</a></div><div class="ttdeci">std::string moonExecutablePath</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00040">io.h:40</a></div></div>
+<div class="ttc" id="astruct_moon_run_result_html_ab682ba5a92e3f7cbd9cf5166ccdcd3c5"><div class="ttname"><a href="struct_moon_run_result.html#ab682ba5a92e3f7cbd9cf5166ccdcd3c5">MoonRunResult::details</a></div><div class="ttdeci">std::string details</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00039">io.h:39</a></div></div>
+<div class="ttc" id="astruct_moon_run_result_html_aea72e971e292943599e250eb567efb12"><div class="ttname"><a href="struct_moon_run_result.html#aea72e971e292943599e250eb567efb12">MoonRunResult::attempted</a></div><div class="ttdeci">bool attempted</div><div class="ttdef"><b>Definition</b> <a href="io_8h_source.html#l00037">io.h:37</a></div></div>
 <div class="ttc" id="atoken_8h_html"><div class="ttname"><a href="token_8h.html">token.h</a></div><div class="ttdoc">Lexer token model and lexical scanning helpers.</div></div>
 </div><!-- fragment --></div><!-- contents -->
 </div><!-- doc-content -->

@@ -247,7 +247,68 @@ cd ./src/
 g++ -std=c++17 -static -I../include -o ../exe/driver *.cpp 
 ```
 
-## 7. Generated Outputs
+## 7. Running the Driver and Test Script
+
+All commands below assume you are in the repository root.
+
+### Run one input file directly
+
+```powershell
+# If you built driver.exe
+.\exe\driver.exe .\My-tests\Parser\your_test.src
+
+# If you are using the built in final driver
+.\exe\final_driver.exe .\My-tests\Parser\your_test.src
+```
+
+Replace the input path with any `.src` file you want to compile.
+
+### Run one section of tests
+
+Use the script to run one compiler stage at a time:
+
+```powershell
+.\scripts\run-tests.ps1 -Step parser
+```
+
+Valid `-Step` values are:
+
+- `lexer`
+- `parser`
+- `ast`
+- `semantic`
+- `codegen`
+- `moon`
+- `all`
+
+Folder mapping used by the script:
+
+- `lexer` -> `My-tests/LEXER`
+- `parser` -> `My-tests/Parser`
+- `ast` -> `My-tests/AST`
+- `semantic` -> `My-tests/Semantic`
+- `codegen` -> `My-tests/CodeGen`
+- `moon` -> `My-tests/CodeGen`
+
+### Run all tests
+
+```powershell
+.\scripts\run-tests.ps1 -Step all
+```
+
+`-Step all` runs the full pipeline checks (`lexer`, `parser`, `ast`, `semantic`, `codegen`, `moon`).
+
+### Common optional flags
+
+```powershell
+.\scripts\run-tests.ps1 -Step semantic -DriverPath .\exe\driver.exe -PerTestTimeoutSec 20 -MaxTests 50
+```
+
+- `-TestsRoot` defaults to `./My-tests`
+- `-DriverPath` defaults to `./exe/final_driver.exe`, then `./exe/driver.exe`
+- `-ReportPath` defaults to `./output/test-reports/test-stats-<step>-<timestamp>.json`
+
+## 8. Generated Outputs
 
 Current outputs per source file:
 

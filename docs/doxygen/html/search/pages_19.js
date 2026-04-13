@@ -1,4 +1,6 @@
 var searchData=
 [
-  ['with_20rationale_20and_20consequences_0',['Main Design Choices (with Rationale and Consequences)',['../index.html#autotoc_md17',1,'']]]
+  ['uml_20dot_20visualization_0',['AST Printer and UML DOT Visualization',['../index.html#autotoc_md8',1,'']]],
+  ['usage_20moon_1',['Register Usage (Moon)',['../index.html#autotoc_md18',1,'']]],
+  ['used_2',['How Memory is Reserved and Used',['../index.html#autotoc_md19',1,'']]]
 ];

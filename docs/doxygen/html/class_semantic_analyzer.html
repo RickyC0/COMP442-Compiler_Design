@@ -200,6 +200,10 @@ Private Attributes</h2></td></tr>
 <tr class="memdesc:a0206b407daf3cdf719f4d329be91a0c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Class name -&gt; class scope map.  <br /></td></tr>
 <tr class="memitem:a6b6b2f9a1586c3741dd0d6eeef7abd3e" id="r_a6b6b2f9a1586c3741dd0d6eeef7abd3e"><td class="memItemLeft" align="right" valign="top">std::shared_ptr&lt; <a class="el" href="class_symbol_table.html">SymbolTable</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a6b6b2f9a1586c3741dd0d6eeef7abd3e">_currentScope</a></td></tr>
 <tr class="memdesc:a6b6b2f9a1586c3741dd0d6eeef7abd3e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Scope currently being visited.  <br /></td></tr>
+<tr class="memitem:a151f0df2d7cebf2fce9c2738c468d067" id="r_a151f0df2d7cebf2fce9c2738c468d067"><td class="memItemLeft" align="right" valign="top">std::unordered_set&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a151f0df2d7cebf2fce9c2738c468d067">_declaredClassNames</a></td></tr>
+<tr class="memdesc:a151f0df2d7cebf2fce9c2738c468d067"><td class="mdescLeft">&#160;</td><td class="mdescRight">All class names declared in the program AST (order-independent lookup).  <br /></td></tr>
+<tr class="memitem:a4a70f91051e9b6df805c2b124474467b" id="r_a4a70f91051e9b6df805c2b124474467b"><td class="memItemLeft" align="right" valign="top">std::unordered_set&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4a70f91051e9b6df805c2b124474467b">_declaredMemberFunctionKeys</a></td></tr>
+<tr class="memdesc:a4a70f91051e9b6df805c2b124474467b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Declared member function identities: Class::name(paramProfile).  <br /></td></tr>
 <tr class="memitem:a93881c3f7c76789b6331056c4559290e" id="r_a93881c3f7c76789b6331056c4559290e"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a93881c3f7c76789b6331056c4559290e">_errors</a></td></tr>
 <tr class="memdesc:a93881c3f7c76789b6331056c4559290e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Collected semantic errors.  <br /></td></tr>
 <tr class="memitem:a5cf0dbcdc50d5d52cb7ee964a8ce1c5a" id="r_a5cf0dbcdc50d5d52cb7ee964a8ce1c5a"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a5cf0dbcdc50d5d52cb7ee964a8ce1c5a">_functionReturnTypeStack</a></td></tr>
@@ -215,7 +219,7 @@ Private Attributes</h2></td></tr>
 <div class="textblock"><p>Two-pass semantic analyzer implemented as an AST visitor. </p>
 <p>Pass 1 builds declarations/scopes and signature metadata. Pass 2 validates identifier use, type compatibility, member access, function calls, control-flow constraints, and language semantic rules. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00127">127</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00128">128</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 </div><a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Member Function Documentation</h2>
 <a id="aaee7d62527a436a222592d9c6e92a9ac" name="aaee7d62527a436a222592d9c6e92a9ac"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aaee7d62527a436a222592d9c6e92a9ac">&#9670;&#160;</a></span>analyze()</h2>
@@ -250,11 +254,11 @@ Private Attributes</h2></td></tr>
 <dl class="section return"><dt>Returns</dt><dd>True if no semantic errors were emitted.</dd></dl>
 <p>Execution order: 1) pass 1 declaration/scope construction, 2) cross-pass global checks (undefined member declarations, inheritance cycles), 3) pass 2 usage/type checks. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00357">357</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00380">380</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00185">_blockCounter</a>, <a class="el" href="semantic_8h_source.html#l00177">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00179">_errors</a>, <a class="el" href="semantic_8h_source.html#l00183">_functionReturnTypeStack</a>, <a class="el" href="semantic_8h_source.html#l00173">_globalScope</a>, <a class="el" href="semantic_8h_source.html#l00181">_warnings</a>, <a class="el" href="semantic_8h_source.html#l00035">Class</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8h_source.html#l00132">setPassOne()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00190">_blockCounter</a>, <a class="el" href="semantic_8h_source.html#l00178">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00180">_declaredClassNames</a>, <a class="el" href="semantic_8h_source.html#l00182">_declaredMemberFunctionKeys</a>, <a class="el" href="semantic_8h_source.html#l00184">_errors</a>, <a class="el" href="semantic_8h_source.html#l00188">_functionReturnTypeStack</a>, <a class="el" href="semantic_8h_source.html#l00174">_globalScope</a>, <a class="el" href="semantic_8h_source.html#l00186">_warnings</a>, <a class="el" href="semantic_8h_source.html#l00036">Class</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8h_source.html#l00133">setPassOne()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00019">main()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00029">main()</a>.</p>
 
 </div>
 </div>
@@ -291,9 +295,9 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Base type. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01330">1330</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01372">1372</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00818">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00849">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
 
 </div>
 </div>
@@ -323,11 +327,11 @@ Private Attributes</h2></td></tr>
 <p>Build class descriptor string including inheritance summary. </p>
 <p>Build class descriptor including optional inheritance list. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01309">1309</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01351">1351</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00472">ClassDeclNode::getParents()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>.</p>
 
 </div>
 </div>
@@ -364,11 +368,11 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>True if accepted (defined or pass-2-safe reuse), false if rejected. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01210">1210</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01252">1252</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00035">Class</a>, <a class="el" href="semantic_8h_source.html#l00039">Field</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00064">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00070">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00052">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00038">Parameter</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8h_source.html#l00037">Variable</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00036">Class</a>, <a class="el" href="semantic_8h_source.html#l00040">Field</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00065">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00071">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00053">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00039">Parameter</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8h_source.html#l00038">Variable</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
 
 </div>
 </div>
@@ -415,11 +419,11 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01456">1456</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01498">1498</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00035">Class</a>, <a class="el" href="semantic_8cpp_source.html#l01456">dumpScope()</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, and <a class="el" href="semantic_8cpp_source.html#l01276">kindToString()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00036">Class</a>, <a class="el" href="semantic_8cpp_source.html#l01498">dumpScope()</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, and <a class="el" href="semantic_8cpp_source.html#l01318">kindToString()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01456">dumpScope()</a>, and <a class="el" href="semantic_8cpp_source.html#l00453">dumpSymbolTables()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01498">dumpScope()</a>, and <a class="el" href="semantic_8cpp_source.html#l00484">dumpSymbolTables()</a>.</p>
 
 </div>
 </div>
@@ -441,11 +445,11 @@ Private Attributes</h2></td></tr>
 <p>Dump formatted symbol-table hierarchy. </p>
 <p>Produce formatted symbol-table dump for all scopes. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00453">453</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00484">484</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00173">_globalScope</a>, and <a class="el" href="semantic_8cpp_source.html#l01456">dumpScope()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00174">_globalScope</a>, and <a class="el" href="semantic_8cpp_source.html#l01498">dumpScope()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00019">main()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00029">main()</a>.</p>
 
 </div>
 </div>
@@ -475,11 +479,11 @@ Private Attributes</h2></td></tr>
 <p>Build canonical function signature string from AST function node. </p>
 <p>Build normalized signature text for function declaration comparison. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01294">1294</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01336">1336</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
 <p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00445">FuncDefNode::getParams()</a>, and <a class="el" href="_a_s_t_8h_source.html#l00442">FuncDefNode::getReturnType()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>.</p>
 
 </div>
 </div>
@@ -501,11 +505,11 @@ Private Attributes</h2></td></tr>
 <p>Get accumulated semantic error diagnostics. </p>
 <p>Return semantic error list. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00443">443</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00474">474</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00179">_errors</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00184">_errors</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00019">main()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00029">main()</a>.</p>
 
 </div>
 </div>
@@ -547,11 +551,11 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Matching or newly created child scope. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01259">1259</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01301">1301</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00911">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00942">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>.</p>
 
 </div>
 </div>
@@ -573,11 +577,11 @@ Private Attributes</h2></td></tr>
 <p>Get accumulated semantic warning diagnostics. </p>
 <p>Return semantic warning list. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00448">448</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00479">479</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00181">_warnings</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00186">_warnings</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00019">main()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="driver_8cpp_source.html#l00029">main()</a>.</p>
 
 </div>
 </div>
@@ -614,11 +618,11 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Inferred type string, or "null" when unresolved. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01374">1374</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01416">1416</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, and <a class="el" href="semantic_8h_source.html#l00054">SymbolEntry::type</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, and <a class="el" href="semantic_8h_source.html#l00055">SymbolEntry::type</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00752">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00482">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00772">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00818">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00859">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00796">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00783">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00803">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00849">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00890">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00827">visit()</a>.</p>
 
 </div>
 </div>
@@ -647,11 +651,11 @@ Private Attributes</h2></td></tr>
 
 <p>True when analyzer is running declaration-building pass. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00130">130</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00131">131</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00171">_isPassOne</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00172">_isPassOne</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l01259">getOrCreateChildScope()</a>, <a class="el" href="semantic_8cpp_source.html#l00752">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00482">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00460">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00772">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00818">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00859">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00796">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l01301">getOrCreateChildScope()</a>, <a class="el" href="semantic_8cpp_source.html#l00783">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00491">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00803">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00849">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00890">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00827">visit()</a>.</p>
 
 </div>
 </div>
@@ -681,11 +685,11 @@ Private Attributes</h2></td></tr>
 <p>Convert <a class="el" href="semantic_8h.html#a05812818de02fb4b202d7513ce50745d" title="Kinds of semantic symbols tracked in scope tables.">SymbolKind</a> enum to printable label. </p>
 <p>Convert <a class="el" href="semantic_8h.html#a05812818de02fb4b202d7513ce50745d" title="Kinds of semantic symbols tracked in scope tables.">SymbolKind</a> to printable lowercase text label. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01276">1276</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01318">1318</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00035">Class</a>, <a class="el" href="semantic_8h_source.html#l00039">Field</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="semantic_8h_source.html#l00038">Parameter</a>, and <a class="el" href="semantic_8h_source.html#l00037">Variable</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00036">Class</a>, <a class="el" href="semantic_8h_source.html#l00040">Field</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="semantic_8h_source.html#l00039">Parameter</a>, and <a class="el" href="semantic_8h_source.html#l00038">Variable</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01456">dumpScope()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01498">dumpScope()</a>.</p>
 
 </div>
 </div>
@@ -719,11 +723,11 @@ Private Attributes</h2></td></tr>
 <p>Record semantic error with line context. </p>
 <p>Append semantic error diagnostic with standardized prefix. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01196">1196</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01238">1238</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00179">_errors</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00184">_errors</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l00752">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00482">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00460">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00772">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00818">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00859">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00796">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l00783">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00491">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00803">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00849">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00890">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00827">visit()</a>.</p>
 
 </div>
 </div>
@@ -757,11 +761,11 @@ Private Attributes</h2></td></tr>
 <p>Record semantic warning with line context. </p>
 <p>Append semantic warning diagnostic with standardized prefix. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01201">1201</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01243">1243</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00181">_warnings</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00186">_warnings</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
 
 </div>
 </div>
@@ -803,11 +807,11 @@ Private Attributes</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>Matching member symbol or null. </dd></dl>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01360">1360</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01402">1402</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00177">_classScopes</a>, <a class="el" href="semantic_8cpp_source.html#l01330">baseTypeName()</a>, and <a class="el" href="semantic_8cpp_source.html#l01309">classTypeName()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00178">_classScopes</a>, <a class="el" href="semantic_8cpp_source.html#l01372">baseTypeName()</a>, and <a class="el" href="semantic_8cpp_source.html#l01351">classTypeName()</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>.</p>
 
 </div>
 </div>
@@ -836,11 +840,11 @@ Private Attributes</h2></td></tr>
 
 <p>Set active semantic pass mode. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00132">132</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00133">133</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00171">_isPassOne</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00172">_isPassOne</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>.</p>
 
 </div>
 </div>
@@ -871,9 +875,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a2ea8e6422011fc31af1754b48e7c4b3a">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00752">752</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00783">783</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -905,9 +909,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a77d0a7c5b121533bcf7bb30471d1d9c9">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00482">482</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00513">513</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -938,9 +942,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a1773db01672e18730182b886d8b5c1b2">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00911">911</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00942">942</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00185">_blockCounter</a>, <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01259">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00385">BlockNode::getStatements()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00190">_blockCounter</a>, <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01301">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00385">BlockNode::getStatements()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -972,9 +976,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a2478956bfbabe1e0779fd7d9cc1970d2">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01126">1126</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01168">1168</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00177">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00173">_globalScope</a>, <a class="el" href="semantic_8h_source.html#l00035">Class</a>, <a class="el" href="semantic_8cpp_source.html#l01309">classTypeName()</a>, <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00068">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01294">functionSignature()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00473">ClassDeclNode::getMembers()</a>, <a class="el" href="_a_s_t_8h_source.html#l00471">ClassDeclNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01259">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00472">ClassDeclNode::getParents()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00064">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00070">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00052">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00060">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01201">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00058">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00054">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00066">SymbolEntry::visibility</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00178">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00174">_globalScope</a>, <a class="el" href="semantic_8h_source.html#l00036">Class</a>, <a class="el" href="semantic_8cpp_source.html#l01351">classTypeName()</a>, <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00069">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01336">functionSignature()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00473">ClassDeclNode::getMembers()</a>, <a class="el" href="_a_s_t_8h_source.html#l00471">ClassDeclNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01301">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00472">ClassDeclNode::getParents()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00065">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00071">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00053">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00061">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01243">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00059">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00055">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00067">SymbolEntry::visibility</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1006,9 +1010,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a01eec29bfbb409ad4758750f6c98b40b">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00678">678</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00709">709</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01330">baseTypeName()</a>, <a class="el" href="semantic_8h_source.html#l00056">SymbolEntry::dimensions</a>, <a class="el" href="_a_s_t_8h_source.html#l00285">DataMemberNode::getIndices()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00284">DataMemberNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01372">baseTypeName()</a>, <a class="el" href="semantic_8h_source.html#l00057">SymbolEntry::dimensions</a>, <a class="el" href="_a_s_t_8h_source.html#l00285">DataMemberNode::getIndices()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00284">DataMemberNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1039,7 +1043,7 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a0b495e7e27d1ab60fa1fd1e0a32642fc">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00473">473</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00504">504</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
 </div>
 </div>
@@ -1071,9 +1075,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a4f18cb3609d252e13423e529efdd4ec6">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00513">513</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00544">544</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01330">baseTypeName()</a>, <a class="el" href="semantic_8h_source.html#l00056">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="_a_s_t_8h_source.html#l00262">FuncCallNode::getArgs()</a>, <a class="el" href="_a_s_t_8h_source.html#l00261">FuncCallNode::getFunctionName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00064">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00062">SymbolEntry::paramDimensions</a>, <a class="el" href="semantic_8h_source.html#l00060">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8cpp_source.html#l01372">baseTypeName()</a>, <a class="el" href="semantic_8h_source.html#l00057">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="_a_s_t_8h_source.html#l00262">FuncCallNode::getArgs()</a>, <a class="el" href="_a_s_t_8h_source.html#l00261">FuncCallNode::getFunctionName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00065">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00063">SymbolEntry::paramDimensions</a>, <a class="el" href="semantic_8h_source.html#l00061">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1105,9 +1109,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#ae392c03af0414a3c4bff8f9da360cfda">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00984">984</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01015">1015</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00177">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00183">_functionReturnTypeStack</a>, <a class="el" href="semantic_8h_source.html#l00173">_globalScope</a>, <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00068">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00056">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00036">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01294">functionSignature()</a>, <a class="el" href="_a_s_t_8h_source.html#l00444">FuncDefNode::getClassName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00443">FuncDefNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01259">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00445">FuncDefNode::getParams()</a>, <a class="el" href="_a_s_t_8h_source.html#l00442">FuncDefNode::getReturnType()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00064">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00070">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00052">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00062">SymbolEntry::paramDimensions</a>, <a class="el" href="semantic_8h_source.html#l00038">Parameter</a>, <a class="el" href="semantic_8h_source.html#l00060">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01201">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00058">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00054">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00066">SymbolEntry::visibility</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00178">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00182">_declaredMemberFunctionKeys</a>, <a class="el" href="semantic_8h_source.html#l00188">_functionReturnTypeStack</a>, <a class="el" href="semantic_8h_source.html#l00174">_globalScope</a>, <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00069">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00057">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00037">Function</a>, <a class="el" href="semantic_8cpp_source.html#l01336">functionSignature()</a>, <a class="el" href="_a_s_t_8h_source.html#l00444">FuncDefNode::getClassName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00443">FuncDefNode::getName()</a>, <a class="el" href="semantic_8cpp_source.html#l01301">getOrCreateChildScope()</a>, <a class="el" href="_a_s_t_8h_source.html#l00445">FuncDefNode::getParams()</a>, <a class="el" href="_a_s_t_8h_source.html#l00442">FuncDefNode::getReturnType()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00065">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00071">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00053">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00063">SymbolEntry::paramDimensions</a>, <a class="el" href="semantic_8h_source.html#l00039">Parameter</a>, <a class="el" href="semantic_8h_source.html#l00061">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01243">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00059">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00055">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00067">SymbolEntry::visibility</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1138,9 +1142,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a847840240737917b65e68abda6ade431">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00460">460</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00491">491</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00152">IdNode::getName()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, and <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00152">IdNode::getName()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, and <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>.</p>
 
 </div>
 </div>
@@ -1171,9 +1175,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#accfb74dafc0cbd7639de9b57ec7049d8">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00772">772</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00803">803</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00325">IfStmtNode::getElseBlock()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00325">IfStmtNode::getElseBlock()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1204,7 +1208,7 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a2d98565475b81a01c8902de590554bc9">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00471">471</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00502">502</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
 </div>
 </div>
@@ -1235,9 +1239,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a2803001f95891b41b722512072fc923c">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00818">818</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00849">849</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8cpp_source.html#l01330">baseTypeName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00357">IOStmtNode::getValue()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8cpp_source.html#l01372">baseTypeName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00357">IOStmtNode::getValue()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1268,9 +1272,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#ac5218a5746742c70aac2c7285602be5e">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01185">1185</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01227">1227</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00492">ProgNode::getClasses()</a>, <a class="el" href="_a_s_t_8h_source.html#l00493">ProgNode::getFunctions()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00492">ProgNode::getClasses()</a>, <a class="el" href="_a_s_t_8h_source.html#l00493">ProgNode::getFunctions()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1301,9 +1305,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a2cb7989b52030e7e7de704ee224b7c33">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00859">859</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00890">890</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00183">_functionReturnTypeStack</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00188">_functionReturnTypeStack</a>, <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1334,7 +1338,7 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a89417fae3849bbd5f5cca80509ec1d39">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00475">475</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00506">506</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
 </div>
 </div>
@@ -1365,9 +1369,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a8c09fadd0b31c9c047a97cea26574145">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00503">503</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00534">534</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1399,9 +1403,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a07627f5eb05fb4eec7fe8e99f6fde0c5">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00927">927</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00958">958</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="semantic_8h_source.html#l00177">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00175">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00173">_globalScope</a>, <a class="el" href="semantic_8cpp_source.html#l01330">baseTypeName()</a>, <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00068">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00056">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00039">Field</a>, <a class="el" href="_a_s_t_8h_source.html#l00416">VarDeclNode::getDimensions()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00414">VarDeclNode::getName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00413">VarDeclNode::getTypeName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00415">VarDeclNode::getVisibility()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00064">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00070">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00052">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00060">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01201">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00058">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00054">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00037">Variable</a>, and <a class="el" href="semantic_8h_source.html#l00066">SymbolEntry::visibility</a>.</p>
+<p class="reference">References <a class="el" href="semantic_8h_source.html#l00178">_classScopes</a>, <a class="el" href="semantic_8h_source.html#l00176">_currentScope</a>, <a class="el" href="semantic_8h_source.html#l00180">_declaredClassNames</a>, <a class="el" href="semantic_8h_source.html#l00174">_globalScope</a>, <a class="el" href="semantic_8cpp_source.html#l01372">baseTypeName()</a>, <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8h_source.html#l00069">SymbolEntry::details</a>, <a class="el" href="semantic_8h_source.html#l00057">SymbolEntry::dimensions</a>, <a class="el" href="semantic_8h_source.html#l00040">Field</a>, <a class="el" href="_a_s_t_8h_source.html#l00416">VarDeclNode::getDimensions()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00414">VarDeclNode::getName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00413">VarDeclNode::getTypeName()</a>, <a class="el" href="_a_s_t_8h_source.html#l00415">VarDeclNode::getVisibility()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8h_source.html#l00065">SymbolEntry::kind</a>, <a class="el" href="semantic_8h_source.html#l00071">SymbolEntry::line</a>, <a class="el" href="semantic_8h_source.html#l00053">SymbolEntry::name</a>, <a class="el" href="semantic_8h_source.html#l00061">SymbolEntry::paramTypes</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, <a class="el" href="semantic_8cpp_source.html#l01243">reportWarning()</a>, <a class="el" href="semantic_8h_source.html#l00059">SymbolEntry::returnType</a>, <a class="el" href="semantic_8h_source.html#l00055">SymbolEntry::type</a>, <a class="el" href="semantic_8h_source.html#l00038">Variable</a>, and <a class="el" href="semantic_8h_source.html#l00067">SymbolEntry::visibility</a>.</p>
 
 </div>
 </div>
@@ -1432,9 +1436,9 @@ Private Attributes</h2></td></tr>
 
 <p>Implements <a class="el" href="class_a_s_t_visitor.html#a3e9289a95e3369b5bfca3f29b8f2c86d">ASTVisitor</a>.</p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00796">796</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l00827">827</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01247">visitNode()</a>.</p>
+<p class="reference">References <a class="el" href="_a_s_t_8h_source.html#l00109">ASTNode::getLeft()</a>, <a class="el" href="_a_s_t_8h_source.html#l00107">ASTNode::getLineNumber()</a>, <a class="el" href="_a_s_t_8h_source.html#l00111">ASTNode::getRight()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>, and <a class="el" href="semantic_8cpp_source.html#l01289">visitNode()</a>.</p>
 
 </div>
 </div>
@@ -1464,9 +1468,9 @@ Private Attributes</h2></td></tr>
 <p>Null-safe helper for visiting an optional node. </p>
 <p>Null-safe node visitation helper. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01247">1247</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8cpp_source.html#l01289">1289</a> of file <a class="el" href="semantic_8cpp_source.html">semantic.cpp</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00752">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00482">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00911">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00772">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00818">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01185">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00859">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00503">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00796">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00783">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00942">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00803">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00849">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01227">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00890">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00534">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00827">visit()</a>.</p>
 
 </div>
 </div>
@@ -1493,9 +1497,9 @@ Private Attributes</h2></td></tr>
 
 <p>Counter for synthesized block scope naming. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00185">185</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00190">190</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, and <a class="el" href="semantic_8cpp_source.html#l00911">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, and <a class="el" href="semantic_8cpp_source.html#l00942">visit()</a>.</p>
 
 </div>
 </div>
@@ -1521,9 +1525,9 @@ Private Attributes</h2></td></tr>
 
 <p>Class name -&gt; class scope map. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00177">177</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00178">178</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01360">resolveClassMember()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01402">resolveClassMember()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
 
 </div>
 </div>
@@ -1549,9 +1553,65 @@ Private Attributes</h2></td></tr>
 
 <p>Scope currently being visited. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00175">175</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00176">176</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01210">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l01374">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00911">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00678">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00513">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00460">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01252">defineSymbol()</a>, <a class="el" href="semantic_8cpp_source.html#l01416">inferExprType()</a>, <a class="el" href="semantic_8cpp_source.html#l00942">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00709">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00544">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00491">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
+
+</div>
+</div>
+<a id="a151f0df2d7cebf2fce9c2738c468d067" name="a151f0df2d7cebf2fce9c2738c468d067"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a151f0df2d7cebf2fce9c2738c468d067">&#9670;&#160;</a></span>_declaredClassNames</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::unordered_set&lt;std::string&gt; SemanticAnalyzer::_declaredClassNames</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel private">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>All class names declared in the program AST (order-independent lookup). </p>
+
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00180">180</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
+
+</div>
+</div>
+<a id="a4a70f91051e9b6df805c2b124474467b" name="a4a70f91051e9b6df805c2b124474467b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4a70f91051e9b6df805c2b124474467b">&#9670;&#160;</a></span>_declaredMemberFunctionKeys</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::unordered_set&lt;std::string&gt; SemanticAnalyzer::_declaredMemberFunctionKeys</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel private">private</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>Declared member function identities: Class::name(paramProfile). </p>
+
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00182">182</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, and <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>.</p>
 
 </div>
 </div>
@@ -1577,9 +1637,9 @@ Private Attributes</h2></td></tr>
 
 <p>Collected semantic errors. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00179">179</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00184">184</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00443">getErrors()</a>, and <a class="el" href="semantic_8cpp_source.html#l01196">reportError()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00474">getErrors()</a>, and <a class="el" href="semantic_8cpp_source.html#l01238">reportError()</a>.</p>
 
 </div>
 </div>
@@ -1605,9 +1665,9 @@ Private Attributes</h2></td></tr>
 
 <p>Return-type stack for nested function-body visits. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00183">183</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00188">188</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00859">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00890">visit()</a>.</p>
 
 </div>
 </div>
@@ -1633,9 +1693,9 @@ Private Attributes</h2></td></tr>
 
 <p>Global/root scope table. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00173">173</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00174">174</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00453">dumpSymbolTables()</a>, <a class="el" href="semantic_8cpp_source.html#l01126">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l00984">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00927">visit()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00484">dumpSymbolTables()</a>, <a class="el" href="semantic_8cpp_source.html#l01168">visit()</a>, <a class="el" href="semantic_8cpp_source.html#l01015">visit()</a>, and <a class="el" href="semantic_8cpp_source.html#l00958">visit()</a>.</p>
 
 </div>
 </div>
@@ -1661,9 +1721,9 @@ Private Attributes</h2></td></tr>
 
 <p>Current pass mode flag. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00171">171</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00172">172</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8h_source.html#l00130">isPassOne()</a>, and <a class="el" href="semantic_8h_source.html#l00132">setPassOne()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8h_source.html#l00131">isPassOne()</a>, and <a class="el" href="semantic_8h_source.html#l00133">setPassOne()</a>.</p>
 
 </div>
 </div>
@@ -1689,9 +1749,9 @@ Private Attributes</h2></td></tr>
 
 <p>Collected semantic warnings. </p>
 
-<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00181">181</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
+<p class="definition">Definition at line <a class="el" href="semantic_8h_source.html#l00186">186</a> of file <a class="el" href="semantic_8h_source.html">semantic.h</a>.</p>
 
-<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00357">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00448">getWarnings()</a>, and <a class="el" href="semantic_8cpp_source.html#l01201">reportWarning()</a>.</p>
+<p class="reference">Referenced by <a class="el" href="semantic_8cpp_source.html#l00380">analyze()</a>, <a class="el" href="semantic_8cpp_source.html#l00479">getWarnings()</a>, and <a class="el" href="semantic_8cpp_source.html#l01243">reportWarning()</a>.</p>
 
 </div>
 </div>

@@ -39,6 +39,8 @@ var class_semantic_analyzer =
     [ "_blockCounter", "class_semantic_analyzer.html#aa37b5bbaddaa69b5613df83522d40910", null ],
     [ "_classScopes", "class_semantic_analyzer.html#a0206b407daf3cdf719f4d329be91a0c8", null ],
     [ "_currentScope", "class_semantic_analyzer.html#a6b6b2f9a1586c3741dd0d6eeef7abd3e", null ],
+    [ "_declaredClassNames", "class_semantic_analyzer.html#a151f0df2d7cebf2fce9c2738c468d067", null ],
+    [ "_declaredMemberFunctionKeys", "class_semantic_analyzer.html#a4a70f91051e9b6df805c2b124474467b", null ],
     [ "_errors", "class_semantic_analyzer.html#a93881c3f7c76789b6331056c4559290e", null ],
     [ "_functionReturnTypeStack", "class_semantic_analyzer.html#a5cf0dbcdc50d5d52cb7ee964a8ce1c5a", null ],
     [ "_globalScope", "class_semantic_analyzer.html#ab1ae766e57ddf830eeb31a8b69913e6d", null ],
