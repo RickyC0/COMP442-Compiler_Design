@@ -1,7 +1,4 @@
-#include <filesystem>
-#include <fstream>
 #include <chrono>
-#include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -14,7 +11,20 @@
 #include "../include/codegen.h"
 #include "../include/ui.h"
 
-namespace fs = std::filesystem;
+namespace {
+std::string buildBackEndSkipReason(bool parseSuccess, bool semanticHasErrors, const std::shared_ptr<ProgNode>& root) {
+    if (!parseSuccess) {
+        return "parser errors";
+    }
+    if (semanticHasErrors) {
+        return "semantic errors";
+    }
+    if (root == nullptr) {
+        return "missing AST";
+    }
+    return "prerequisites not satisfied";
+}
+}
 
 int main(int argc, char* argv[]) {
     // Check if the user provided a file argument
@@ -30,35 +40,8 @@ int main(int argc, char* argv[]) {
     UI::printTitle("COMP442 COMPILER DRIVER DASHBOARD");
     UI::printKV("Source", sourceFile);
 
-    // Create output directory: output/<baseName>/
-    std::string baseName = getBaseName(sourceFile);
-    std::string outputDir = createOutputDir(sourceFile);
-    UI::printKV("Output", outputDir);
-
-    fs::path lexerDir = fs::path(outputDir) / "Lexer";
-    fs::path parserDir = fs::path(outputDir) / "Parser";
-    fs::path astDir = fs::path(outputDir) / "AST";
-    fs::path semanticDir = fs::path(outputDir) / "Semantics";
-    fs::path codegenDir = fs::path(outputDir) / "CodeGen";
-    fs::create_directories(lexerDir);
-    fs::create_directories(parserDir);
-    fs::create_directories(astDir);
-    fs::create_directories(semanticDir);
-    fs::create_directories(codegenDir);
-
-    // Build output file paths
-    std::string valid_output_file = buildOutputPath(lexerDir.string(), baseName, ".outlextokens");
-    std::string invalid_output_file = buildOutputPath(lexerDir.string(), baseName, ".outlexerrors");
-    std::string derivation_file = buildOutputPath(parserDir.string(), baseName, ".outderivation");
-    std::string syntax_errors_file = buildOutputPath(parserDir.string(), baseName, ".outsyntaxerrors");
-    std::string ast_file = buildOutputPath(astDir.string(), baseName, ".outast");
-    std::string ast_dot_file = buildOutputPath(astDir.string(), baseName, ".outast.dot");
-    std::string ast_png_file = buildOutputPath(astDir.string(), baseName, ".outast.png");
-    std::string symbol_tables_file = buildOutputPath(semanticDir.string(), baseName, ".outsymboltables");
-    std::string semantic_errors_file = buildOutputPath(semanticDir.string(), baseName, ".outsemanticerrors");
-    std::string moon_output_file = buildOutputPath(codegenDir.string(), baseName, ".moon");
-    std::string codegen_diagnostics_file = buildOutputPath(codegenDir.string(), baseName, ".outcodegenerrors");
-    std::string moon_run_log_file = buildOutputPath(codegenDir.string(), baseName, ".outmoonrun");
+    CompilerOutputPaths outputs = prepareCompilerOutputPaths(sourceFile);
+    UI::printKV("Output", outputs.outputDir);
 
     std::vector<std::vector<Token>> valid_tokens;
     bool parseSuccess = false;
@@ -68,23 +51,11 @@ int main(int argc, char* argv[]) {
     bool semanticHasWarnings = false;
     bool codegenHasRunnableMoon = false;
 
-    auto writeLinesToFile = [](const std::string& path, const std::vector<std::string>& lines) {
-        std::ofstream out(path, std::ios::out | std::ios::trunc);
-        if (!out.is_open()) {
-            return false;
-        }
-
-        for (const auto& line : lines) {
-            out << line << "\n";
-        }
-        return true;
-    };
-
     // LEXER PHASE
     UI::printSection("[1/6] LEXICAL ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
-        valid_tokens = lex_file(sourceFile, valid_output_file, invalid_output_file);
+        valid_tokens = lex_file(sourceFile, outputs.validTokensFile, outputs.invalidTokensFile);
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -104,8 +75,8 @@ int main(int argc, char* argv[]) {
         auto start = std::chrono::steady_clock::now();
         parseSuccess = Parser::parseTokens(valid_tokens);
 
-        writeSyntaxErrorsToFile(syntax_errors_file, Parser::getErrorMessages());
-        writeDerivationToFile(derivation_file, Parser::getDerivationSteps());
+        writeSyntaxErrorsToFile(outputs.syntaxErrorsFile, Parser::getErrorMessages());
+        writeDerivationToFile(outputs.derivationFile, Parser::getDerivationSteps());
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -128,10 +99,10 @@ int main(int argc, char* argv[]) {
     UI::printSection("[3/6] AST EXPORT");
     try {
         auto start = std::chrono::steady_clock::now();
-        ASTPrinter::writeToFile(Parser::getASTRoot(), ast_file);
-        ASTPrinter::writeDotToFile(Parser::getASTRoot(), ast_dot_file);
+        ASTPrinter::writeToFile(Parser::getASTRoot(), outputs.astFile);
+        ASTPrinter::writeDotToFile(Parser::getASTRoot(), outputs.astDotFile);
 
-        UI::PngRenderResult pngResult = UI::renderAstPngFromDot(ast_dot_file, ast_png_file);
+        UI::PngRenderResult pngResult = UI::renderAstPngFromDot(outputs.astDotFile, outputs.astPngFile);
         dotAvailable = pngResult.dotAvailable;
         pngGenerated = pngResult.pngGenerated;
 
@@ -167,11 +138,11 @@ int main(int argc, char* argv[]) {
         SemanticAnalyzer semanticAnalyzer;
         bool semanticSuccess = semanticAnalyzer.analyze(Parser::getASTRoot());
 
-        std::ofstream symbolOut(symbol_tables_file, std::ios::out | std::ios::trunc);
-        if (!symbolOut.is_open()) {
-            throw std::runtime_error("Failed to open symbol table output file: " + symbol_tables_file);
+        (void)semanticSuccess;
+
+        if (!writeTextToFile(outputs.symbolTablesFile, semanticAnalyzer.dumpSymbolTables())) {
+            throw std::runtime_error("Failed to open symbol table output file: " + outputs.symbolTablesFile);
         }
-        symbolOut << semanticAnalyzer.dumpSymbolTables();
 
         const auto& errors = semanticAnalyzer.getErrors();
         const auto& warnings = semanticAnalyzer.getWarnings();
@@ -183,8 +154,8 @@ int main(int argc, char* argv[]) {
         std::vector<std::string> semanticDiagnostics = errors;
         semanticDiagnostics.insert(semanticDiagnostics.end(), warnings.begin(), warnings.end());
 
-        if (!writeLinesToFile(semantic_errors_file, semanticDiagnostics)) {
-            throw std::runtime_error("Failed to open semantic errors output file: " + semantic_errors_file);
+        if (!writeLinesToFile(outputs.semanticDiagnosticsFile, semanticDiagnostics)) {
+            throw std::runtime_error("Failed to open semantic errors output file: " + outputs.semanticDiagnosticsFile);
         }
 
         auto end = std::chrono::steady_clock::now();
@@ -218,23 +189,14 @@ int main(int argc, char* argv[]) {
 
     const bool canAttemptBackEnd = parseSuccess && !semanticHasErrors && Parser::getASTRoot() != nullptr;
 
-    std::string backEndSkipReason;
-    if (!parseSuccess) {
-        backEndSkipReason = "parser errors";
-    } else if (semanticHasErrors) {
-        backEndSkipReason = "semantic errors";
-    } else if (Parser::getASTRoot() == nullptr) {
-        backEndSkipReason = "missing AST";
-    } else {
-        backEndSkipReason = "prerequisites not satisfied";
-    }
+    const std::string backEndSkipReason = buildBackEndSkipReason(parseSuccess, semanticHasErrors, Parser::getASTRoot());
 
     // CODEGEN PHASE
     UI::printSection("[5/6] CODE GENERATION");
     if (!canAttemptBackEnd) {
         UI::printWarning("Code generation not attempted because " + backEndSkipReason);
         phases.push_back({"CodeGen", false, 0, "Not attempted due to " + backEndSkipReason});
-        if (!writeLinesToFile(codegen_diagnostics_file, {
+        if (!writeLinesToFile(outputs.codegenDiagnosticsFile, {
             "[ERROR][CODEGEN] Not attempted due to " + backEndSkipReason
         })) {
             UI::printWarning("Failed to write codegen diagnostics file for skipped phase");
@@ -247,10 +209,10 @@ int main(int argc, char* argv[]) {
             bool codegenSuccess = false;
             std::string details;
 
-            codegenSuccess = generateMoonAssembly(Parser::getASTRoot(), moon_output_file, &codegenErrors);
+            codegenSuccess = generateMoonAssembly(Parser::getASTRoot(), outputs.moonOutputFile, &codegenErrors);
 
-            if (!writeLinesToFile(codegen_diagnostics_file, codegenErrors)) {
-                throw std::runtime_error("Failed to open codegen diagnostics output file: " + codegen_diagnostics_file);
+            if (!writeLinesToFile(outputs.codegenDiagnosticsFile, codegenErrors)) {
+                throw std::runtime_error("Failed to open codegen diagnostics output file: " + outputs.codegenDiagnosticsFile);
             }
 
             if (codegenSuccess && codegenErrors.empty()) {
@@ -283,7 +245,7 @@ int main(int argc, char* argv[]) {
     if (!canAttemptBackEnd) {
         UI::printWarning("Moon simulation not attempted because " + backEndSkipReason);
         phases.push_back({"Moon", false, 0, "Not attempted due to " + backEndSkipReason});
-        if (!writeLinesToFile(moon_run_log_file, {
+        if (!writeLinesToFile(outputs.moonRunLogFile, {
             "[ERROR][MOON] Not attempted due to " + backEndSkipReason
         })) {
             UI::printWarning("Failed to write Moon run log for skipped phase");
@@ -291,7 +253,7 @@ int main(int argc, char* argv[]) {
     } else if (!codegenHasRunnableMoon) {
         UI::printWarning("Moon simulation not attempted because code generation did not produce runnable output");
         phases.push_back({"Moon", false, 0, "Not attempted due to code generation failure"});
-        if (!writeLinesToFile(moon_run_log_file, {
+        if (!writeLinesToFile(outputs.moonRunLogFile, {
             "[ERROR][MOON] Not attempted due to code generation failure"
         })) {
             UI::printWarning("Failed to write Moon run log for skipped phase");
@@ -300,66 +262,23 @@ int main(int argc, char* argv[]) {
         try {
             auto start = std::chrono::steady_clock::now();
 
-            bool moonSuccess = false;
-            std::string details;
+            MoonRunResult moonResult = runMoonSimulator(argv[0], outputs.moonOutputFile, outputs.moonRunLogFile);
 
-#ifdef _WIN32
-            const std::string moonExecutableName = "moon.exe";
-#else
-            const std::string moonExecutableName = "moon";
-#endif
-
-            const fs::path driverExePath = fs::absolute(fs::path(argv[0]));
-            const fs::path driverDir = driverExePath.parent_path();
-            const fs::path moonExeSameDir = driverDir / moonExecutableName;
-            const fs::path moonExeWorkspace = fs::absolute(fs::path("exe") / moonExecutableName);
-            const fs::path moonExeLegacyParent = fs::absolute(fs::path("..") / "exe" / moonExecutableName);
-
-            const fs::path moonExePath =
-                fs::exists(moonExeSameDir) ? moonExeSameDir :
-                (fs::exists(moonExeWorkspace) ? moonExeWorkspace : moonExeLegacyParent);
-
-            const fs::path codegenDirAbs = fs::absolute(codegenDir);
-
-            if (!fs::exists(moonExePath)) {
-                details = "Skipped: /exe/moon executable not found";
-                UI::printWarning("Moon simulator executable not found at: " + moonExePath.string());
-                writeLinesToFile(moon_run_log_file, {
-                    "[ERROR][MOON] Executable not found: " + moonExePath.string()
-                });
-            } else if (!fs::exists(moon_output_file)) {
-                details = "Skipped: generated .moon file not found";
-                UI::printWarning("Generated Moon file not found: " + moon_output_file);
-                writeLinesToFile(moon_run_log_file, {
-                    "[ERROR][MOON] Generated Moon file not found: " + moon_output_file
-                });
-            } else {
-                const std::string moonInputName = fs::path(moon_output_file).filename().string();
-                const std::string runLogName = fs::path(moon_run_log_file).filename().string();
-
-#ifdef _WIN32
-                const std::string command =
-                    "cd /d \"" + codegenDirAbs.string() + "\" && \"" + moonExePath.string() + "\" \"" + moonInputName + "\" > \"" + runLogName + "\" 2>&1";
-#else
-                const std::string command =
-                    "cd \"" + codegenDirAbs.string() + "\" && \"" + moonExePath.string() + "\" \"" + moonInputName + "\" > \"" + runLogName + "\" 2>&1";
-#endif
-
-                const int exitCode = std::system(command.c_str());
-                moonSuccess = (exitCode == 0);
-
-                if (moonSuccess) {
-                    UI::printStatusLine(true, "Moon simulation completed");
-                    details = "Moon executed generated assembly";
+            if (moonResult.success) {
+                UI::printStatusLine(true, "Moon simulation completed");
+            } else if (!moonResult.attempted) {
+                if (moonResult.details.find("executable not found") != std::string::npos) {
+                    UI::printWarning("Moon simulator executable not found at: " + moonResult.moonExecutablePath);
                 } else {
-                    UI::printStatusLine(false, "Moon simulation failed");
-                    details = "Moon exited with non-zero status";
+                    UI::printWarning(moonResult.details);
                 }
+            } else {
+                UI::printStatusLine(false, "Moon simulation failed");
             }
 
             auto end = std::chrono::steady_clock::now();
             long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            phases.push_back({"Moon", moonSuccess, durationMs, details});
+            phases.push_back({"Moon", moonResult.success, durationMs, moonResult.details});
 
         } catch (const std::exception& e) {
             UI::printCrash("Moon simulation", e.what());
@@ -372,33 +291,33 @@ int main(int argc, char* argv[]) {
     UI::printSummaryTable(phases);
 
     UI::printArtifactList("Lexer Outputs", {
-        {"Tokens", valid_output_file},
-        {"Lex Errors", invalid_output_file}
+        {"Tokens", outputs.validTokensFile},
+        {"Lex Errors", outputs.invalidTokensFile}
     });
 
     UI::printArtifactList("Parser Outputs", {
-        {"Derivation", derivation_file},
-        {"Syntax Errors", syntax_errors_file}
+        {"Derivation", outputs.derivationFile},
+        {"Syntax Errors", outputs.syntaxErrorsFile}
     });
 
     std::vector<std::pair<std::string, std::string>> astArtifacts = {
-        {"AST", ast_file},
-        {"DOT", ast_dot_file}
+        {"AST", outputs.astFile},
+        {"DOT", outputs.astDotFile}
     };
     if (dotAvailable && pngGenerated) {
-        astArtifacts.push_back({"PNG", ast_png_file});
+        astArtifacts.push_back({"PNG", outputs.astPngFile});
     }
     UI::printArtifactList("AST Outputs", astArtifacts);
 
     UI::printArtifactList("Semantic Outputs", {
-        {"Symbol Tables", symbol_tables_file},
-        {"Sem Diagnostics ", semantic_errors_file},
+        {"Symbol Tables", outputs.symbolTablesFile},
+        {"Sem Diagnostics ", outputs.semanticDiagnosticsFile},
     });
 
     UI::printArtifactList("CodeGen Outputs", {
-        {"Moon", moon_output_file},
-        {"CodeGen Diags", codegen_diagnostics_file},
-        {"Moon Run Log", moon_run_log_file},
+        {"Moon", outputs.moonOutputFile},
+        {"CodeGen Diags", outputs.codegenDiagnosticsFile},
+        {"Moon Run Log", outputs.moonRunLogFile},
     });
 
     UI::printDone();

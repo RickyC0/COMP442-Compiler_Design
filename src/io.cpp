@@ -1,5 +1,6 @@
 #include "../include/io.h"
 #include "../include/token.h"
+#include <cstdlib>
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -23,6 +24,46 @@ std::string createOutputDir(const std::string& sourceFile) {
 
 std::string buildOutputPath(const std::string& outputDir, const std::string& baseName, const std::string& extension) {
     return (fs::path(outputDir) / (baseName + extension)).string();
+}
+
+CompilerOutputPaths prepareCompilerOutputPaths(const std::string& sourceFile) {
+    CompilerOutputPaths paths;
+
+    paths.baseName = getBaseName(sourceFile);
+    paths.outputDir = createOutputDir(sourceFile);
+
+    fs::path lexerDir = fs::path(paths.outputDir) / "Lexer";
+    fs::path parserDir = fs::path(paths.outputDir) / "Parser";
+    fs::path astDir = fs::path(paths.outputDir) / "AST";
+    fs::path semanticDir = fs::path(paths.outputDir) / "Semantics";
+    fs::path codegenDir = fs::path(paths.outputDir) / "CodeGen";
+
+    fs::create_directories(lexerDir);
+    fs::create_directories(parserDir);
+    fs::create_directories(astDir);
+    fs::create_directories(semanticDir);
+    fs::create_directories(codegenDir);
+
+    paths.lexerDir = lexerDir.string();
+    paths.parserDir = parserDir.string();
+    paths.astDir = astDir.string();
+    paths.semanticDir = semanticDir.string();
+    paths.codegenDir = codegenDir.string();
+
+    paths.validTokensFile = buildOutputPath(paths.lexerDir, paths.baseName, ".outlextokens");
+    paths.invalidTokensFile = buildOutputPath(paths.lexerDir, paths.baseName, ".outlexerrors");
+    paths.derivationFile = buildOutputPath(paths.parserDir, paths.baseName, ".outderivation");
+    paths.syntaxErrorsFile = buildOutputPath(paths.parserDir, paths.baseName, ".outsyntaxerrors");
+    paths.astFile = buildOutputPath(paths.astDir, paths.baseName, ".outast");
+    paths.astDotFile = buildOutputPath(paths.astDir, paths.baseName, ".outast.dot");
+    paths.astPngFile = buildOutputPath(paths.astDir, paths.baseName, ".outast.png");
+    paths.symbolTablesFile = buildOutputPath(paths.semanticDir, paths.baseName, ".outsymboltables");
+    paths.semanticDiagnosticsFile = buildOutputPath(paths.semanticDir, paths.baseName, ".outsemanticerrors");
+    paths.moonOutputFile = buildOutputPath(paths.codegenDir, paths.baseName, ".moon");
+    paths.codegenDiagnosticsFile = buildOutputPath(paths.codegenDir, paths.baseName, ".outcodegenerrors");
+    paths.moonRunLogFile = buildOutputPath(paths.codegenDir, paths.baseName, ".outmoonrun");
+
+    return paths;
 }
 
 
@@ -99,6 +140,96 @@ std::vector<std::vector<Token>> lex_file(const std::string& input_file,  const s
     writeErrorsToFile(invalid_out_file, invalids);
 
     return valids;
+}
+
+bool writeLinesToFile(const std::string& filename, const std::vector<std::string>& lines) {
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    for (const auto& line : lines) {
+        file << line << "\n";
+    }
+
+    return true;
+}
+
+bool writeTextToFile(const std::string& filename, const std::string& text) {
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    file << text;
+    return true;
+}
+
+MoonRunResult runMoonSimulator(const std::string& driverExecutablePath,
+                               const std::string& moonInputFile,
+                               const std::string& moonRunLogFile) {
+    MoonRunResult result;
+
+#ifdef _WIN32
+    const std::string moonExecutableName = "moon.exe";
+#else
+    const std::string moonExecutableName = "moon";
+#endif
+
+    const fs::path driverExePath = fs::absolute(fs::path(driverExecutablePath));
+    const fs::path driverDir = driverExePath.parent_path();
+    const fs::path moonExeSameDir = driverDir / moonExecutableName;
+    const fs::path moonExeWorkspace = fs::absolute(fs::path("exe") / moonExecutableName);
+    const fs::path moonExeLegacyParent = fs::absolute(fs::path("..") / "exe" / moonExecutableName);
+
+    const fs::path moonExePath =
+        fs::exists(moonExeSameDir) ? moonExeSameDir :
+        (fs::exists(moonExeWorkspace) ? moonExeWorkspace : moonExeLegacyParent);
+
+    result.moonExecutablePath = moonExePath.string();
+
+    if (!fs::exists(moonExePath)) {
+        result.details = "Skipped: /exe/moon executable not found";
+        writeLinesToFile(moonRunLogFile, {
+            "[ERROR][MOON] Executable not found: " + moonExePath.string()
+        });
+        return result;
+    }
+
+    const fs::path moonInputPath = fs::path(moonInputFile);
+    if (!fs::exists(moonInputPath)) {
+        result.details = "Skipped: generated .moon file not found";
+        writeLinesToFile(moonRunLogFile, {
+            "[ERROR][MOON] Generated Moon file not found: " + moonInputFile
+        });
+        return result;
+    }
+
+    fs::path inputDir = moonInputPath.parent_path();
+    if (inputDir.empty()) {
+        inputDir = fs::path(".");
+    }
+
+    const fs::path codegenDirAbs = fs::absolute(inputDir);
+    const std::string moonInputName = moonInputPath.filename().string();
+    const std::string runLogName = fs::path(moonRunLogFile).filename().string();
+
+#ifdef _WIN32
+    const std::string command =
+        "cd /d \"" + codegenDirAbs.string() + "\" && \"" + moonExePath.string() + "\" \"" + moonInputName + "\" > \"" + runLogName + "\" 2>&1";
+#else
+    const std::string command =
+        "cd \"" + codegenDirAbs.string() + "\" && \"" + moonExePath.string() + "\" \"" + moonInputName + "\" > \"" + runLogName + "\" 2>&1";
+#endif
+
+    result.attempted = true;
+    const int exitCode = std::system(command.c_str());
+    result.success = (exitCode == 0);
+    result.details = result.success
+        ? "Moon executed generated assembly"
+        : "Moon exited with non-zero status";
+
+    return result;
 }
 
 void writeErrorsToFile(const std::string& filename, const std::vector<std::vector<Token>>& tokens){
