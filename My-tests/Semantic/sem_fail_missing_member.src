@@ -1,11 +1,23 @@
-class Point {
+// TEST 6.1.7 / 8.5 [error] prohibited access to private member         | EXPECT: ERROR
+// TEST 6.1.19 / 11.2 [error] undeclared data member (class table)      | EXPECT: ERROR
+// TEST 6.1.20 / 11.2 [error] undeclared data member (super lookup path) | EXPECT: ERROR
+
+class Base {
+    private float hidden;
     public float x;
+};
+
+class Child inherits Base {
+    public float y;
 };
 
 main
     local
-        Point p;
+        Base b;
+        Child c;
         float t;
     do
-        t = p.y;
+        t = b.hidden;
+        t = b.zz;
+        t = c.ghost;
     end

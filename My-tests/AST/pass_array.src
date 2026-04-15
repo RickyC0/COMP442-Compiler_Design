@@ -1,0 +1,28 @@
+// TEST 4.1.1 array declarations (including class member arrays) | EXPECT: PASS
+// TEST 4.1.2 member function declaration/definition             | EXPECT: PASS
+// TEST 4.1.4 arithmetic expression with indexed operands        | EXPECT: PASS
+// TEST 4.1.7 call statement                                     | EXPECT: PASS
+// TEST 4.1.9 indexed access using variables                     | EXPECT: PASS
+
+class Matrix {
+    public integer data[]; // TEST 4.1.1 array member declaration | EXPECT: PASS
+    public transform(integer val) : void;
+};
+
+Matrix::transform(integer val) : void
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < 9) do
+            data[i] = data[i] * val + (i * 2); // TEST 4.1.4 + 4.1.9 | EXPECT: PASS
+            i = i + 1;
+        end;
+    end
+
+main
+    local
+        Matrix m;
+    do
+        m.transform(5); // TEST 4.1.7 function call statement | EXPECT: PASS
+    end

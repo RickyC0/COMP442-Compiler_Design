@@ -1,10 +1,23 @@
-class Point {
-    public float x;
+// TEST 6.1.21 / 11.3 [error] undeclared member function (class table)   | EXPECT: ERROR
+// TEST 6.1.22 / 11.3 [error] undeclared member function (super lookup)   | EXPECT: ERROR
+
+class Base {
+    public ping() : void;
 };
+
+class Child inherits Base {
+    public integer x;
+};
+
+Base::ping() : void
+    do
+        write(1);
+    end
 
 main
     local
-        Point p;
+        Child c;
     do
-        p.draw();
+        c.ping();
+        c.missing();
     end

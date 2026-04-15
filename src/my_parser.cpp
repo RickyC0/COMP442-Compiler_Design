@@ -4,19 +4,50 @@
 #include <algorithm>
 #include <cstdlib>
 
+/**
+ * @file my_parser.cpp
+ * @brief LL(1) recursive-descent parser implementation.
+ *
+ * @details
+ * This source maps grammar productions to parsing functions and builds AST nodes
+ * while recording derivation traces and recoverable syntax errors.
+ *
+ * @par Why this implementation style?
+ * Direct one-function-per-production code makes grammar debugging and assignment
+ * verification straightforward.
+ *
+ * @par What comes next?
+ * Outputs from this module (AST + syntax diagnostics) feed semantic analysis.
+ */
+
 #define TTYPE Token::Type
 #define LTTYPE _lookaheadToken.getType()
 
-// Static member definitions
+/** @brief Static lookahead token state for predictive parsing. */
 Token Parser::_lookaheadToken(Token::Type::END_OF_FILE_, "", 0);
+/** @brief Current index into flattened token stream. */
 int Parser::_currentTokenIndex = 0;
+/** @brief Panic-mode guard to suppress cascading duplicate errors. */
 bool Parser::_inErrorRecoveryMode = false;
+/** @brief Original per-line token matrix from lexer. */
 std::vector<std::vector<Token>> Parser::_tokens;
+/** @brief Flattened token stream consumed by recursive-descent routines. */
 std::vector<Token> Parser::_flatTokens;
+/** @brief Collected parser error messages. */
 std::vector<std::string> Parser::_errorMessages;
+/** @brief Derivation trace used for parser debugging/output artifacts. */
 std::vector<std::string> Parser::_derivationSteps;
+/** @brief AST root produced by latest parse run. */
 std::shared_ptr<ProgNode> Parser::_astRoot = nullptr;
 
+/**
+ * @brief Advance lookahead to next non-comment token.
+ * @return True when a next token was loaded, false at end of stream.
+ *
+ * @details
+ * Comment tokens are skipped here so production logic only sees grammar-relevant
+ * terminals.
+ */
 bool Parser::_nextToken() {
     if (_currentTokenIndex < _flatTokens.size()) {
         Token token = _flatTokens[_currentTokenIndex++];
@@ -33,6 +64,14 @@ bool Parser::_nextToken() {
     }
 }
 
+/**
+ * @brief Synchronize parser cursor to the next token in a follow set.
+ * @param followSet Recovery token set for current grammar context.
+ *
+ * @details
+ * Used by panic-mode recovery after syntax errors to resume parsing from a stable
+ * boundary and continue collecting diagnostics.
+ */
 void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
     // If current lookahead is already in the recovery set, don't skip
     if (std::find(followSet.begin(), followSet.end(), LTTYPE) != followSet.end()) {
@@ -54,6 +93,11 @@ void Parser::_skipUntil(const std::vector<Token::Type>& followSet) {
     }
 }
 
+/**
+ * @brief Parse lexer tokens provided in memory and build AST.
+ * @param tokens Token stream grouped by line.
+ * @return True if parsing completed without syntax errors.
+ */
 bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     _tokens = tokens;
     // Flatten vector<vector<Token>> into a single vector<Token>
@@ -84,18 +128,37 @@ bool Parser::parseTokens(const std::vector<std::vector<Token>>& tokens) {
     return _errorMessages.empty();
 }
 
+/**
+ * @brief Return AST root produced by most recent parse.
+ * @return Program AST root or nullptr when unavailable.
+ */
 std::shared_ptr<ProgNode> Parser::getASTRoot() {
     return _astRoot;
 }
 
+/**
+ * @brief Return collected syntax diagnostics.
+ * @return Read-only syntax error message list.
+ */
 const std::vector<std::string>& Parser::getErrorMessages() {
     return _errorMessages;
 }
 
+/**
+ * @brief Return derivation trace for grammar debugging/output.
+ * @return Read-only derivation step list.
+ */
 const std::vector<std::string>& Parser::getDerivationSteps() {
     return _derivationSteps;
 }
 
+/**
+ * @brief Format parser error message with lookahead and expected set.
+ * @param message High-level error description.
+ * @param token Current lookahead token.
+ * @param expectedTokens Expected token classes.
+ * @return Fully formatted diagnostic string.
+ */
 std::string Parser::_formatError(const std::string& message, const Token& token, const std::vector<Token::Type>& expectedTokens) {
     std::string errorMsg = "[ERROR][SYNTAX] " 
                             + message 
@@ -111,12 +174,22 @@ std::string Parser::_formatError(const std::string& message, const Token& token,
     return errorMsg;
 }
 
+/**
+ * @brief Record syntax error then throw control-flow exception.
+ * @param message Error summary.
+ * @param expectedTokens Expected token classes at this point.
+ * @throws SyntaxError Always thrown after message registration.
+ */
 void Parser::_reportError(const std::string& message, const std::vector<Token::Type>& expectedTokens) {
     std::string msg = _formatError(message, _lookaheadToken, expectedTokens);
     _errorMessages.push_back(msg);
     throw SyntaxError(msg);
 }
 
+/**
+ * @brief Consume expected token or trigger panic-mode error path.
+ * @param expectedType Token class required by current production.
+ */
 void Parser::_match(Token::Type expectedType) {
     // The token matches what we expect
     if (LTTYPE == expectedType) {
@@ -152,6 +225,11 @@ void Parser::_match(Token::Type expectedType) {
 // ============================================================================
 
 bool Parser::_parseRelOp(std::string* opLexeme) {
+    /**
+     * @brief Parse relational operator terminal.
+     * @param opLexeme Optional output of source lexeme.
+     * @return True if a relational operator was consumed.
+     */
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -204,6 +282,11 @@ bool Parser::_parseRelOp(std::string* opLexeme) {
 }
 
 bool Parser::_parseAddOp(std::string* opLexeme) {
+    /**
+     * @brief Parse additive-level operator terminal.
+     * @param opLexeme Optional output of source lexeme.
+     * @return True if additive operator was consumed.
+     */
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -235,6 +318,11 @@ bool Parser::_parseAddOp(std::string* opLexeme) {
 }
 
 bool Parser::_parseMultOp(std::string* opLexeme) {
+    /**
+     * @brief Parse multiplicative-level operator terminal.
+     * @param opLexeme Optional output of source lexeme.
+     * @return True if multiplicative operator was consumed.
+     */
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -267,6 +355,11 @@ bool Parser::_parseMultOp(std::string* opLexeme) {
 }
 
 bool Parser::_parseSign(std::string* signLexeme) {
+    /**
+     * @brief Parse unary sign operator.
+     * @param signLexeme Optional output of sign lexeme.
+     * @return True if unary sign was consumed.
+     */
     Token::Type opType = LTTYPE;
 
     switch (opType) {
@@ -291,6 +384,10 @@ bool Parser::_parseSign(std::string* signLexeme) {
 }
 
 bool Parser::_parseAssignOp() {
+    /**
+     * @brief Parse assignment operator token.
+     * @return True when assignment token was consumed.
+     */
     if (LTTYPE == TTYPE::ASSIGNMENT_) {
         _derivationSteps.push_back("AssignOp -> '='");
         _match(TTYPE::ASSIGNMENT_);
@@ -301,6 +398,10 @@ bool Parser::_parseAssignOp() {
 }
 
 std::shared_ptr<TypeNode> Parser::_parseType(){
+    /**
+     * @brief Parse type non-terminal (built-ins or class identifier).
+     * @return Parsed TypeNode or nullptr on epsilon/non-type lookahead.
+     */
     Token typeToken = _lookaheadToken;
     switch (LTTYPE)
     {
@@ -326,6 +427,10 @@ std::shared_ptr<TypeNode> Parser::_parseType(){
 // ARRAY PARSING FUNCTIONS
 // ============================================================================
 
+/**
+ * @brief Parse array-size tail after opening bracket.
+ * @return Declared dimension value, or -1 for unsized dimension.
+ */
 int Parser::_parseArraySizeTail() {
     // Grammar: ArraySizeTail -> intNum ] | ]
 
@@ -349,6 +454,10 @@ int Parser::_parseArraySizeTail() {
     }
 }
 
+/**
+ * @brief Parse one array-size production.
+ * @return Parsed dimension size (or sentinel for unsized).
+ */
 int Parser::_parseArraySize() {
     // Grammar: ArraySize -> [ ArraySizeTail
     _derivationSteps.push_back("ArraySize -> '[' ArraySizeTail");
@@ -357,6 +466,10 @@ int Parser::_parseArraySize() {
     return _parseArraySizeTail();
 }
 
+/**
+ * @brief Parse zero-or-more array dimensions.
+ * @return Ordered list of parsed dimensions.
+ */
 std::vector<int> Parser::_parseArraySizeList() {
     std::vector<int> dimensions;
     // Grammar: ArraySizeList -> ArraySize ArraySizeList | EPSILON
@@ -376,6 +489,10 @@ std::vector<int> Parser::_parseArraySizeList() {
     return dimensions;
 }
 
+/**
+ * @brief Parse one indexing expression inside brackets.
+ * @return AST node for index expression.
+ */
 std::shared_ptr<ASTNode> Parser::_parseIndice() {
     // Grammar: Indice -> [ Expr ]
     _derivationSteps.push_back("Indice -> '[' Expr ']'");
@@ -385,6 +502,10 @@ std::shared_ptr<ASTNode> Parser::_parseIndice() {
     return indexExpr;
 }
 
+/**
+ * @brief Parse zero-or-more index operations for member/array access.
+ * @return List of index expression nodes.
+ */
 std::vector<std::shared_ptr<ASTNode>> Parser::_parseIndiceList(){
     std::vector<std::shared_ptr<ASTNode>> indices;
     // Grammar: IndiceList -> Indice IndiceList | EPSILON
@@ -402,6 +523,10 @@ std::vector<std::shared_ptr<ASTNode>> Parser::_parseIndiceList(){
     return indices;
 }
 
+/**
+ * @brief Parse remaining actual arguments after first expression.
+ * @param params In/out argument list accumulator.
+ */
 void Parser::_parseAParamsTail(std::vector<std::shared_ptr<ASTNode>>& params) {
     // Grammar: AParamsTail -> , Expr AParamsTail | EPSILON
 
@@ -418,6 +543,10 @@ void Parser::_parseAParamsTail(std::vector<std::shared_ptr<ASTNode>>& params) {
     }
 }
 
+/**
+ * @brief Parse actual argument list for function calls.
+ * @return Vector of argument expression nodes.
+ */
 std::vector<std::shared_ptr<ASTNode>> Parser::_parseAParams() {
     std::vector<std::shared_ptr<ASTNode>> params;
     // Grammar: AParams -> Expr AParamsTail | EPSILON
@@ -436,6 +565,10 @@ std::vector<std::shared_ptr<ASTNode>> Parser::_parseAParams() {
     return params;
 }
 
+/**
+ * @brief Parse variable non-terminal (id plus optional tails).
+ * @return Variable/member access AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseVariable(){
     _derivationSteps.push_back("Variable -> 'id' FactorIdTail");
     Token idToken = _lookaheadToken;
@@ -444,6 +577,11 @@ std::shared_ptr<ASTNode> Parser::_parseVariable(){
     return _parseFactorIdTail(base);
 }
 
+/**
+ * @brief Parse chained member access after a call/factor base.
+ * @param base Current left-side AST node.
+ * @return Extended AST chain.
+ */
 std::shared_ptr<ASTNode> Parser::_parseFactorCallTail(const std::shared_ptr<ASTNode>& base){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("FactorCallTail -> '.' 'id' FactorIdTail");
@@ -462,6 +600,11 @@ std::shared_ptr<ASTNode> Parser::_parseFactorCallTail(const std::shared_ptr<ASTN
     }
 }
 
+/**
+ * @brief Parse continuation after factor base (dot/call/epsilon).
+ * @param base Current base node.
+ * @return Final factor AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseFactorRest(const std::shared_ptr<ASTNode>& base){
     switch (LTTYPE)
     {
@@ -500,6 +643,11 @@ std::shared_ptr<ASTNode> Parser::_parseFactorRest(const std::shared_ptr<ASTNode>
     }
 }
 
+/**
+ * @brief Parse factor identifier tail: indices followed by rest chain.
+ * @param baseId Identifier-origin base node.
+ * @return Final factor AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseFactorIdTail(const std::shared_ptr<ASTNode>& baseId){
     _derivationSteps.push_back("FactorIdTail -> IndiceList FactorRest");
     std::vector<std::shared_ptr<ASTNode>> indices = _parseIndiceList();
@@ -521,6 +669,10 @@ std::shared_ptr<ASTNode> Parser::_parseFactorIdTail(const std::shared_ptr<ASTNod
     return _parseFactorRest(base);
 }
 
+/**
+ * @brief Parse factor non-terminal.
+ * @return Factor AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseFactor() {
     switch (LTTYPE)
     {
@@ -582,6 +734,11 @@ std::shared_ptr<ASTNode> Parser::_parseFactor() {
     }
 }
 
+/**
+ * @brief Parse multiplicative tail with left-associative folding.
+ * @param left Left operand AST accumulated so far.
+ * @return Folded AST subtree.
+ */
 std::shared_ptr<ASTNode> Parser::_parseMultOpTail(std::shared_ptr<ASTNode> left){
     while (LTTYPE == TTYPE::MULTIPLY_ || LTTYPE == TTYPE::DIVIDE_ || LTTYPE == TTYPE::AND_) {
         _derivationSteps.push_back("MultOpTail -> MultOp Factor MultOpTail");
@@ -596,12 +753,21 @@ std::shared_ptr<ASTNode> Parser::_parseMultOpTail(std::shared_ptr<ASTNode> left)
 }
 
 
+/**
+ * @brief Parse term non-terminal.
+ * @return Term AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseTerm(){
     _derivationSteps.push_back("Term -> Factor MultOpTail");
     std::shared_ptr<ASTNode> left = _parseFactor();
     return _parseMultOpTail(left);
 }
 
+/**
+ * @brief Parse additive tail with left-associative folding.
+ * @param left Left operand AST accumulated so far.
+ * @return Folded AST subtree.
+ */
 std::shared_ptr<ASTNode> Parser::_parseAddOpTail(std::shared_ptr<ASTNode> left){
     while (LTTYPE == TTYPE::PLUS_ || LTTYPE == TTYPE::MINUS_ || LTTYPE == TTYPE::OR_) {
         _derivationSteps.push_back("AddOpTail -> AddOp Term AddOpTail");
@@ -615,12 +781,20 @@ std::shared_ptr<ASTNode> Parser::_parseAddOpTail(std::shared_ptr<ASTNode> left){
     return left;
 }
 
+/**
+ * @brief Parse arithmetic expression tier.
+ * @return Arithmetic AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseArithExpr(){
     _derivationSteps.push_back("ArithExpr -> Term AddOpTail");
     std::shared_ptr<ASTNode> left = _parseTerm();
     return _parseAddOpTail(left);
 }
 
+/**
+ * @brief Parse relational expression with explicit operator.
+ * @return Relational AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseRelExpr(){
     _derivationSteps.push_back("RelExpr -> ArithExpr RelOp ArithExpr");
     std::shared_ptr<ASTNode> left = _parseArithExpr();
@@ -633,6 +807,11 @@ std::shared_ptr<ASTNode> Parser::_parseRelExpr(){
     return std::make_shared<BinaryOpNode>(opToken.getLineNumber(), op, left, right);
 }
 
+/**
+ * @brief Parse optional relational tail after arithmetic expression.
+ * @param left Left arithmetic expression.
+ * @return Relational node or original left node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseExprTail(const std::shared_ptr<ASTNode>& left){
     std::string op;
     Token opToken = _lookaheadToken;
@@ -647,12 +826,21 @@ std::shared_ptr<ASTNode> Parser::_parseExprTail(const std::shared_ptr<ASTNode>& 
     }
 }
 
+/**
+ * @brief Parse expression non-terminal.
+ * @return Expression AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseExpr(){
     _derivationSteps.push_back("Expr -> ArithExpr ExprTail");
     std::shared_ptr<ASTNode> left = _parseArithExpr();
     return _parseExprTail(left);
 }
 
+/**
+ * @brief Parse statement call tail for chained member call statements.
+ * @param callOrMember Existing call/member base.
+ * @return Completed statement/call AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseStatementCallTail(const std::shared_ptr<ASTNode>& callOrMember){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("StatementCallTail -> '.' 'id' StatementIdTail");
@@ -679,6 +867,11 @@ std::shared_ptr<ASTNode> Parser::_parseStatementCallTail(const std::shared_ptr<A
     }
 }
 
+/**
+ * @brief Parse continuation after identifier-led statement start.
+ * @param lhsBase Left-hand base expression.
+ * @return Statement AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseStatementRest(const std::shared_ptr<ASTNode>& lhsBase){
     if(LTTYPE == TTYPE::DOT_){
         _derivationSteps.push_back("StatementRest -> '.' 'id' StatementIdTail");
@@ -723,6 +916,11 @@ std::shared_ptr<ASTNode> Parser::_parseStatementRest(const std::shared_ptr<ASTNo
     }
 }
 
+/**
+ * @brief Parse statement identifier tail (indices + rest disambiguation).
+ * @param lhsBase Base identifier/member node.
+ * @return Pair of evolved base node and optional statement node.
+ */
 Parser::StatementIdTailResult Parser::_parseStatementIdTail(const std::shared_ptr<ASTNode>& lhsBase){
     _derivationSteps.push_back("StatementIdTail -> IndiceList StatementRest");
     std::vector<std::shared_ptr<ASTNode>> indices = _parseIndiceList();
@@ -745,6 +943,10 @@ Parser::StatementIdTailResult Parser::_parseStatementIdTail(const std::shared_pt
     return {base, stmt};
 }
 
+/**
+ * @brief Parse statement block (single statement or do-end block).
+ * @return Block/statement AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseStatBlock(){
     if(LTTYPE == TTYPE::DO_KEYWORD_){
         _derivationSteps.push_back("StatBlock -> '{' StatementList '}'");
@@ -770,6 +972,10 @@ std::shared_ptr<ASTNode> Parser::_parseStatBlock(){
     }
 }
 
+/**
+ * @brief Parse one executable statement.
+ * @return Statement AST node or nullptr for epsilon context.
+ */
 std::shared_ptr<ASTNode> Parser::_parseStatement() {
     switch(LTTYPE) {
         case TTYPE::IF_KEYWORD_:
@@ -854,6 +1060,10 @@ std::shared_ptr<ASTNode> Parser::_parseStatement() {
             return nullptr;
     }
 }
+/**
+ * @brief Parse statement list with panic-mode recovery.
+ * @return Vector of parsed statement nodes.
+ */
 std::vector<std::shared_ptr<ASTNode>> Parser::_parseStatementList() {
     std::vector<std::shared_ptr<ASTNode>> statements;
     // Grammar: StatementList -> Statement StatementList | EPSILON
@@ -877,6 +1087,11 @@ std::vector<std::shared_ptr<ASTNode>> Parser::_parseStatementList() {
         }
     }
 }
+/**
+ * @brief Parse variable declaration production.
+ * @param visibility Visibility/locality tag to attach to declaration.
+ * @return VarDeclNode or nullptr when no declaration is present.
+ */
 std::shared_ptr<VarDeclNode> Parser::_parseVarDecl(const std::string& visibility) {
     std::shared_ptr<TypeNode> typeNode = _parseType();
     if(typeNode == nullptr){
@@ -896,6 +1111,10 @@ std::shared_ptr<VarDeclNode> Parser::_parseVarDecl(const std::string& visibility
     return var;
 }
 
+/**
+ * @brief Parse zero-or-more variable declarations with recovery.
+ * @return Vector of variable declaration nodes.
+ */
 std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseVarDeclList() {
     std::vector<std::shared_ptr<VarDeclNode>> decls;
     // Grammar: VarDeclList -> VarDecl VarDeclList | EPSILON
@@ -918,6 +1137,10 @@ std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseVarDeclList() {
     }
 }
 
+/**
+ * @brief Parse optional local declaration region inside function body.
+ * @return Vector of local declarations (possibly empty).
+ */
 std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseLocalVarDeclList(){
     if(LTTYPE == TTYPE::LOCAL_){
         _derivationSteps.push_back("LocalVarDeclList -> 'local' VarDeclList");
@@ -931,6 +1154,11 @@ std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseLocalVarDeclList(){
     }
 }
 
+/**
+ * @brief Parse function body including local declarations and statements.
+ * @param localVars Optional output pointer for parsed local declarations.
+ * @return Block node containing locals and statements.
+ */
 std::shared_ptr<BlockNode> Parser::_parseFuncBody(std::vector<std::shared_ptr<VarDeclNode>>* localVars) {
     _derivationSteps.push_back("FuncBody -> LocalVarDeclList 'do' StatementList 'end'");
     int line = _lookaheadToken.getLineNumber();
@@ -954,6 +1182,10 @@ std::shared_ptr<BlockNode> Parser::_parseFuncBody(std::vector<std::shared_ptr<Va
     return body;
 }
 
+/**
+ * @brief Parse remaining formal parameters after the first one.
+ * @param params In/out parameter declaration accumulator.
+ */
 void Parser::_parseFParamsTail(std::vector<std::shared_ptr<VarDeclNode>>& params) {
     // Grammar: FParamsTail -> , Type id FParamsTail | EPSILON
 
@@ -982,6 +1214,10 @@ void Parser::_parseFParamsTail(std::vector<std::shared_ptr<VarDeclNode>>& params
 }
 
 
+/**
+ * @brief Parse formal parameter list in function/method signatures.
+ * @return Vector of formal parameter declaration nodes.
+ */
 std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseFParams() {
     std::vector<std::shared_ptr<VarDeclNode>> params;
     std::shared_ptr<TypeNode> typeNode = _parseType();
@@ -1006,6 +1242,10 @@ std::vector<std::shared_ptr<VarDeclNode>> Parser::_parseFParams() {
 }
 
 
+/**
+ * @brief Parse function return type non-terminal.
+ * @return Canonical return type string.
+ */
 std::string Parser::_parseReturnType(){
     if(LTTYPE == TTYPE::VOID_TYPE_){
         _derivationSteps.push_back("ReturnType -> 'void'");
@@ -1023,6 +1263,11 @@ std::string Parser::_parseReturnType(){
     _reportError("Expected return type (VOID_TYPE_, INTEGER_TYPE_, FLOAT_TYPE_, or ID_)", {TTYPE::VOID_TYPE_, TTYPE::INTEGER_TYPE_, TTYPE::FLOAT_TYPE_, TTYPE::ID_});
 }
 
+/**
+ * @brief Parse function-head tail for free function or class-qualified method.
+ * @param info In/out function-head aggregate information.
+ * @param headLine Source line where head started.
+ */
 void Parser::_parseFuncHeadTail(FuncHeadInfo& info, int headLine) {
     if(LTTYPE == TTYPE::COLON_COLON_){
         _derivationSteps.push_back("FuncHeadTail -> '::' 'id' '(' FParams ')' ':' ReturnType");
@@ -1051,6 +1296,10 @@ void Parser::_parseFuncHeadTail(FuncHeadInfo& info, int headLine) {
     }
 }
 
+/**
+ * @brief Parse function head (name, params, optional class qualifier, return type).
+ * @return Aggregated function-head information.
+ */
 Parser::FuncHeadInfo Parser::_parseFuncHead() {
     _derivationSteps.push_back("FuncHead -> 'id' FuncHeadTail");
     Token idToken = _lookaheadToken;
@@ -1061,6 +1310,10 @@ Parser::FuncHeadInfo Parser::_parseFuncHead() {
     return info;
 }
 
+/**
+ * @brief Parse complete function definition.
+ * @return Function definition AST node.
+ */
 std::shared_ptr<FuncDefNode> Parser::_parseFuncDef() {
     if(LTTYPE == TTYPE::ID_){ // First set of FuncHead
         _derivationSteps.push_back("FuncDef -> FuncHead FuncBody");
@@ -1084,6 +1337,13 @@ std::shared_ptr<FuncDefNode> Parser::_parseFuncDef() {
     }
 }
 
+/**
+ * @brief Parse member declaration tail when first token was identifier.
+ * @param memberName First identifier lexeme (type or member name context).
+ * @param visibility Visibility modifier.
+ * @param line Source line.
+ * @return Member declaration node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& memberName, const std::string& visibility, int line){
     // Grammar: MemberDeclIdTail -> ID_ ArraySizeList ';'
     //                            | '(' FParams ')' ':' ReturnType ';'
@@ -1137,6 +1397,14 @@ std::shared_ptr<ASTNode> Parser::_parseMemberDeclIdTail(const std::string& membe
     }
 }
 
+/**
+ * @brief Parse member declaration tail when explicit type token started declaration.
+ * @param typeName Parsed member type.
+ * @param memberName Parsed member/function name.
+ * @param visibility Visibility modifier.
+ * @param line Source line.
+ * @return Member declaration node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseMemberDeclTypeTail(const std::string& typeName, const std::string& memberName, const std::string& visibility, int line){
     // Grammar: MemberDeclTypeTail -> ArraySizeList ';'
     //                              | '(' FParams ')' ':' ReturnType ';'
@@ -1170,6 +1438,11 @@ std::shared_ptr<ASTNode> Parser::_parseMemberDeclTypeTail(const std::string& typ
     }
 }
 
+/**
+ * @brief Parse class member declaration entry point.
+ * @param visibility Visibility modifier from preceding production.
+ * @return Member declaration AST node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseMemberDecl(const std::string& visibility) {
     // Grammar: MemberDecl -> 'ID_' 'ID_' MemberDeclIdTail
     //                      | 'INTEGER_TYPE_' 'ID_' MemberDeclTypeTail
@@ -1198,6 +1471,10 @@ std::shared_ptr<ASTNode> Parser::_parseMemberDecl(const std::string& visibility)
     }
 }
 
+/**
+ * @brief Parse visibility modifier.
+ * @return Visibility string (public/private).
+ */
 std::string Parser::_parseVisibility(){
     switch(LTTYPE){
         case TTYPE::PUBLIC_KEYWORD_:
@@ -1215,12 +1492,20 @@ std::string Parser::_parseVisibility(){
     }
 }
 
+/**
+ * @brief Parse one class member declaration with leading visibility.
+ * @return Member declaration node.
+ */
 std::shared_ptr<ASTNode> Parser::_parseClassMemberDecl() {
     _derivationSteps.push_back("ClassMemberDecl -> Visibility MemberDecl");
     std::string visibility = _parseVisibility();
     return _parseMemberDecl(visibility);
 }
 
+/**
+ * @brief Parse class body sequence.
+ * @return Vector of member declarations.
+ */
 std::vector<std::shared_ptr<ASTNode>> Parser::_parseClassBody(){
     std::vector<std::shared_ptr<ASTNode>> members;
     // Grammar: ClassBody -> ClassMemberDecl ClassBody | EPSILON
@@ -1242,6 +1527,10 @@ std::vector<std::shared_ptr<ASTNode>> Parser::_parseClassBody(){
     return members;
 }
 
+/**
+ * @brief Parse trailing inherited-class list.
+ * @return Additional parent class names.
+ */
 std::vector<std::string> Parser::_parseInheritsList(){
     std::vector<std::string> parents;
     // Grammar: InheritsList -> , id InheritsList | EPSILON
@@ -1262,6 +1551,10 @@ std::vector<std::string> Parser::_parseInheritsList(){
     return parents;
 }
 
+/**
+ * @brief Parse optional inheritance clause.
+ * @return Parent class names (possibly empty).
+ */
 std::vector<std::string> Parser::_parseInheritanceOpt(){
     if(LTTYPE == TTYPE::INHERITS_){
         _derivationSteps.push_back("InheritanceOpt -> 'inherits' 'id' InheritsList");
@@ -1281,6 +1574,10 @@ std::vector<std::string> Parser::_parseInheritanceOpt(){
 }
 
 
+/**
+ * @brief Parse class declaration.
+ * @return Class declaration node.
+ */
 std::shared_ptr<ClassDeclNode> Parser::_parseClassDecl() {
     _derivationSteps.push_back("ClassDecl -> 'class' 'id' InheritanceOpt '{' ClassBody '}' ';'");
     _match(TTYPE::CLASS_KEYWORD_);
@@ -1302,6 +1599,10 @@ std::shared_ptr<ClassDeclNode> Parser::_parseClassDecl() {
     return classNode;
 }
 
+/**
+ * @brief Parse top-level function definition list with recovery.
+ * @return Vector of function definitions.
+ */
 std::vector<std::shared_ptr<FuncDefNode>> Parser::_parseFuncDefList() {
     std::vector<std::shared_ptr<FuncDefNode>> funcs;
     // Grammar: FuncDefList -> FuncDef FuncDefList | EPSILON
@@ -1322,6 +1623,10 @@ std::vector<std::shared_ptr<FuncDefNode>> Parser::_parseFuncDefList() {
     return funcs;
 }
 
+/**
+ * @brief Parse top-level class declaration list with recovery.
+ * @return Vector of class declarations.
+ */
 std::vector<std::shared_ptr<ClassDeclNode>> Parser::_parseClassDeclList() {
     std::vector<std::shared_ptr<ClassDeclNode>> classes;
     // Grammar: ClassDeclList -> ClassDecl ClassDeclList | EPSILON
@@ -1342,6 +1647,14 @@ std::vector<std::shared_ptr<ClassDeclNode>> Parser::_parseClassDeclList() {
     return classes;
 }
 
+/**
+ * @brief Parse complete program grammar entry point.
+ * @return Program AST root node.
+ *
+ * @details
+ * Program parse proceeds in phases: class list, function list, then mandatory
+ * main body. Each phase is recoverable to maximize diagnostics in one run.
+ */
 std::shared_ptr<ProgNode> Parser::_parseProgram() {
     _derivationSteps.push_back("Program -> ClassDeclList FuncDefList 'main' FuncBody");
 

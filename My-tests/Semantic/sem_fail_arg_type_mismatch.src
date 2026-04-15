@@ -1,3 +1,5 @@
+// TEST 6.1.26 / 12.2 [error] function call with wrong type of parameters | EXPECT: ERROR
+
 class Point {
     public float x;
 };

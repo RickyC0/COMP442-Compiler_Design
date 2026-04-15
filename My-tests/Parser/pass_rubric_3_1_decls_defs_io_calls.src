@@ -1,0 +1,68 @@
+// Parser coverage test: declarations + definitions + class features + I/O + calls
+// Expected parser result: PASS (no syntax errors)
+// Covers:
+// 3.1.1 variable declarations: integer, float, class types, array, array of class types
+// 3.1.2 main/free/member function definitions
+// 3.1.3 class declarations: public/private members, data member declarations, method declarations, inheritance list
+// 3.1.6 read(var) / write(expression) / return(expression) statements
+// 3.1.7 function call as a statement
+
+class Book { // TEST 3.1.3 class declaration with member declarations | EXPECT: PASS
+    public integer id; // TEST 3.1.1 integer data member declaration | EXPECT: PASS
+    public float price; // TEST 3.1.1 float data member declaration | EXPECT: PASS
+    public set(integer nid, float p) : void; // TEST 3.1.2 member function declaration | EXPECT: PASS
+};
+
+class Shelf {
+    public Book books[2]; // TEST 3.1.1 array of class types declaration | EXPECT: PASS
+    private integer count; // TEST 3.1.3 private visibility member | EXPECT: PASS
+    public put(Book b, integer pos) : void; // TEST 3.1.2 member function declaration (class parameter) | EXPECT: PASS
+};
+
+class Library inherits Shelf, Book { // TEST 3.1.3 inheritance list with multiple parents | EXPECT: PASS
+    public integer code; // TEST 3.1.1 class member integer declaration | EXPECT: PASS
+    public integer slots[3]; // TEST 3.1.1 integer array declaration | EXPECT: PASS
+    public compute(integer a, integer b) : integer; // TEST 3.1.2 member function declaration returning integer | EXPECT: PASS
+};
+
+Book::set(integer nid, float p) : void // TEST 3.1.2 member function definition
+    do
+        id = nid;
+        price = p;
+    end
+
+Shelf::put(Book b, integer pos) : void // TEST 3.1.2 member function definition with class-type parameter
+    do
+        books[pos] = b;
+        count = pos;
+    end
+
+Library::compute(integer a, integer b) : integer // TEST 3.1.2 member function definition with return(expr)
+    local
+        integer t;
+    do
+        t = a + b;
+        return(t); // TEST 3.1.6 return(expression) statement | EXPECT: PASS
+    end
+
+freeAdd(integer x, integer y) : integer // TEST 3.1.2 free function definition | EXPECT: PASS
+    do
+        return(x + y);
+    end
+
+main // TEST 3.1.2 main function definition | EXPECT: PASS
+    local
+        integer i; // TEST 3.1.1 local integer declaration | EXPECT: PASS
+        float f; // TEST 3.1.1 local float declaration | EXPECT: PASS
+        Book b; // TEST 3.1.1 local class-type declaration | EXPECT: PASS
+        Book bag[2]; // TEST 3.1.1 local array of class types declaration | EXPECT: PASS
+        Library lib; // TEST 3.1.1 local class-type declaration | EXPECT: PASS
+        integer r;
+    do
+        read(i); // TEST 3.1.6 read(var) statement | EXPECT: PASS
+        f = 1.5;
+        b.set(i, f); // TEST 3.1.7 function call as statement + 3.1.8 dot operator | EXPECT: PASS
+        lib.put(b, 0); // TEST 3.1.7 function call as statement + 3.1.8 dot operator | EXPECT: PASS
+        r = freeAdd(i, 2);
+        write(r); // TEST 3.1.6 write(expression) statement | EXPECT: PASS
+    end

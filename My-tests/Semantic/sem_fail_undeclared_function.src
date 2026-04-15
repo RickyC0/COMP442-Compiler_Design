@@ -1,3 +1,5 @@
+// TEST 6.1.23 / 11.4 [error] undeclared free function | EXPECT: ERROR
+
 main
     local
         integer a;

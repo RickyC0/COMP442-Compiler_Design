@@ -1,3 +1,5 @@
+// TEST 6.1.12 / 9.3 [warning] overridden member function | EXPECT: WARNING
+
 class Base {
     public foo(integer a) : void;
 };

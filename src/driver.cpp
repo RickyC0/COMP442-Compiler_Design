@@ -1,5 +1,3 @@
-#include <filesystem>
-#include <fstream>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
@@ -10,9 +8,23 @@
 #include "../include/token.h"
 #include "../include/my_parser.h"
 #include "../include/semantic.h"
+#include "../include/codegen.h"
 #include "../include/ui.h"
 
-namespace fs = std::filesystem;
+namespace {
+std::string buildBackEndSkipReason(bool parseSuccess, bool semanticHasErrors, const std::shared_ptr<ProgNode>& root) {
+    if (!parseSuccess) {
+        return "parser errors";
+    }
+    if (semanticHasErrors) {
+        return "semantic errors";
+    }
+    if (root == nullptr) {
+        return "missing AST";
+    }
+    return "prerequisites not satisfied";
+}
+}
 
 int main(int argc, char* argv[]) {
     // Check if the user provided a file argument
@@ -28,58 +40,34 @@ int main(int argc, char* argv[]) {
     UI::printTitle("COMP442 COMPILER DRIVER DASHBOARD");
     UI::printKV("Source", sourceFile);
 
-    // Create output directory: output/<baseName>/
-    std::string baseName = getBaseName(sourceFile);
-    std::string outputDir = createOutputDir(sourceFile);
-    UI::printKV("Output", outputDir);
-
-    fs::path lexerDir = fs::path(outputDir) / "Lexer";
-    fs::path parserDir = fs::path(outputDir) / "Parser";
-    fs::path astDir = fs::path(outputDir) / "AST";
-    fs::path semanticDir = fs::path(outputDir) / "Semantics";
-    fs::create_directories(lexerDir);
-    fs::create_directories(parserDir);
-    fs::create_directories(astDir);
-    fs::create_directories(semanticDir);
-
-    // Build output file paths
-    std::string valid_output_file = buildOutputPath(lexerDir.string(), baseName, ".outlextokens");
-    std::string invalid_output_file = buildOutputPath(lexerDir.string(), baseName, ".outlexerrors");
-    std::string derivation_file = buildOutputPath(parserDir.string(), baseName, ".outderivation");
-    std::string syntax_errors_file = buildOutputPath(parserDir.string(), baseName, ".outsyntaxerrors");
-    std::string ast_file = buildOutputPath(astDir.string(), baseName, ".outast");
-    std::string ast_dot_file = buildOutputPath(astDir.string(), baseName, ".outast.dot");
-    std::string ast_png_file = buildOutputPath(astDir.string(), baseName, ".outast.png");
-    std::string symbol_tables_file = buildOutputPath(semanticDir.string(), baseName, ".outsymboltables");
-    std::string semantic_errors_file = buildOutputPath(semanticDir.string(), baseName, ".outsemanticerrors");
+    CompilerOutputPaths outputs = prepareCompilerOutputPaths(sourceFile, argv[0]);
+    UI::printKV("Output", makeDisplayPath(outputs.outputDir));
 
     std::vector<std::vector<Token>> valid_tokens;
     bool parseSuccess = false;
     bool dotAvailable = false;
     bool pngGenerated = false;
-
-    auto writeLinesToFile = [](const std::string& path, const std::vector<std::string>& lines) {
-        std::ofstream out(path, std::ios::out | std::ios::trunc);
-        if (!out.is_open()) {
-            return false;
-        }
-
-        for (const auto& line : lines) {
-            out << line << "\n";
-        }
-        return true;
-    };
+    bool semanticHasErrors = false;
+    bool semanticHasWarnings = false;
+    bool codegenHasRunnableMoon = false;
 
     // LEXER PHASE
-    UI::printSection("[1/4] LEXICAL ANALYSIS");
+    UI::printSection("[1/6] LEXICAL ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
-        valid_tokens = lex_file(sourceFile, valid_output_file, invalid_output_file);
+        size_t lexicalErrorCount = 0;
+        valid_tokens = lex_file(sourceFile, outputs.validTokensFile, outputs.invalidTokensFile, &lexicalErrorCount);
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
-        UI::printStatusLine(true, "Tokenization completed");
-        phases.push_back({"Lexer", true, durationMs, "Generated token and lexical error files"});
+        if (lexicalErrorCount == 0) {
+            UI::printStatusLine(true, "Tokenization completed (no lexical errors)");
+            phases.push_back({"Lexer", true, durationMs, "Generated token and lexical error files"});
+        } else {
+            UI::printStatusLine(false, "Tokenization completed with " + std::to_string(lexicalErrorCount) + " lexical error(s)");
+            phases.push_back({"Lexer", false, durationMs,
+                              std::to_string(lexicalErrorCount) + " lexical error(s) written to file"});
+        }
 
     } catch (const std::exception& e) {
         UI::printCrash("Lexer", e.what());
@@ -89,13 +77,13 @@ int main(int argc, char* argv[]) {
     }
 
     // PARSER PHASE
-    UI::printSection("[2/4] SYNTACTIC ANALYSIS");
+    UI::printSection("[2/6] SYNTACTIC ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
         parseSuccess = Parser::parseTokens(valid_tokens);
 
-        writeSyntaxErrorsToFile(syntax_errors_file, Parser::getErrorMessages());
-        writeDerivationToFile(derivation_file, Parser::getDerivationSteps());
+        writeSyntaxErrorsToFile(outputs.syntaxErrorsFile, Parser::getErrorMessages());
+        writeDerivationToFile(outputs.derivationFile, Parser::getDerivationSteps());
         auto end = std::chrono::steady_clock::now();
         long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 
@@ -115,13 +103,13 @@ int main(int argc, char* argv[]) {
     }
 
     // AST PHASE
-    UI::printSection("[3/4] AST EXPORT");
+    UI::printSection("[3/6] AST EXPORT");
     try {
         auto start = std::chrono::steady_clock::now();
-        ASTPrinter::writeToFile(Parser::getASTRoot(), ast_file);
-        ASTPrinter::writeDotToFile(Parser::getASTRoot(), ast_dot_file);
+        ASTPrinter::writeToFile(Parser::getASTRoot(), outputs.astFile);
+        ASTPrinter::writeDotToFile(Parser::getASTRoot(), outputs.astDotFile);
 
-        UI::PngRenderResult pngResult = UI::renderAstPngFromDot(ast_dot_file, ast_png_file);
+        UI::PngRenderResult pngResult = UI::renderAstPngFromDot(outputs.astDotFile, outputs.astPngFile);
         dotAvailable = pngResult.dotAvailable;
         pngGenerated = pngResult.pngGenerated;
 
@@ -150,29 +138,31 @@ int main(int argc, char* argv[]) {
     }
 
     // SEMANTIC PHASE
-    UI::printSection("[4/4] SEMANTIC ANALYSIS");
+    UI::printSection("[4/6] SEMANTIC ANALYSIS");
     try {
         auto start = std::chrono::steady_clock::now();
 
         SemanticAnalyzer semanticAnalyzer;
         bool semanticSuccess = semanticAnalyzer.analyze(Parser::getASTRoot());
 
-        std::ofstream symbolOut(symbol_tables_file, std::ios::out | std::ios::trunc);
-        if (!symbolOut.is_open()) {
-            throw std::runtime_error("Failed to open symbol table output file: " + symbol_tables_file);
+        (void)semanticSuccess;
+
+        if (!writeTextToFile(outputs.symbolTablesFile, semanticAnalyzer.dumpSymbolTables())) {
+            throw std::runtime_error("Failed to open symbol table output file: " + outputs.symbolTablesFile);
         }
-        symbolOut << semanticAnalyzer.dumpSymbolTables();
 
         const auto& errors = semanticAnalyzer.getErrors();
         const auto& warnings = semanticAnalyzer.getWarnings();
         const bool hasErrors = !errors.empty();
         const bool hasWarnings = !warnings.empty();
+        semanticHasErrors = hasErrors;
+        semanticHasWarnings = hasWarnings;
 
         std::vector<std::string> semanticDiagnostics = errors;
         semanticDiagnostics.insert(semanticDiagnostics.end(), warnings.begin(), warnings.end());
 
-        if (!writeLinesToFile(semantic_errors_file, semanticDiagnostics)) {
-            throw std::runtime_error("Failed to open semantic errors output file: " + semantic_errors_file);
+        if (!writeLinesToFile(outputs.semanticDiagnosticsFile, semanticDiagnostics)) {
+            throw std::runtime_error("Failed to open semantic errors output file: " + outputs.semanticDiagnosticsFile);
         }
 
         auto end = std::chrono::steady_clock::now();
@@ -204,31 +194,138 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    const bool canAttemptBackEnd = parseSuccess && !semanticHasErrors && Parser::getASTRoot() != nullptr;
+
+    const std::string backEndSkipReason = buildBackEndSkipReason(parseSuccess, semanticHasErrors, Parser::getASTRoot());
+
+    // CODEGEN PHASE
+    UI::printSection("[5/6] CODE GENERATION");
+    if (!canAttemptBackEnd) {
+        UI::printWarning("Code generation not attempted because " + backEndSkipReason);
+        phases.push_back({"CodeGen", false, 0, "Not attempted due to " + backEndSkipReason});
+        if (!writeLinesToFile(outputs.codegenDiagnosticsFile, {
+            "[ERROR][CODEGEN] Not attempted due to " + backEndSkipReason
+        })) {
+            UI::printWarning("Failed to write codegen diagnostics file for skipped phase");
+        }
+    } else {
+        try {
+            auto start = std::chrono::steady_clock::now();
+
+            std::vector<std::string> codegenErrors;
+            bool codegenSuccess = false;
+            std::string details;
+
+            codegenSuccess = generateMoonAssembly(Parser::getASTRoot(), outputs.moonOutputFile, &codegenErrors);
+
+            if (!writeLinesToFile(outputs.codegenDiagnosticsFile, codegenErrors)) {
+                throw std::runtime_error("Failed to open codegen diagnostics output file: " + outputs.codegenDiagnosticsFile);
+            }
+
+            if (codegenSuccess && codegenErrors.empty()) {
+                details = "Moon assembly generated";
+                UI::printStatusLine(true, "Code generation completed");
+                codegenHasRunnableMoon = true;
+            } else if (codegenSuccess) {
+                details = "Moon assembly generated with codegen diagnostics";
+                UI::printWarning("Code generation completed with diagnostics");
+                codegenHasRunnableMoon = true;
+            } else {
+                details = "Code generation failed";
+                UI::printStatusLine(false, "Code generation failed");
+            }
+
+            phases.push_back({"CodeGen", codegenSuccess && codegenErrors.empty(),
+                              std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count(),
+                              details});
+
+        } catch (const std::exception& e) {
+            UI::printCrash("Code generation", e.what());
+            phases.push_back({"CodeGen", false, 0, e.what()});
+            UI::printSummaryTable(phases);
+            return 1;
+        }
+    }
+
+    // MOON EXECUTION PHASE
+    UI::printSection("[6/6] MOON SIMULATION");
+    if (!canAttemptBackEnd) {
+        UI::printWarning("Moon simulation not attempted because " + backEndSkipReason);
+        phases.push_back({"Moon", false, 0, "Not attempted due to " + backEndSkipReason});
+        if (!writeLinesToFile(outputs.moonRunLogFile, {
+            "[ERROR][MOON] Not attempted due to " + backEndSkipReason
+        })) {
+            UI::printWarning("Failed to write Moon run log for skipped phase");
+        }
+    } else if (!codegenHasRunnableMoon) {
+        UI::printWarning("Moon simulation not attempted because code generation did not produce runnable output");
+        phases.push_back({"Moon", false, 0, "Not attempted due to code generation failure"});
+        if (!writeLinesToFile(outputs.moonRunLogFile, {
+            "[ERROR][MOON] Not attempted due to code generation failure"
+        })) {
+            UI::printWarning("Failed to write Moon run log for skipped phase");
+        }
+    } else {
+        try {
+            auto start = std::chrono::steady_clock::now();
+
+            MoonRunResult moonResult = runMoonSimulator(argv[0], outputs.moonOutputFile, outputs.moonRunLogFile);
+
+            if (moonResult.success) {
+                UI::printStatusLine(true, "Moon simulation completed");
+            } else if (!moonResult.attempted) {
+                if (moonResult.details.find("executable not found") != std::string::npos) {
+                    UI::printWarning("Moon simulator executable not found at: " + moonResult.moonExecutablePath);
+                } else {
+                    UI::printWarning(moonResult.details);
+                }
+            } else {
+                UI::printStatusLine(false, "Moon simulation failed");
+            }
+
+            auto end = std::chrono::steady_clock::now();
+            long long durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            phases.push_back({"Moon", moonResult.success, durationMs, moonResult.details});
+
+        } catch (const std::exception& e) {
+            UI::printCrash("Moon simulation", e.what());
+            phases.push_back({"Moon", false, 0, e.what()});
+            UI::printSummaryTable(phases);
+            return 1;
+        }
+    }
+
     UI::printSummaryTable(phases);
 
-    UI::printArtifactList("Lexer Outputs", {
-        {"Tokens", valid_output_file},
-        {"Lex Errors", invalid_output_file}
-    });
+    UI::printArtifactList("Lexer Outputs", makeDisplayArtifacts({
+        {"Tokens", outputs.validTokensFile},
+        {"Lex Errors", outputs.invalidTokensFile}
+    }));
 
-    UI::printArtifactList("Parser Outputs", {
-        {"Derivation", derivation_file},
-        {"Syntax Errors", syntax_errors_file}
-    });
+    UI::printArtifactList("Parser Outputs", makeDisplayArtifacts({
+        {"Derivation", outputs.derivationFile},
+        {"Syntax Errors", outputs.syntaxErrorsFile}
+    }));
 
     std::vector<std::pair<std::string, std::string>> astArtifacts = {
-        {"AST", ast_file},
-        {"DOT", ast_dot_file}
+        {"AST", outputs.astFile},
+        {"DOT", outputs.astDotFile}
     };
     if (dotAvailable && pngGenerated) {
-        astArtifacts.push_back({"PNG", ast_png_file});
+        astArtifacts.push_back({"PNG", outputs.astPngFile});
     }
-    UI::printArtifactList("AST Outputs", astArtifacts);
+    UI::printArtifactList("AST Outputs", makeDisplayArtifacts(astArtifacts));
 
-    UI::printArtifactList("Semantic Outputs", {
-        {"Symbol Tables", symbol_tables_file},
-        {"Sem Diagnostics ", semantic_errors_file},
-    });
+    UI::printArtifactList("Semantic Outputs", makeDisplayArtifacts({
+        {"Symbol Tables", outputs.symbolTablesFile},
+        {"Sem Diagnostics ", outputs.semanticDiagnosticsFile},
+    }));
+
+    UI::printArtifactList("CodeGen Outputs", makeDisplayArtifacts({
+        {"Moon", outputs.moonOutputFile},
+        {"CodeGen Diags", outputs.codegenDiagnosticsFile},
+        {"Moon Run Log", outputs.moonRunLogFile},
+    }));
 
     UI::printDone();
 

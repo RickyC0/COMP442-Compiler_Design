@@ -7,6 +7,7 @@ main
         a = 2;
         b = 3;
         c = a + b * 1.5;
+        write(11111);
 
         if (a < b) then
             write(c);

@@ -1,7 +1,21 @@
+// TEST 6.1.11 / 9.2 [warning] overloaded member function | EXPECT: WARNING
+
 class A {
     public foo(integer a) : void;
     public foo(float a) : void;
 };
+
+A::foo(integer a): void
+    do
+        write(5);
+    end
+
+
+A::foo(float a): void
+    do
+    write(1.0);
+    end
+
 
 main
   do

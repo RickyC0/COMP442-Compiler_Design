@@ -1,0 +1,34 @@
+// TEST 4.1.2 free-function definitions with parameters         | EXPECT: PASS
+// TEST 4.1.1 local arrays + declarations                        | EXPECT: PASS
+// TEST 4.1.6 return/write statements                            | EXPECT: PASS
+// TEST 4.1.7 function calls (expression + statement forms)      | EXPECT: PASS
+
+sum(integer a, integer b) : integer
+    do
+        return(a + b);                     // TEST 4.1.6 return statement | EXPECT: PASS
+    end
+
+scale(float x, integer n, integer arr[]) : float
+    local
+        integer i;
+    do
+        i = 0;
+        while (i < n) do                   // TEST 4.1.5 while do-end block | EXPECT: PASS
+            arr[i] = arr[i] + 1;
+            i = i + 1;
+        end;
+        return(x * n);
+    end
+
+main
+    local
+        integer v[5];
+        integer r;
+        float f;
+    do
+        sum(3, 4);                         // TEST 4.1.7 function call statement   | EXPECT: PASS
+        r = sum(1, 2);
+        f = scale(2.5, 5, v);              // TEST 4.1.7 function call in expression | EXPECT: PASS
+        write(r);
+        write(f);
+    end

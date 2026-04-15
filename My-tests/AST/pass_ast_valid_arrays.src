@@ -1,0 +1,30 @@
+// TEST 4.1.1 declarations with arrays and class-type variables | EXPECT: PASS
+// TEST 4.1.2 member function declaration/definition           | EXPECT: PASS
+// TEST 4.1.7 function call statement                           | EXPECT: PASS
+// TEST 4.1.9 one- and two-dimensional indexing                 | EXPECT: PASS
+
+class Buffer {
+    public integer data[10];      // TEST 4.1.1 fixed-size array member | EXPECT: PASS
+    public integer grid[3][4];    // TEST 4.1.1 multidimensional member  | EXPECT: PASS
+    public put(integer idx, integer value) : void; // TEST 4.1.2 member function decl | EXPECT: PASS
+};
+
+Buffer::put(integer idx, integer value) : void
+    do
+        data[idx] = value;                  // TEST 4.1.9 index by variable/expression | EXPECT: PASS
+        grid[1][idx] = data[idx] + value * 2; // TEST 4.1.9 chained indexing            | EXPECT: PASS
+    end
+
+main
+    local
+        Buffer b;
+        integer i;
+    do
+        i = 0;
+        while (i < 4) do                     // TEST 4.1.5 while do-end statement block | EXPECT: PASS
+            b.put(i, i * 3);                 // TEST 4.1.7 call as a statement          | EXPECT: PASS
+            i = i + 1;
+        end;
+
+        write(b.grid[1][2]);                 // TEST 4.1.6 write statement               | EXPECT: PASS
+    end

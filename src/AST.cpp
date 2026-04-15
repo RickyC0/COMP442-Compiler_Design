@@ -5,6 +5,33 @@
 #include <unordered_map>
 #include <unordered_set>
 
+/**
+ * @file AST.cpp
+ * @brief AST visitor dispatch and AST export implementations.
+ *
+ * @details
+ * Provides:
+ * - concrete accept() forwarding for double-dispatch,
+ * - text-based AST pretty printer,
+ * - Graphviz DOT exporter with UML-inspired styling,
+ * - file-writing wrappers used by the driver pipeline.
+ *
+ * @par Why this organization?
+ * Export/visualization logic is isolated from AST node definitions so traversal
+ * policies can evolve independently from tree structure.
+ *
+ * @par What comes next?
+ * Additional exporters (JSON, XML, IR dumps) should follow the same visitor
+ * pattern and be added beside existing ASTPrinter functions.
+ */
+
+/**
+ * @brief Double-dispatch forwarding methods for all concrete AST nodes.
+ *
+ * @details
+ * Each accept method routes control to the visitor overload that matches the
+ * concrete node type, enabling pass-specific logic without node-side branching.
+ */
 void IdNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 void IntLitNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 void FloatLitNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
@@ -25,10 +52,20 @@ void ClassDeclNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 void ProgNode::accept(ASTVisitor& visitor) { visitor.visit(*this); }
 
 namespace {
+/**
+ * @brief Build indentation padding for text AST output.
+ * @param depth Tree depth.
+ * @return String containing two spaces per depth level.
+ */
 std::string makeIndent(int depth) {
     return std::string(depth * 2, ' ');
 }
 
+/**
+ * @brief Escape DOT label-sensitive characters.
+ * @param text Raw label text.
+ * @return Escaped label safe for Graphviz node/edge labels.
+ */
 std::string escapeDotLabel(const std::string& text) {
     std::string escaped;
     escaped.reserve(text.size());
@@ -41,6 +78,11 @@ std::string escapeDotLabel(const std::string& text) {
     return escaped;
 }
 
+/**
+ * @brief Build a concise node label including line metadata.
+ * @param node AST node.
+ * @return Label in "value [line N]" form.
+ */
 std::string nodeLabel(ASTNode& node) {
     return node.getValue() + " [line " + std::to_string(node.getLineNumber()) + "]";
 }
@@ -48,6 +90,14 @@ std::string nodeLabel(ASTNode& node) {
 // ============================================================================
 // TEXT VISITOR
 // ============================================================================
+/**
+ * @class TextASTVisitor
+ * @brief Visitor that serializes AST into a readable indented text tree.
+ *
+ * @details
+ * This representation is optimized for diagnostics and grading output. Sections
+ * like "params", "locals", and "body" make declaration/statement context explicit.
+ */
 class TextASTVisitor : public ASTVisitor {
     public:
         std::string str() const { return _out.str(); }
@@ -209,6 +259,15 @@ class TextASTVisitor : public ASTVisitor {
 // ============================================================================
 // UML DOT VISITOR
 // ============================================================================
+/**
+ * @class DotASTVisitor
+ * @brief Visitor that serializes AST into UML-styled Graphviz DOT graph.
+ *
+ * @details
+ * Node shapes/colors are category-driven (program/class/function/statement/etc.)
+ * and edge labels encode semantic relations (member, inherits, cond, arg, ...).
+ * A legend subgraph is emitted to keep visualization self-describing.
+ */
 class DotASTVisitor : public ASTVisitor {
     public:
         std::string dot() const {
@@ -377,6 +436,11 @@ class DotASTVisitor : public ASTVisitor {
 };
 }
 
+/**
+ * @brief Convert AST root to text format.
+ * @param root AST root node.
+ * @return Text tree representation ("<null>" for empty root).
+ */
 std::string ASTPrinter::toString(const std::shared_ptr<ASTNode>& root) {
     TextASTVisitor visitor;
     if (root == nullptr) return "<null>\n";
@@ -384,6 +448,12 @@ std::string ASTPrinter::toString(const std::shared_ptr<ASTNode>& root) {
     return visitor.str();
 }
 
+/**
+ * @brief Write text AST representation to file.
+ * @param root AST root node.
+ * @param filePath Destination path.
+ * @return True on success, false on file-open failure.
+ */
 bool ASTPrinter::writeToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath) {
     std::ofstream file(filePath, std::ios::out | std::ios::trunc);
     if (!file.is_open()) return false;
@@ -391,12 +461,23 @@ bool ASTPrinter::writeToFile(const std::shared_ptr<ASTNode>& root, const std::st
     return true;
 }
 
+/**
+ * @brief Convert AST root to Graphviz DOT format.
+ * @param root AST root node.
+ * @return DOT graph text.
+ */
 std::string ASTPrinter::toDot(const std::shared_ptr<ASTNode>& root) {
     DotASTVisitor visitor;
     if (root != nullptr) root->accept(visitor);
     return visitor.dot();
 }
 
+/**
+ * @brief Write DOT AST representation to file.
+ * @param root AST root node.
+ * @param filePath Destination path.
+ * @return True on success, false on file-open failure.
+ */
 bool ASTPrinter::writeDotToFile(const std::shared_ptr<ASTNode>& root, const std::string& filePath) {
     std::ofstream file(filePath, std::ios::out | std::ios::trunc);
     if (!file.is_open()) return false;

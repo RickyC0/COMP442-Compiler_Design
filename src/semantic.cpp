@@ -7,11 +7,35 @@
 #include <sstream>
 #include <unordered_set>
 
+/**
+ * @file semantic.cpp
+ * @brief Semantic analyzer implementation: two-pass checks and scope management.
+ *
+ * @details
+ * Implements:
+ * - symbol table construction and resolution,
+ * - semantic rule enforcement over AST traversal,
+ * - expression type inference for compatibility checks,
+ * - symbol-table dump utilities for diagnostics/reporting.
+ *
+ * @par Why two-pass analysis?
+ * Pass 1 collects declarations/signatures to support forward references and
+ * class/member visibility relationships. Pass 2 then validates usage against a
+ * complete symbol context.
+ *
+ * @par What comes next?
+ * New semantic rules should be added in visit methods with consistent diagnostic
+ * formatting and accompanied by inferExprType updates when rule evaluation depends
+ * on expression category synthesis.
+ */
+
 namespace {
+/** @brief Check if a type name is a language builtin scalar/void type. */
 bool isBuiltinType(const std::string& typeName) {
     return typeName == "integer" || typeName == "float" || typeName == "void" || typeName == "bool";
 }
 
+/** @brief Return trimmed copy of input string. */
 std::string trimCopy(std::string s) {
     while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
         s.erase(s.begin());
@@ -22,6 +46,11 @@ std::string trimCopy(std::string s) {
     return s;
 }
 
+/**
+ * @brief Parse inherited parent class names from encoded class type descriptor.
+ * @param classType Class descriptor text (for example "class : A, B").
+ * @return Parent class names in declaration order.
+ */
 std::vector<std::string> parseParentsFromClassType(const std::string& classType) {
     std::vector<std::string> parents;
     size_t colon = classType.find(':');
@@ -51,6 +80,7 @@ std::vector<std::string> parseParentsFromClassType(const std::string& classType)
     return parents;
 }
 
+/** @brief Extract class name from scope label "class X". */
 std::string classNameFromScope(const std::string& scopeName) {
     if (scopeName.rfind("class ", 0) == 0) {
         return scopeName.substr(6);
@@ -58,14 +88,20 @@ std::string classNameFromScope(const std::string& scopeName) {
     return "";
 }
 
+/**
+ * @brief Find enclosing class name from function scope ancestry.
+ * @param scope Current scope.
+ * @return Enclosing class name or empty string.
+ */
 std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& scope) {
     std::shared_ptr<SymbolTable> currentScope = scope;
     while (currentScope != nullptr) {
         const std::string name = currentScope->getScopeName();
         if (name.rfind("function ", 0) == 0) {
-            size_t sep = name.find("::");
+            const size_t functionPrefixLen = std::string("function ").size();
+            size_t sep = name.find("::", functionPrefixLen);
             if (sep != std::string::npos) {
-                return name.substr(5, sep - 5);
+                return name.substr(functionPrefixLen, sep - functionPrefixLen);
             }
             return "";
         }
@@ -74,6 +110,11 @@ std::string enclosingClassFromFunctionScope(const std::shared_ptr<SymbolTable>& 
     return "";
 }
 
+/**
+ * @brief Convert internal scope name into user-facing diagnostic scope label.
+ * @param scope Scope pointer.
+ * @return Friendly scope name.
+ */
 std::string getUserFriendlyScopeName(const std::shared_ptr<SymbolTable>& scope) {
     if (scope == nullptr) {
         return "";
@@ -99,6 +140,11 @@ std::string getUserFriendlyScopeName(const std::shared_ptr<SymbolTable>& scope) 
     return scopeName;
 }
 
+/**
+ * @brief Detect whether subtree contains any return statement.
+ * @param node Subtree root.
+ * @return True if at least one ReturnStmtNode exists in subtree.
+ */
 bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
     if (node == nullptr) {
         return false;
@@ -140,17 +186,124 @@ bool containsReturnStatement(const std::shared_ptr<ASTNode>& node) {
 
     return containsReturnStatement(node->getLeft()) || containsReturnStatement(node->getRight());
 }
+
+/**
+ * @brief Try compile-time evaluation of integer constant expressions.
+ * @param node Expression node.
+ * @param outValue Result when evaluation succeeds.
+ * @return True if expression is an evaluable integer constant.
+ *
+ * @details
+ * Used for semantic bounds checks where literal or foldable integer values are
+ * required to issue precise diagnostics.
+ */
+bool tryEvalIntConst(const std::shared_ptr<ASTNode>& node, int& outValue) {
+    if (node == nullptr) {
+        return false;
+    }
+
+    if (auto intNode = std::dynamic_pointer_cast<IntLitNode>(node)) {
+        outValue = intNode->getIntValue();
+        return true;
+    }
+
+    if (auto unaryNode = std::dynamic_pointer_cast<UnaryOpNode>(node)) {
+        int operand = 0;
+        if (!tryEvalIntConst(unaryNode->getLeft(), operand)) {
+            return false;
+        }
+
+        const std::string op = unaryNode->getOperator();
+        if (op == "-") {
+            outValue = -operand;
+            return true;
+        }
+        if (op == "+") {
+            outValue = operand;
+            return true;
+        }
+
+        return false;
+    }
+
+    if (auto binaryNode = std::dynamic_pointer_cast<BinaryOpNode>(node)) {
+        int leftValue = 0;
+        int rightValue = 0;
+        if (!tryEvalIntConst(binaryNode->getLeft(), leftValue) || !tryEvalIntConst(binaryNode->getRight(), rightValue)) {
+            return false;
+        }
+
+        const std::string op = binaryNode->getOperator();
+        if (op == "+") {
+            outValue = leftValue + rightValue;
+            return true;
+        }
+        if (op == "-") {
+            outValue = leftValue - rightValue;
+            return true;
+        }
+        if (op == "*") {
+            outValue = leftValue * rightValue;
+            return true;
+        }
+        if (op == "/") {
+            if (rightValue == 0) {
+                return false;
+            }
+            outValue = leftValue / rightValue;
+            return true;
+        }
+        if (op == "mod") {
+            if (rightValue == 0) {
+                return false;
+            }
+            outValue = leftValue % rightValue;
+            return true;
+        }
+    }
+
+    return false;
 }
 
+std::string functionParamProfile(const FuncDefNode& node) {
+    std::ostringstream profile;
+    profile << "(";
+    const auto params = node.getParams();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) {
+            profile << ",";
+        }
+
+        profile << params[i]->getTypeName();
+        for (int dim : params[i]->getDimensions()) {
+            if (dim < 0) {
+                profile << "[]";
+            } else {
+                profile << "[" << dim << "]";
+            }
+        }
+    }
+    profile << ")";
+    return profile.str();
+}
+}
+
+/**
+ * @brief Construct scope table with optional parent link.
+ * @param scopeName Scope display name.
+ * @param parent Parent scope or null for global scope.
+ */
 SymbolTable::SymbolTable(const std::string& scopeName, std::shared_ptr<SymbolTable> parent)
     : _scopeName(scopeName), _parent(parent) {}
 
+/** @brief Create child scope and register in current scope children list. */
 std::shared_ptr<SymbolTable> SymbolTable::createChild(const std::string& scopeName) {
     std::shared_ptr<SymbolTable> child = std::make_shared<SymbolTable>(scopeName, shared_from_this());
     _children.push_back(child);
     return child;
 }
 
+/** @brief Define symbol in current scope if name is not already present. */
 bool SymbolTable::define(const SymbolEntry& entry) {
     if (_entryIndex.find(entry.name) != _entryIndex.end()) {
         return false;
@@ -161,6 +314,7 @@ bool SymbolTable::define(const SymbolEntry& entry) {
     return true;
 }
 
+/** @brief Lookup symbol only in current scope (const). */
 const SymbolEntry* SymbolTable::lookupInCurrent(const std::string& name) const {
     auto it = _entryIndex.find(name);
     if (it == _entryIndex.end()) {
@@ -169,6 +323,7 @@ const SymbolEntry* SymbolTable::lookupInCurrent(const std::string& name) const {
     return &_entries[it->second];
 }
 
+/** @brief Lookup symbol only in current scope (mutable). */
 SymbolEntry* SymbolTable::lookupMutableInCurrent(const std::string& name) {
     auto it = _entryIndex.find(name);
     if (it == _entryIndex.end()) {
@@ -177,6 +332,7 @@ SymbolEntry* SymbolTable::lookupMutableInCurrent(const std::string& name) {
     return &_entries[it->second];
 }
 
+/** @brief Resolve symbol recursively through parent scopes. */
 const SymbolEntry* SymbolTable::resolve(const std::string& name) const {
     const SymbolEntry* inCurrent = lookupInCurrent(name);
     if (inCurrent != nullptr) {
@@ -190,31 +346,54 @@ const SymbolEntry* SymbolTable::resolve(const std::string& name) const {
     return parent->resolve(name);
 }
 
+/** @brief Get scope name. */
 const std::string& SymbolTable::getScopeName() const {
     return _scopeName;
 }
 
+/** @brief Get parent scope. */
 std::shared_ptr<SymbolTable> SymbolTable::getParent() const {
     return _parent.lock();
 }
 
+/** @brief Get child scopes. */
 const std::vector<std::shared_ptr<SymbolTable>>& SymbolTable::getChildren() const {
     return _children;
 }
 
+/** @brief Get entries defined directly in this scope. */
 const std::vector<SymbolEntry>& SymbolTable::getEntries() const {
     return _entries;
 }
 
+/**
+ * @brief Run semantic analyzer passes over program root.
+ * @param root Program AST root.
+ * @return True if no semantic errors were emitted.
+ *
+ * @details
+ * Execution order:
+ * 1) pass 1 declaration/scope construction,
+ * 2) cross-pass global checks (undefined member declarations, inheritance cycles),
+ * 3) pass 2 usage/type checks.
+ */
 bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     _errors.clear();
     _warnings.clear();
     _blockCounter = 0;
     _classScopes.clear();
+    _declaredClassNames.clear();
+    _declaredMemberFunctionKeys.clear();
     _functionReturnTypeStack.clear();
     _globalScope = std::make_shared<SymbolTable>("global");
 
     if (root != nullptr) {
+        for (const auto& cls : root->getClasses()) {
+            if (cls != nullptr) {
+                _declaredClassNames.insert(cls->getName());
+            }
+        }
+
         setPassOne(true);
         _blockCounter = 0;
         _currentScope = _globalScope;
@@ -291,20 +470,24 @@ bool SemanticAnalyzer::analyze(const std::shared_ptr<ProgNode>& root) {
     return _errors.empty();
 }
 
+/** @brief Return semantic error list. */
 const std::vector<std::string>& SemanticAnalyzer::getErrors() const {
     return _errors;
 }
 
+/** @brief Return semantic warning list. */
 const std::vector<std::string>& SemanticAnalyzer::getWarnings() const {
     return _warnings;
 }
 
+/** @brief Produce formatted symbol-table dump for all scopes. */
 std::string SemanticAnalyzer::dumpSymbolTables() const {
     std::string out;
     dumpScope(_globalScope, 0, out);
     return out;
 }
 
+/** @brief Validate identifier use in pass 2 by lexical resolution. */
 void SemanticAnalyzer::visit(IdNode& node) {
     if (isPassOne()) {
         return;
@@ -315,10 +498,18 @@ void SemanticAnalyzer::visit(IdNode& node) {
     }
 }
 
+/** @brief Integer literal has no standalone semantic action. */
 void SemanticAnalyzer::visit(IntLitNode&) {}
+/** @brief Float literal has no standalone semantic action. */
 void SemanticAnalyzer::visit(FloatLitNode&) {}
+/** @brief Type node has no standalone semantic action. */
 void SemanticAnalyzer::visit(TypeNode&) {}
 
+/**
+ * @brief Validate binary-expression operand compatibility.
+ * @details
+ * Current rule set enforces numeric operands for arithmetic-style expressions.
+ */
 void SemanticAnalyzer::visit(BinaryOpNode& node) {
     if (isPassOne()) {
         return;
@@ -339,10 +530,17 @@ void SemanticAnalyzer::visit(BinaryOpNode& node) {
     }
 }
 
+/** @brief Traverse unary operand. */
 void SemanticAnalyzer::visit(UnaryOpNode& node) {
     visitNode(node.getLeft());
 }
 
+/**
+ * @brief Validate function/method call declaration and parameter compatibility.
+ * @details
+ * Handles free-function and owner-qualified method-call forms, then enforces
+ * argument count/type compatibility and selected array-size semantic checks.
+ */
 void SemanticAnalyzer::visit(FuncCallNode& node) {
     if (isPassOne()) {
         return;
@@ -417,19 +615,110 @@ void SemanticAnalyzer::visit(FuncCallNode& node) {
                 );
             }
         }
+
+        auto resolveArrayFirstDimension = [&](const std::shared_ptr<ASTNode>& arg, int& firstDimension, std::string& displayName) -> bool {
+            firstDimension = -1;
+            displayName.clear();
+
+            if (auto idNode = std::dynamic_pointer_cast<IdNode>(arg)) {
+                const SymbolEntry* argSymbol = _currentScope->resolve(idNode->getName());
+                if (argSymbol != nullptr && !argSymbol->dimensions.empty() && argSymbol->dimensions[0] > 0) {
+                    firstDimension = argSymbol->dimensions[0];
+                    displayName = idNode->getName();
+                    return true;
+                }
+                return false;
+            }
+
+            auto memberNode = std::dynamic_pointer_cast<DataMemberNode>(arg);
+            if (memberNode == nullptr || !memberNode->getIndices().empty()) {
+                return false;
+            }
+
+            if (memberNode->getLeft() == nullptr) {
+                const SymbolEntry* argSymbol = _currentScope->resolve(memberNode->getName());
+                if (argSymbol != nullptr && !argSymbol->dimensions.empty() && argSymbol->dimensions[0] > 0) {
+                    firstDimension = argSymbol->dimensions[0];
+                    displayName = memberNode->getName();
+                    return true;
+                }
+                return false;
+            }
+
+            const std::string ownerType = inferExprType(memberNode->getLeft());
+            const SymbolEntry* memberSymbol = resolveClassMember(ownerType, memberNode->getName());
+            if (memberSymbol != nullptr && !memberSymbol->dimensions.empty() && memberSymbol->dimensions[0] > 0) {
+                firstDimension = memberSymbol->dimensions[0];
+                displayName = memberNode->getName();
+                return true;
+            }
+
+            return false;
+        };
+
+        const std::vector<std::vector<int>>& expectedParamDimensions = symbol->paramDimensions;
+        if (expectedParamDimensions.size() == args.size()) {
+            for (size_t i = 0; i + 1 < args.size(); ++i) {
+                const std::vector<int>& dims = expectedParamDimensions[i];
+                if (dims.empty() || dims[0] >= 0) {
+                    continue;
+                }
+
+                if (expectedParamTypes[i + 1] != "integer") {
+                    continue;
+                }
+
+                int requestedExtent = 0;
+                if (!tryEvalIntConst(args[i + 1], requestedExtent)) {
+                    continue;
+                }
+
+                int actualExtent = -1;
+                std::string arrayName;
+                if (!resolveArrayFirstDimension(args[i], actualExtent, arrayName)) {
+                    continue;
+                }
+
+                if (requestedExtent < 0) {
+                    reportError(
+                        node.getLineNumber(),
+                        "13.3 potential out-of-bounds access in call to '" + node.getFunctionName() +
+                        "': size argument " + std::to_string(requestedExtent) +
+                        " is negative for array '" + arrayName + "'"
+                    );
+                } else if (requestedExtent > actualExtent) {
+                    reportError(
+                        node.getLineNumber(),
+                        "13.3 potential out-of-bounds access in call to '" + node.getFunctionName() +
+                        "': size argument " + std::to_string(requestedExtent) +
+                        " exceeds declared size " + std::to_string(actualExtent) +
+                        " for array '" + arrayName + "'"
+                    );
+                }
+            }
+        }
     }
 }
 
+/**
+ * @brief Validate member access and array indexing semantics.
+ * @details
+ * Checks declaration visibility, owner-type/member existence, dimensional arity,
+ * integer index typing, and constant index bounds when evaluable.
+ */
 void SemanticAnalyzer::visit(DataMemberNode& node) {
     if (isPassOne()) {
         return;
     }
+
+    std::vector<int> declaredDimensions;
 
     if (node.getLeft() == nullptr) {
         const SymbolEntry* symbol = _currentScope->resolve(node.getName());
         if (symbol == nullptr) {
             reportError(node.getLineNumber(), "11.2 undeclared member variable or unresolved identifier: '" + node.getName() + "'");
         } else {
+            declaredDimensions = symbol->dimensions;
             // Check array dimensions match
             const size_t declaredDimensions = symbol->dimensions.size();
             const size_t accessedDimensions = node.getIndices().size();
@@ -452,20 +741,45 @@ void SemanticAnalyzer::visit(DataMemberNode& node) {
                 reportError(node.getLineNumber(), "15.1 '.' operator used on non-class type '" + ownerBase + "'");
             } else if (member == nullptr) {
                 reportError(node.getLineNumber(), "11.2 undeclared member variable: type '" + ownerBase + "' has no member named '" + node.getName() + "'");
+            } else {
+                declaredDimensions = member->dimensions;
             }
         }
     }
 
+    size_t dimIdx = 0;
     visitNode(node.getLeft());
     for (const auto& idx : node.getIndices()) {
         const std::string indexType = inferExprType(idx);
         if (indexType != "null" && indexType != "integer") {
             reportError(node.getLineNumber(), "13.2 array index is not an integer");
         }
+
+        int constantIndex = 0;
+        if (tryEvalIntConst(idx, constantIndex)) {
+            if (constantIndex < 0) {
+                reportError(
+                    node.getLineNumber(),
+                    "13.3 array index out of bounds: index " + std::to_string(constantIndex) +
+                    " for array '" + node.getName() + "'"
+                );
+            } else if (dimIdx < declaredDimensions.size() && declaredDimensions[dimIdx] > 0 &&
+                       constantIndex >= declaredDimensions[dimIdx]) {
+                reportError(
+                    node.getLineNumber(),
+                    "13.3 array index out of bounds: index " + std::to_string(constantIndex) +
+                    " exceeds upper bound " + std::to_string(declaredDimensions[dimIdx] - 1) +
+                    " for array '" + node.getName() + "'"
+                );
+            }
+        }
+
+        ++dimIdx;
         visitNode(idx);
     }
 }
 
+/** @brief Validate assignment type compatibility rules. */
 void SemanticAnalyzer::visit(AssignStmtNode& node) {
     if (isPassOne()) {
         return;
@@ -485,6 +799,7 @@ void SemanticAnalyzer::visit(AssignStmtNode& node) {
     }
 }
 
+/** @brief Validate if-condition type and traverse branches. */
 void SemanticAnalyzer::visit(IfStmtNode& node) {
     if (isPassOne()) {
         visitNode(node.getRight());
@@ -508,6 +823,7 @@ void SemanticAnalyzer::visit(IfStmtNode& node) {
     visitNode(node.getElseBlock());
 }
 
+/** @brief Validate while-condition type and traverse loop body. */
 void SemanticAnalyzer::visit(WhileStmtNode& node) {
     if (isPassOne()) {
         visitNode(node.getRight());
@@ -529,10 +845,48 @@ void SemanticAnalyzer::visit(WhileStmtNode& node) {
     visitNode(node.getRight());
 }
 
+/** @brief Validate read/write statement operand constraints. */
 void SemanticAnalyzer::visit(IOStmtNode& node) {
+    if (isPassOne()) {
+        visitNode(node.getLeft());
+        return;
+    }
+
     visitNode(node.getLeft());
+
+    const std::string ioType = node.getValue();
+    const std::string exprType = inferExprType(node.getLeft());
+    const std::string baseType = baseTypeName(exprType);
+
+    if (exprType == "null") {
+        return;
+    }
+
+    if (ioType == "read") {
+        if (std::dynamic_pointer_cast<IdNode>(node.getLeft()) == nullptr &&
+            std::dynamic_pointer_cast<DataMemberNode>(node.getLeft()) == nullptr) {
+            reportError(node.getLineNumber(), "read statement requires an assignable variable/member target");
+            return;
+        }
+
+        if (baseType != "integer" && baseType != "float" && baseType != "bool") {
+            reportError(
+                node.getLineNumber(),
+                "read statement target must be scalar integer/float/bool, found '" + baseType + "'"
+            );
+        }
+
+        return;
+    }
+
+    if (ioType == "write") {
+        if (baseType == "void") {
+            reportError(node.getLineNumber(), "write statement cannot output expression of type 'void'");
+        }
+    }
 }
 
+/** @brief Validate return statement placement and type compatibility. */
 void SemanticAnalyzer::visit(ReturnStmtNode& node) {
     if (isPassOne()) {
         return;
@@ -584,6 +938,7 @@ void SemanticAnalyzer::visit(ReturnStmtNode& node) {
     }
 }
 
+/** @brief Enter block scope, visit statements, then restore previous scope. */
 void SemanticAnalyzer::visit(BlockNode& node) {
     std::shared_ptr<SymbolTable> prev = _currentScope;
     _currentScope = getOrCreateChildScope(_currentScope, "block#" + std::to_string(++_blockCounter));
@@ -595,9 +950,14 @@ void SemanticAnalyzer::visit(BlockNode& node) {
     _currentScope = prev;
 }
 
+/**
+ * @brief Register and validate variable/field declarations.
+ * @details
+ * Enforces class-type existence and selected shadowing diagnostics.
+ */
 void SemanticAnalyzer::visit(VarDeclNode& node) {
     const std::string declaredTypeBase = baseTypeName(node.getTypeName());
-    if (!isBuiltinType(declaredTypeBase) && _classScopes.find(declaredTypeBase) == _classScopes.end()) {
+    if (!isBuiltinType(declaredTypeBase) && _declaredClassNames.find(declaredTypeBase) == _declaredClassNames.end()) {
         reportError(node.getLineNumber(), "11.5 undeclared class: '" + declaredTypeBase + "'");
     }
 
@@ -608,7 +968,7 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
             if (classIt != _classScopes.end() && classIt->second != nullptr) {
                 const SymbolEntry* classMember = classIt->second->lookupInCurrent(node.getName());
                 if (classMember != nullptr && classMember->kind == SymbolKind::Field) {
-                    reportWarning(node.getLineNumber(), "8.6 local variable shadows data member: '" + node.getName() + "'");
+                    reportWarning(node.getLineNumber(), "8.7 local variable in member function shadows data member: '" + node.getName() + "'");
                 }
             }
         }
@@ -625,7 +985,7 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
                     if (parentIt != _classScopes.end() && parentIt->second != nullptr) {
                         const SymbolEntry* inherited = parentIt->second->lookupInCurrent(node.getName());
                         if (inherited != nullptr && inherited->kind == SymbolKind::Field) {
-                            reportWarning(node.getLineNumber(), "8.5 shadowed inherited data member: '" + node.getName() + "'");
+                            reportWarning(node.getLineNumber(), "8.6 shadowed inherited data member: '" + node.getName() + "'");
                         }
                     }
                 }
@@ -646,6 +1006,12 @@ void SemanticAnalyzer::visit(VarDeclNode& node) {
     defineSymbol(entry);
 }
 
+/**
+ * @brief Handle function/method declaration, implementation, and body checks.
+ * @details
+ * Pass 1: signature registration and declaration/implementation bookkeeping.
+ * Pass 2: scope setup, parameter definitions, body traversal, and return checks.
+ */
 void SemanticAnalyzer::visit(FuncDefNode& node) {
     std::shared_ptr<SymbolTable> ownerScope = _currentScope;
     std::string ownerClass;
@@ -674,14 +1040,25 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     _currentScope = ownerScope;
 
     const bool isImplementation = node.getRight() != nullptr;
+    const std::string paramProfile = functionParamProfile(node);
+    const std::string memberFunctionKey = ownerClass.empty()
+        ? std::string()
+        : (ownerClass + "::" + node.getName() + paramProfile);
+
+    if (isPassOne() && !ownerClass.empty() && !isImplementation) {
+        _declaredMemberFunctionKeys.insert(memberFunctionKey);
+    }
+
     if (isPassOne()) {
         SymbolEntry entry;
         entry.name = node.getName();
         entry.type = functionSignature(node);
         entry.returnType = node.getReturnType();
         entry.paramTypes.clear();
+        entry.paramDimensions.clear();
         for (const auto& param : node.getParams()) {
             entry.paramTypes.push_back(param->getTypeName());
+            entry.paramDimensions.push_back(param->getDimensions());
         }
         entry.kind = SymbolKind::Function;
         entry.visibility = "n/a";
@@ -701,7 +1078,10 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         } else if (existing->kind != SymbolKind::Function) {
             reportError(entry.line, "symbol '" + entry.name + "' already exists with non-function kind in scope '" + _currentScope->getScopeName() + "'");
         } else {
-            if (existing->type != entry.type) {
+            const bool sameParameterProfile = (existing->paramTypes == entry.paramTypes) &&
+                                              (existing->paramDimensions == entry.paramDimensions);
+
+            if (!sameParameterProfile) {
                 if (ownerClass.empty()) {
                     reportWarning(entry.line, "9.1 overloaded free function: '" + entry.name + "'");
                 } else {
@@ -713,9 +1093,9 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
 
             const bool existingHasDecl = existing->details.find("declaration") != std::string::npos;
             const bool existingHasImpl = existing->details.find("implementation") != std::string::npos;
-            if (isImplementation && existingHasDecl && !existingHasImpl) {
+            if (isImplementation && sameParameterProfile && existingHasDecl && !existingHasImpl) {
                 existing->details = ownerDescriptor + " (declaration + implementation)";
-            } else if (isImplementation && existingHasImpl) {
+            } else if (isImplementation && sameParameterProfile && existingHasImpl) {
                 if (ownerClass.empty()) {
                     reportError(entry.line, "8.2 multiply declared free function: '" + entry.name + "'");
                 } else {
@@ -731,10 +1111,7 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     }
 
     if (!isPassOne() && !ownerClass.empty()) {
-        const SymbolEntry* declaredMethod = _currentScope->lookupInCurrent(node.getName());
-        const bool hasDeclaration = declaredMethod != nullptr &&
-            declaredMethod->kind == SymbolKind::Function &&
-            declaredMethod->details.find("declaration") != std::string::npos;
+        const bool hasDeclaration = _declaredMemberFunctionKeys.find(memberFunctionKey) != _declaredMemberFunctionKeys.end();
         if (!hasDeclaration) {
             reportError(
                 node.getLineNumber(),
@@ -749,7 +1126,9 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
         return;
     }
 
-    std::string funcScopeName = ownerClass.empty() ? ("function " + node.getName()) : ("function " + ownerClass + "::" + node.getName());
+    std::string funcScopeName = ownerClass.empty()
+        ? ("function " + node.getName() + paramProfile)
+        : ("function " + ownerClass + "::" + node.getName() + paramProfile);
     std::shared_ptr<SymbolTable> prev = _currentScope;
     _currentScope = getOrCreateChildScope(_currentScope, funcScopeName);
 
@@ -780,6 +1159,12 @@ void SemanticAnalyzer::visit(FuncDefNode& node) {
     _currentScope = prevScope;
 }
 
+/**
+ * @brief Process class declaration and class-member semantic rules.
+ * @details
+ * Pass 1 registers class scope and fields before methods.
+ * Pass 2 validates member bodies/usages.
+ */
 void SemanticAnalyzer::visit(ClassDeclNode& node) {
     if (isPassOne()) {
         SymbolEntry entry;
@@ -838,6 +1223,7 @@ void SemanticAnalyzer::visit(ClassDeclNode& node) {
     _currentScope = prev;
 }
 
+/** @brief Program-level traversal entry: classes then functions. */
 void SemanticAnalyzer::visit(ProgNode& node) {
     for (const auto& cls : node.getClasses()) {
         visitNode(cls);
@@ -848,14 +1234,21 @@ void SemanticAnalyzer::visit(ProgNode& node) {
     }
 }
 
+/** @brief Append semantic error diagnostic with standardized prefix. */
 void SemanticAnalyzer::reportError(int line, const std::string& message) {
     _errors.push_back("[ERROR][SEMANTIC] line " + std::to_string(line) + ": " + message);
 }
 
+/** @brief Append semantic warning diagnostic with standardized prefix. */
 void SemanticAnalyzer::reportWarning(int line, const std::string& message) {
     _warnings.push_back("[WARNING][SEMANTIC] line " + std::to_string(line) + ": " + message);
 }
 
+/**
+ * @brief Define symbol in current scope with language-specific redeclaration policy.
+ * @param entry Symbol to define.
+ * @return True if accepted (defined or pass-2-safe reuse), false if rejected.
+ */
 bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
     if (_currentScope == nullptr) {
         return false;
@@ -892,12 +1285,19 @@ bool SemanticAnalyzer::defineSymbol(const SymbolEntry& entry) {
     return false;
 }
 
+/** @brief Null-safe node visitation helper. */
 void SemanticAnalyzer::visitNode(const std::shared_ptr<ASTNode>& node) {
     if (node != nullptr) {
         node->accept(*this);
     }
 }
 
+/**
+ * @brief Reuse matching child scope (pass 2) or create fresh child scope (pass 1).
+ * @param parent Parent scope.
+ * @param scopeName Target child scope label.
+ * @return Matching or newly created child scope.
+ */
 std::shared_ptr<SymbolTable> SemanticAnalyzer::getOrCreateChildScope(const std::shared_ptr<SymbolTable>& parent, const std::string& scopeName) {
     if (parent == nullptr) {
         return nullptr;
@@ -914,6 +1314,7 @@ std::shared_ptr<SymbolTable> SemanticAnalyzer::getOrCreateChildScope(const std::
     return parent->createChild(scopeName);
 }
 
+/** @brief Convert SymbolKind to printable lowercase text label. */
 std::string SemanticAnalyzer::kindToString(SymbolKind kind) {
     switch (kind) {
         case SymbolKind::Class:
@@ -931,6 +1332,7 @@ std::string SemanticAnalyzer::kindToString(SymbolKind kind) {
     return "unknown";
 }
 
+/** @brief Build normalized signature text for function declaration comparison. */
 std::string SemanticAnalyzer::functionSignature(const FuncDefNode& node) {
     std::ostringstream sig;
     sig << node.getReturnType() << "(";
@@ -945,6 +1347,7 @@ std::string SemanticAnalyzer::functionSignature(const FuncDefNode& node) {
     return sig.str();
 }
 
+/** @brief Build class descriptor including optional inheritance list. */
 std::string SemanticAnalyzer::classTypeName(const ClassDeclNode& node) {
     std::ostringstream oss;
     oss << "class";
@@ -961,6 +1364,11 @@ std::string SemanticAnalyzer::classTypeName(const ClassDeclNode& node) {
     return oss.str();
 }
 
+/**
+ * @brief Extract base type token from signature/array decorated type string.
+ * @param typeName Raw type string.
+ * @return Base type.
+ */
 std::string SemanticAnalyzer::baseTypeName(const std::string& typeName) {
     std::string base = typeName;
     size_t parenPos = base.find('(');
@@ -985,6 +1393,12 @@ std::string SemanticAnalyzer::baseTypeName(const std::string& typeName) {
     return base;
 }
 
+/**
+ * @brief Resolve member symbol in class scope by class type name.
+ * @param classTypeName Class type string.
+ * @param memberName Member identifier.
+ * @return Matching member symbol or null.
+ */
 const SymbolEntry* SemanticAnalyzer::resolveClassMember(const std::string& classTypeName, const std::string& memberName) const {
     const std::string base = baseTypeName(classTypeName);
     auto it = _classScopes.find(base);
@@ -994,6 +1408,11 @@ const SymbolEntry* SemanticAnalyzer::resolveClassMember(const std::string& class
     return it->second->lookupInCurrent(memberName);
 }
 
+/**
+ * @brief Infer expression result type for semantic compatibility checks.
+ * @param node Expression node.
+ * @return Inferred type string, or "null" when unresolved.
+ */
 std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node) const {
     if (node == nullptr) {
         return "null";
@@ -1069,6 +1488,13 @@ std::string SemanticAnalyzer::inferExprType(const std::shared_ptr<ASTNode>& node
     // Keep this conservative for now; richer synthesis will be added incrementally.
     return "null";
 }
+
+/**
+ * @brief Recursively emit formatted symbol-table scopes as aligned text tables.
+ * @param scope Scope root for current dump recursion.
+ * @param depth Nesting depth used for indentation.
+ * @param out Accumulated output buffer.
+ */
 void SemanticAnalyzer::dumpScope(const std::shared_ptr<SymbolTable>& scope, int depth, std::string& out) const {
     if (scope == nullptr) {
         return;

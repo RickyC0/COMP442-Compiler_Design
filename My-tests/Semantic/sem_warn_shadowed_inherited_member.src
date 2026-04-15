@@ -1,3 +1,5 @@
+// TEST 6.1.8 / 8.6 [warning] shadowed inherited data member | EXPECT: WARNING
+
 class Base {
     public integer x;
 };

@@ -1,0 +1,23 @@
+// TEST 4.1.8 nested dot expressions with chained calls         | EXPECT: PASS
+// TEST 4.1.7 function call statements/expressions              | EXPECT: PASS
+
+class Node {
+    public integer value;
+    public next() : Node;
+};
+
+Node::next() : Node
+    do
+        return(self);
+    end
+
+main
+    local
+        Node n;
+        integer x;
+    do
+        n.next();                          // TEST 4.1.7 call statement form          | EXPECT: PASS
+        x = n.next().value;                // TEST 4.1.8 call + dot chain in rhs      | EXPECT: PASS
+        n.next().value = x + 1;            // TEST 4.1.8 call + dot chain in lhs      | EXPECT: PASS
+        write(n.next().value);             // TEST 4.1.8 nested dot in write argument | EXPECT: PASS
+    end

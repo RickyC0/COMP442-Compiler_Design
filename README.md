@@ -158,14 +158,157 @@ The semantic analyzer reports structured errors and warnings with line numbers. 
 - Inheritance-cycle detection.
 - Shadowing/overloading/overriding warnings.
 
-## Build
+## 5. Code Generation (Moon Backend)
+
+The backend lowers the typed AST to Moon assembly using `CodeGenVisitor`.
+
+### Main Design Choices (with Rationale and Consequences)
+
+| Choice | Why I chose it | Consequence |
+|---|---|---|
+| Stack-frame based allocation for locals/params/temps | Keeps function calls uniform and naturally supports recursion and nested calls | Most program data is addressed as offsets from `r14`; assembly uses `lw/sw` with computed offsets rather than many static `db/dw/res` declarations |
+| Static, layout-driven function frames | Offsets are computed once from declarations (`frameSize`, param offsets, local offsets) before emission | Stable addressing and easier diagnostics/tracing; requires strict layout bookkeeping in codegen |
+| Class/object layout with inherited field flattening | Enables direct field offset addressing without runtime metadata | Fast object field access; no dynamic object layout changes at runtime |
+| Static call convention (`jl` + labels) | Simple and deterministic for assignment scope | No virtual dispatch/runtime polymorphic call table; calls are compile-time resolved |
+| Method receiver (`this`) passed in frame slot | Uniform treatment of free functions and methods | Method calls explicitly materialize/store receiver address; invalid receiver expressions fail codegen checks |
+| Aggregate object copy as word-by-word memory copy | Correctly handles object assignments and object arguments/returns without per-field special cases | Object operations are heavier than scalar ones; copy size must be word-aligned |
+| Scalar return in `r1`; object return as address handle in `r1` | Keeps one return channel while supporting object semantics | Caller must interpret `r1` based on return type (value vs address handle) |
+| Fixed-point float lowering (`kFloatScale = 100`) | Moon integer ISA is used as execution base; fixed-point keeps arithmetic implementable | Predictable decimal behavior with 2 fractional digits; precision/range are bounded by scaling strategy |
+| Runtime helper routines for I/O | Centralizes parsing/printing logic and keeps expression lowering simpler | Generated programs depend on helper labels (`rt_readInt`, `rt_readFloat`, `rt_writeInt`, `rt_writeFloat`) |
+| Dense assembly trace comments with source-line context | Improves debugging, grading visibility, and backend validation | Larger `.moon` files; better execution traceability (`[Lx]`, register/memory comments, instruction tags) |
+
+### Register Usage (Moon)
+
+This backend treats registers as mostly caller-clobbered, except for the explicit stack/link conventions below.
+
+| Register | Primary use in this backend | Consequence |
+|---|---|---|
+| `r0` | Constant zero base | Used for immediate loads and zero-comparisons; never holds program state |
+| `r1` | Value channel: function return, I/O argument/result, and temporary expression value | Must be considered volatile across helper/function calls |
+| `r2` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r3` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r4` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r5` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r6` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r7` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r8` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r9` | General temporary (allocator + runtime helper scratch) | No persistence guarantees across calls |
+| `r10` | General temporary; often used by float/runtime helper paths | No persistence guarantees across calls |
+| `r11` | General temporary; often used by float/runtime helper paths | No persistence guarantees across calls |
+| `r12` | General temporary (highest-priority free register in allocator) | First-to-be-acquired temp in many expression paths |
+| `r13` | Currently unused/reserved by this backend | Available for future conventions (for example global base/extra scratch) |
+| `r14` | Stack/frame pointer | All local/param/object slot addressing is relative to `r14` |
+| `r15` | Link register (return address for `jl`) | Saved/restored by callee prologue/epilogue in non-main functions |
+
+### How Memory is Reserved and Used
+
+- **Compile-time reservation plan**:
+	- Types and object sizes are computed first.
+	- Function frame layout computes offsets for return link, receiver, parameters, and locals.
+- **Runtime reservation**:
+	- `r14` is initialized to `topaddr`.
+	- Calls reserve/restore frame space by adjusting `r14`.
+- **Static storage directives (`res`)**:
+	- Used only where persistent helper storage is needed (for example, integer print buffer in runtime helper).
+	- Not heavily used for normal variables because program variables are stack-frame based by design.
+
+### Arrays, Objects, and Addressing
+
+- Array indexing is lowered by computing a linearized offset from indices and dimension strides.
+- Element-size scaling is applied so address arithmetic lands on correct word boundaries.
+- Object fields use precomputed field offsets.
+- Member access with explicit owner and implicit `this` are both supported.
+
+### Control Flow and Calls
+
+- `if` and `while` lower to generated labels and conditional branches (`bz`, `j`).
+- Function and method calls lower to:
+	- argument placement in callee-expected frame slots,
+	- receiver placement for methods,
+	- `jl r15, <function_label>`,
+	- return value pickup from `r1`.
+
+### Numeric and I/O Behavior
+
+- Integer operations use native Moon integer instructions.
+- Float expressions use fixed-point arithmetic (including scaling on mixed int/float boundaries).
+- Read/write are lowered to runtime helpers:
+	- `read` -> integer or float parser helper,
+	- `write` -> integer or float printer helper.
+
+### Error Strategy in Codegen
+
+Code generation reports structured diagnostics (with source lines) for unresolved symbols, unsupported l-values, invalid aggregate copy sizes, and register exhaustion, while still attempting to emit as much traceable assembly context as possible.
+
+## 6. Build
 
 ```bash
 cd ./src/
-g++ -std=c++17 -static -I../include -o driver *.cpp
+g++ -std=c++17 -static -I../include -o ../exe/driver *.cpp 
 ```
 
-## Generated Outputs
+## 7. Running the Driver and Test Script
+
+All commands below assume you are in the repository root.
+
+### Run one input file directly
+
+```powershell
+# If you built driver.exe
+.\exe\driver.exe .\My-tests\Parser\your_test.src
+
+# If you are using the built in final driver
+.\exe\final_driver.exe .\My-tests\Parser\your_test.src
+```
+
+Replace the input path with any `.src` file you want to compile.
+
+### Run one section of tests
+
+Use the script to run one compiler stage at a time:
+
+```powershell
+.\scripts\run-tests.ps1 -Step parser
+```
+
+Valid `-Step` values are:
+
+- `lexer`
+- `parser`
+- `ast`
+- `semantic`
+- `codegen`
+- `moon`
+- `all`
+
+Folder mapping used by the script:
+
+- `lexer` -> `My-tests/LEXER`
+- `parser` -> `My-tests/Parser`
+- `ast` -> `My-tests/AST`
+- `semantic` -> `My-tests/Semantic`
+- `codegen` -> `My-tests/CodeGen`
+- `moon` -> `My-tests/CodeGen`
+
+### Run all tests
+
+```powershell
+.\scripts\run-tests.ps1 -Step all
+```
+
+`-Step all` runs the full pipeline checks (`lexer`, `parser`, `ast`, `semantic`, `codegen`, `moon`).
+
+### Common optional flags
+
+```powershell
+.\scripts\run-tests.ps1 -Step semantic -DriverPath .\exe\driver.exe -PerTestTimeoutSec 20 -MaxTests 50
+```
+
+- `-TestsRoot` defaults to `./My-tests`
+- `-DriverPath` defaults to `./exe/final_driver.exe`, then `./exe/driver.exe`
+- `-ReportPath` defaults to `./output/test-reports/test-stats-<step>-<timestamp>.json`
+
+## 8. Generated Outputs
 
 Current outputs per source file:
 
@@ -178,3 +321,6 @@ Current outputs per source file:
 - `output/<name>/AST/<name>.outast.png`
 - `output/<name>/Semantics/<name>.outsymboltables`
 - `output/<name>/Semantics/<name>.outsemanticerrors`
+- `output/<name>/CodeGen/<name>.moon`
+- `output/<name>/CodeGen/<name>.outcodegenerrors`
+- `output/<name>/CodeGen/<name>.outmoonrun`
